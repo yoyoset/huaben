@@ -2,6 +2,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from ..config import Settings, get_settings
 from ..db import connect
@@ -37,4 +38,6 @@ def create_app(settings: Settings | None = None, llm: LLM | None = None, tts: TT
     def health():
         return {"ok": True}
 
+    if st.web_dir.is_dir():  # 必须最后挂载:/ 兜底静态文件,不能盖住上面的 /api 路由
+        app.mount("/", StaticFiles(directory=st.web_dir, html=True), name="web")
     return app

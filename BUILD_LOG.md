@@ -15,7 +15,7 @@
 8a. [x] 开书对话服务(opening/)
 8b. [x] FastAPI 路由(书架/章节/播放/进度/开书/状态)
 8c. [x] 后台常驻循环(重启恢复 + 失败退避)+ 启动入口
-9. [ ] PWA 前端(书架/阅读/播放器/Media Session/睡眠定时)
+9. [x] PWA 前端(书架/阅读/播放器/Media Session/睡眠定时)
 10. [ ] Dockerfile + docker-compose + 备份脚本(仅文件,不部署)
 
 ## 轮 1 — 脚手架 + 数据层
@@ -197,3 +197,29 @@
 暂不处理:
 - 退避状态在内存里,进程重启即清零(重启后立即重试一次,可接受)。
 - worker 与 API 触发的补货靠书级进程内锁互斥(同一进程内),符合 v0 单进程部署。
+
+## 轮 9 — PWA 前端
+
+做了:`web/`(无构建步骤的原生 ES 模块):`index.html`(常驻播放条 + 单个复用的 `<audio>`)、`css/app.css`(取自 logo 的墨色/琥珀,浅色模式跟随系统)、
+`js/`:`dom.js`(`h`/`fill`,文本一律 textContent)、`api.js`、`logic.js`(纯函数)、`player.js`(单例播放器 + Media Session + 睡眠定时 + 自动下一章 + 等下一章)、
+`views/shelf|opening|reader.js`、`main.js`(hash 路由 + SW 注册)、`sw.js`(只缓存应用壳,不缓存 /api 与音频)、`manifest.webmanifest`、图标(由 `assets/logo-preview.png` 缩放,原图未动)。
+FastAPI 把 `web/` 挂在 `/`(最后挂载,不盖住 /api)。全库 96 个测试全绿(含 node 跑前端纯逻辑 6 个,不装 node 则跳过)。结构守卫扩展到前端文件(≤200 行)。
+
+**真实浏览器验证**(种子库 + 静音 MP3 帧,本地起 `python -m huaben`,移动视口 375×812):
+- 书架:卡片、状态 chip、`gen_error` 红色提示条正常显示;
+- 阅读页:文字、上/下章、目录正常;点"听这一章":`<audio>` 经 Range 端点加载,时长 5.2s、currentTime 前进,Media Session 标题=「第1章 夜巡」;
+- **自动下一章实测通过**:第 1 章播完后 `audio.src` 自动变为第 2 章、标题/Media Session 同步;最后一章播完进入"下一章还在准备,好了自动接着播…";
+- 进度上报:播到第 2 章后 `read_pos=2`;语速循环 1.0→1.25;睡眠定时 关→15→30→60→本章结束→关 循环正确。
+
+踩坑/修正(最初以为 A,实测是 B):
+- 最初书架直接 `replaceChildren(..., books.map(card))`,**实测**书卡被渲染成一串 URL 文本;原因是原生 `replaceChildren/append` 不展开数组、会把 `null` 变成文字 "null"。
+  修正:`dom.js` 增 `fill()`(展开嵌套数组、跳过 null/false),所有视图改用它,不直接调 replaceChildren。
+- Service Worker 在 Claude 内置浏览器里注册失败("fetching the script" 未知错误),但 `/sw.js` 本身 200、MIME 正确 —— 判断是该内置浏览器不支持 SW,**不是代码问题,但尚未在真 Chrome/Safari 验证**。
+
+**仍未验证(需要真机)**:iOS Safari/PWA 的锁屏续播、后台自动下一章(架构风险 #4)——本轮只证明了"复用同一个 audio 元素换 src"在桌面浏览器里行得通;
+SW 安装与"添加到主屏幕"体验;iOS 对 Range 的实际表现。
+
+暂不处理:
+- 没有"设置"页(默认音色/语速持久化):语速/睡眠定时只在当前会话有效。
+- 目录里没有标"已读"。
+- 浅色/深色之外没有字号调节。

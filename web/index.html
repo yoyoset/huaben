@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#14110f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="话本">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/icons/icon-180.png">
+  <link rel="stylesheet" href="/css/app.css">
+  <title>话本</title>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#/">话本</a>
+    <span id="topbar-title"></span>
+  </header>
+  <main id="app" aria-live="polite"></main>
+
+  <!-- 播放条常驻:换页面不打断播放。同一个 <audio> 一直复用,iOS 锁屏后才能自动接下一章 -->
+  <footer id="player" class="player" hidden>
+    <div class="player-info"><strong id="player-title"></strong><small id="player-status"></small></div>
+    <div class="player-ctrl">
+      <button id="btn-prev" aria-label="上一章">⏮</button>
+      <button id="btn-toggle" class="primary" aria-label="播放/暂停">▶</button>
+      <button id="btn-next" aria-label="下一章">⏭</button>
+      <button id="btn-rate" aria-label="语速">1.0×</button>
+      <button id="btn-sleep" aria-label="睡眠定时">🌙</button>
+    </div>
+  </footer>
+  <audio id="audio" preload="auto"></audio>
+  <script type="module" src="/js/main.js"></script>
+</body>
+</html>

@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="HUABEN_", env_file=".env", extra="ignore")
 
     data_dir: Path = Path("./data")
+    web_dir: Path = Path(__file__).resolve().parent.parent / "web"  # PWA 静态文件
 
     # LLM(默认值见 CLAUDE.md:长文生成关思考、两项惩罚为 0)
     openrouter_api_key: str = ""
