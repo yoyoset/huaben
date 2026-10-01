@@ -1,0 +1,126 @@
+import json
+
+import pytest
+from fastapi.testclient import TestClient
+
+from huaben.api.app import create_app
+from huaben.config import Settings
+from huaben.llm_fake import FakeLLM
+from huaben.tts.fake import FakeTTS
+
+BIBLE = json.dumps({
+    "title": "夜行录", "genre": "古代恐怖", "synopsis": "梗概", "world": "世界", "style_fingerprint": "短句",
+    "characters": [{"name": "沈照", "role": "主角", "traits": "腹黑"}], "core_characters": ["沈照"], "taboos": [],
+}, ensure_ascii=False)
+PLAN = json.dumps({"goal": "入门", "beats": ["a"], "plant": [], "resolve": [], "target_chapters": 30}, ensure_ascii=False)
+OUTLINE = json.dumps({"title": "夜巡", "outline": "事", "characters": [], "foreshadows": [],
+                      "planned_reversals": [], "hook": "钩"}, ensure_ascii=False)
+LEDGER = json.dumps({"summary": "摘要", "characters": [], "foreshadows_new": [], "foreshadows_update": [],
+                     "facts": [], "contradictions": []}, ensure_ascii=False)
+GUIDE = json.dumps({"reply": "喜欢什么题材?", "ready": False}, ensure_ascii=False)
+
+
+def make_client(tmp_path, replies=(), tts=None, **kw):
+    s = Settings(openrouter_api_key="x", data_dir=tmp_path, buffer_chapters=1, _env_file=None, **kw)
+    llm = FakeLLM(list(replies))
+    return TestClient(create_app(s, llm=llm, tts=tts)), llm
+
+
+def open_book(c, title="未命名"):
+    return c.post("/api/books", json={"title": title}).json()["id"]
+
+
+def test_health_and_empty_shelf(tmp_path):
+    c, _ = make_client(tmp_path)
+    assert c.get("/api/health").json() == {"ok": True}
+    assert c.get("/api/books").json() == []
+
+
+def test_create_and_get_book(tmp_path):
+    c, _ = make_client(tmp_path)
+    r = c.post("/api/books", json={"title": "测试书"})
+    assert r.status_code == 201 and r.json()["status"] == "drafting" and r.json()["title"] == "测试书"
+    assert c.get(f"/api/books/{r.json()['id']}").json()["ready_chapters"] == 0
+    assert c.get("/api/books/999").status_code == 404
+
+
+def test_opening_dialogue(tmp_path):
+    c, _ = make_client(tmp_path, [GUIDE])
+    bid = open_book(c)
+    r = c.post(f"/api/books/{bid}/opening", json={"message": "古代恐怖"})
+    assert r.status_code == 200 and r.json() == {"reply": "喜欢什么题材?", "ready": False}
+    hist = c.get(f"/api/books/{bid}/opening").json()
+    assert [m["role"] for m in hist] == ["user", "assistant"]
+    assert c.post(f"/api/books/{bid}/opening", json={"message": ""}).status_code == 422
+
+
+def test_finalize_without_conversation_is_400(tmp_path):
+    c, _ = make_client(tmp_path)
+    assert c.post(f"/api/books/{open_book(c)}/finalize").status_code == 400
+
+
+def test_finalize_failure_is_502_and_retryable(tmp_path):
+    c, _ = make_client(tmp_path, [GUIDE, "坏", "坏"])
+    bid = open_book(c)
+    c.post(f"/api/books/{bid}/opening", json={"message": "古代恐怖"})
+    r = c.post(f"/api/books/{bid}/finalize")
+    assert r.status_code == 502 and "重试" in r.json()["detail"]
+    assert c.get(f"/api/books/{bid}").json()["status"] == "drafting"
+
+
+def test_full_flow_open_book_then_read_and_listen(tmp_path):
+    replies = [GUIDE, BIBLE, PLAN, OUTLINE, "这是第一章的正文。", LEDGER]
+    c, llm = make_client(tmp_path, replies, tts=FakeTTS())
+    bid = open_book(c)
+    c.post(f"/api/books/{bid}/opening", json={"message": "古代恐怖"})
+    book = c.post(f"/api/books/{bid}/finalize").json()
+    assert book["status"] == "serializing" and book["title"] == "夜行录"
+    # 后台补货在响应后执行:第 1 章已定稿并配好音
+    assert c.get(f"/api/books/{bid}").json()["ready_chapters"] == 1
+    assert c.get(f"/api/books/{bid}/chapters").json() == [{"idx": 1, "title": "夜巡", "has_audio": True}]
+    ch = c.get(f"/api/books/{bid}/chapters/1").json()
+    assert ch["body"] == "这是第一章的正文。" and ch["audio_url"].endswith("/chapters/1/audio")
+    assert "outline" not in ch  # 章纲是内部工单,读者不可见
+    a = c.get(ch["audio_url"])
+    assert a.status_code == 200 and a.headers["content-type"] == "audio/mpeg" and a.content[:3] == b"ID3"
+    assert c.get(f"/api/books/{bid}/stats").json()["chapters"] == 1
+
+
+def test_audio_supports_range_requests(tmp_path):
+    c, _ = make_client(tmp_path, [GUIDE, BIBLE, PLAN, OUTLINE, "正文。", LEDGER], tts=FakeTTS())
+    bid = open_book(c)
+    c.post(f"/api/books/{bid}/opening", json={"message": "x"})
+    c.post(f"/api/books/{bid}/finalize")
+    url = f"/api/books/{bid}/chapters/1/audio"
+    full = c.get(url).content
+    part = c.get(url, headers={"Range": "bytes=0-3"})
+    assert part.status_code == 206 and part.content == full[:4]  # iOS <audio> 分段取流的前提
+    assert part.headers["content-range"].startswith("bytes 0-3/")
+
+
+def test_unwritten_chapter_and_audio_404(tmp_path):
+    c, _ = make_client(tmp_path)
+    bid = open_book(c)
+    assert c.get(f"/api/books/{bid}/chapters/1").status_code == 404
+    assert c.get(f"/api/books/{bid}/chapters/1/audio").status_code == 404
+
+
+def test_progress_validates_and_triggers_refill(tmp_path):
+    replies = [GUIDE, BIBLE, PLAN, OUTLINE, "一", LEDGER]
+    c, llm = make_client(tmp_path, replies)
+    bid = open_book(c)
+    c.post(f"/api/books/{bid}/opening", json={"message": "x"})
+    c.post(f"/api/books/{bid}/finalize")
+    assert c.put(f"/api/books/{bid}/progress", json={"read_pos": 5}).status_code == 400  # 没写到那章
+    assert c.put(f"/api/books/{bid}/progress", json={"read_pos": -1}).status_code == 422
+    llm._replies += [OUTLINE, "二", LEDGER]  # 读完第 1 章 → 缓冲变空 → 补第 2 章
+    assert c.put(f"/api/books/{bid}/progress", json={"read_pos": 1}).json() == {"read_pos": 1}
+    assert c.get(f"/api/books/{bid}").json()["ready_chapters"] == 2
+
+
+def test_missing_llm_key_gives_503_not_500(tmp_path):
+    s = Settings(openrouter_api_key="", data_dir=tmp_path, _env_file=None)
+    c = TestClient(create_app(s))
+    bid = c.post("/api/books", json={}).json()["id"]
+    r = c.post(f"/api/books/{bid}/opening", json={"message": "hi"})
+    assert r.status_code == 503 and "API_KEY" in r.json()["detail"]

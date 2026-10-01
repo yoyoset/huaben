@@ -13,7 +13,8 @@
 6. [x] 预生成缓冲调度
 7. [x] 保底 TTS(edge-tts → MP3;真实合成待实测)
 8a. [x] 开书对话服务(opening/)
-8b. [ ] FastAPI 路由(书架/章节/播放/进度/开书/状态)
+8b. [x] FastAPI 路由(书架/章节/播放/进度/开书/状态)
+8c. [ ] 后台常驻循环(重启恢复 + 失败退避)+ 启动入口
 9. [ ] PWA 前端(书架/阅读/播放器/Media Session/睡眠定时)
 10. [ ] Dockerfile + docker-compose + 备份脚本(仅文件,不部署)
 
@@ -154,3 +155,25 @@
 - "ready" 只是向导的建议,读者随时可以手动点"开书"(8b 的接口不依赖它)。
 - 对话轮数/长度没有上限保护,真实使用中若 transcript 过长再截断。
 - 样章 ≥200 字是拍的阈值。
+
+## 轮 8b — FastAPI 路由
+
+做了:`api/` 包:`app.py`(工厂,设置/LLM/TTS 可注入)、`deps.py`、`background.py`、`routes_books.py`(书架/详情/统计)、
+`routes_opening.py`(对话/定稿)、`routes_reading.py`(章节列表/正文/音频/进度)。10 个 TestClient 测试,全库 86 个全绿。
+
+接口:`GET/POST /api/books`、`GET /api/books/{id}`、`/stats`、`GET/POST /opening`、`POST /finalize`、
+`GET /chapters`、`GET /chapters/{n}`、`GET /chapters/{n}/audio`、`PUT /progress`、`GET /api/health`。
+
+决策:
+- 路由只做"解析→调服务→映射错误":OpeningError→400,LLM/ChapterFailed→502(文案带"可以重试"),没配密钥→503(不是 500)。
+- 触发补货的两个时机:开书成功、读者推进 `read_pos`;都用 `BackgroundTasks`,后台任务**自己开连接**(请求级连接此时可能已关)。
+- 音频用 `FileResponse`:自带 Range 支持,测试验证了 `Range: bytes=0-3` → 206(iOS `<audio>` 分段取流的前提)。
+- 只暴露已定稿的章;章纲不外露(测试断言响应里没有 outline)。
+- `PUT /progress` 不允许超过已写好的最后一章。
+- 每请求一条连接 + `check_same_thread=False`(同步依赖与端点可能落在不同线程,该连接只服务当前请求)。
+
+暂不处理:
+- 没有鉴权(家用 + Tailscale,与 v0 范围一致)。
+- 后台补货靠"开书/翻页"触发;服务重启后缓冲不够的书不会自动续补 —— 8c 的常驻循环解决。
+- 同一本书两个并发 `POST /opening` 会交错写入对话记录(单读者场景,先不加锁)。
+- 真机 iOS 的 Range/锁屏行为仍未验证,只在 TestClient 层面验证了协议。
