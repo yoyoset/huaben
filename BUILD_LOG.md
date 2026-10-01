@@ -7,7 +7,7 @@
 
 1. [x] 脚手架 + 配置 + SQLite schema + repo 层
 2. [x] LLM 客户端(OpenRouter,关思考、惩罚=0、记 token/耗时/费用;可注入 fake 以便测试)
-3. [ ] 分层记忆 → prompt 组装(纯函数)
+3. [x] 分层记忆(取数 context.py + 渲染 render.py);各步骤的指令 prompt 放到切片 4 与流水线一起做
 4. [ ] 章节流水线:章纲 → 正文 → 入账+核对(打回重写)
 5. [ ] 卷规划 + 封卷
 6. [ ] 预生成缓冲调度
@@ -46,3 +46,24 @@
 **未实测(待用户提供密钥)**:payload 字段(尤其 `reasoning.effort="none"` 与 `usage.include` 在
 `deepseek/deepseek-v4.1-flash` 上是否被接受、`usage.cost` 是否真的返回)只靠 MockTransport 验证了"我们发了什么",
 没验证"OpenRouter 实际怎么回"。已记 Magpie 待办:配置密钥后跑一次 smoke test。
+
+## 轮 3 — 分层记忆 + 工程纪律重构
+
+用户中途补充要求:按专业项目管理 + 第一性原理,注意单一职责、可读性、可扩展性、单文件不无限增长。已写入项目 `CLAUDE.md` "工程约定"并存为 memory。
+
+重构(先于新功能,因为 `repo.py` 已 215 行、混了五类职责):
+- `repo.py` → `repo/` 包(books / volumes / chapters / ledger / runs),对外 `repo.xxx` 不变。
+- `schema.py` 从 `db.py` 独立;`llm_fake.py` 从 `llm.py` 独立(测试替身不属于生产客户端)。
+- `tests/test_structure.py`:单文件 ≤200 行,超了就测试失败 —— 用机制而不是自觉来守这条约定。
+
+做了:`context.py`(`load_context` 读库 → `StoryContext`;`select_ledger` 纯函数)、`render.py`(梗概→往卷→本卷目标→本卷章摘要→账本→最近原文,纯函数)。
+28 个测试全绿。
+
+决策:
+- 核心人物每章必带;非核心人物只在章纲提到名字时带;**已死亡人物保留**(否则模型让死人复活)。前身踩坑"关键词触发 → 名字漂移"的直接应用。
+- 世界事实只带最近 40 条,避免账本把 prompt 撑大(第 500 章 ≈ 第 50 章体量的前提)。
+- 本卷章摘要排除"最近原文"已带的章,避免同一章摘要+原文重复占 token。
+
+暂不处理:
+- 非核心人物"章纲没提名字但剧情会碰到"的漏选风险(编辑·章纲会在工单里列出出场人物,靠这个兜;若实测漏选再加规则)。
+- 40 条事实的上限是拍的数,没有实测依据;有真实账本后按 token 用量调。
