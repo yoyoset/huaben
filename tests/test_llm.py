@@ -4,8 +4,8 @@ import httpx
 import pytest
 
 from huaben.config import Settings
-from huaben.llm import (FakeLLM, LLMEmptyError, LLMError, OpenRouterClient,
-                        build_payload, parse_response)
+from huaben.llm import LLMEmptyError, LLMError, OpenRouterClient, build_payload, parse_response
+from huaben.llm_fake import FakeLLM
 
 
 def settings(**kw):
