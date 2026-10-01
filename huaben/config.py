@@ -25,7 +25,8 @@ class Settings(BaseSettings):
 
     # 保底语音
     tts_voice: str = "zh-CN-XiaoxiaoNeural"
-    tts_format: str = "audio-24khz-48kbitrate-mono-mp3"
+    tts_chunk_chars: int = 1500  # 长章按段落切块合成再拼接,单次请求不过长
+    tts_retries: int = 2
 
     @property
     def db_path(self) -> Path:

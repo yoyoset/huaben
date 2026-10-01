@@ -90,3 +90,21 @@ def test_top_up_all_only_serializing_and_isolated_failures(conn):
     out = top_up_all(conn, llm, S)
     assert set(out) == {a, b}
     assert out[a].error and out[b].generated == 2  # a 失败不拖累 b
+
+
+def test_top_up_also_voices_chapters(conn, tmp_path):
+    from huaben.tts.fake import FakeTTS
+    s = Settings(openrouter_api_key="x", buffer_chapters=2, data_dir=tmp_path, _env_file=None)
+    bid = serializing_book(conn)
+    res = top_up(conn, FakeLLM([PLAN] + chapter_replies(2)), s, bid, tts=FakeTTS())
+    assert res.generated == 2 and res.audio_error == ""
+    assert repo.chapters_missing_audio(conn, bid) == []
+
+
+def test_tts_failure_does_not_block_text_but_is_visible(conn, tmp_path):
+    from huaben.tts.fake import FakeTTS
+    s = Settings(openrouter_api_key="x", buffer_chapters=2, data_dir=tmp_path, tts_retries=0, _env_file=None)
+    bid = serializing_book(conn)
+    res = top_up(conn, FakeLLM([PLAN] + chapter_replies(2)), s, bid, tts=FakeTTS(always_fail=True))
+    assert res.generated == 2 and "配音失败" in res.audio_error
+    assert "配音失败" in repo.get_book(conn, bid)["gen_error"]
