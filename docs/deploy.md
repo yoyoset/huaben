@@ -39,8 +39,9 @@ curl -s http://127.0.0.1:${HUABEN_HOST_PORT:-8210}/api/health   # {"ok":true}
 
 - **容器以 root 运行**:避免 bind mount 目录属主不匹配导致首次启动写不进 `/data`(这类问题在没有 docker 的开发机上无法提前验证)。
   服务只在 Tailscale/局域网内,风险可接受;稳定后可改非 root 并相应 `chown`。
-- **没有数据库迁移机制**:schema 靠 `CREATE TABLE IF NOT EXISTS`。开发期多次加列(`volumes.target_chapters`、`books.gen_error`),
-  **上线之后再改表结构就必须先写迁移**,否则旧库会缺列报错。第一次上线前这是个硬前置。
+- **数据库迁移**:用 `PRAGMA user_version` 记版本,`huaben/migrations.py` 是有序清单(第 1 条 = 冻结的基线)。启动时自动升级;
+  有数据的库升级前会先备份到 `data/premigrate/`;迁移在事务里执行,失败整体回滚、版本不变;程序比库旧则拒绝启动。
+  **改表结构 = 在清单末尾追加一条,绝不改已有条目**(基线哈希有测试钉住)。回滚到旧版本程序不被支持(会被"库比程序新"拦住),只能用迁移前备份恢复。
 - 单进程单 worker:补货互斥锁是进程内的,不要用 `--workers N` 起多进程。
 - 音频与 DB 同在 `./data`,磁盘占用随连载线性增长(24kHz/48kbps 单声道约 360 KB/分钟);13 的 `/opt` 所在盘空间需留意。
 

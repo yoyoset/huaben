@@ -1,4 +1,4 @@
-"""SQLite 表结构(单一事实来源)。改表结构时同步更新 docs/architecture.md 的数据模型。"""
+"""SQLite 基线表结构 = 迁移 #1。**已冻结,不要再改**:改表结构请在 migrations.py 末尾追加迁移(测试钉住了本文件的哈希)。"""
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS books (

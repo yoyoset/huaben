@@ -8,8 +8,7 @@ import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 
-from .schema import SCHEMA
-
+from .migrate import migrate
 
 
 def connect(path: Path | str, check_same_thread: bool = True) -> sqlite3.Connection:
@@ -19,7 +18,7 @@ def connect(path: Path | str, check_same_thread: bool = True) -> sqlite3.Connect
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode = WAL")
-    conn.executescript(SCHEMA)
+    migrate(conn)
     return conn
 
 
