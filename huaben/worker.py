@@ -1,0 +1,87 @@
+"""后台常驻补货:服务启动即巡检所有连载中的书(重启恢复),之后按间隔重复。
+
+和 API 里"开书/翻页触发的补货"互补:触发式保证响应快,常驻式保证重启/漏触发后也能补齐。
+失败退避:某本书补货失败后按指数退避(密钥失效、模型宕机时不会每分钟白打一次),成功即复位。
+"""
+import logging
+import threading
+import time
+from typing import Callable
+
+from . import repo
+from .api.deps import ensure_llm
+from .db import connect
+from .llm import LLMError
+from .scheduler import TopUpResult, top_up
+
+log = logging.getLogger("huaben.worker")
+
+
+class Backoff:
+    """按 key(书 id)记录连续失败次数,算出"多久之后才允许再试"。时钟可注入便于测试。"""
+
+    def __init__(self, base_s: float, cap_s: float, clock: Callable[[], float] = time.monotonic):
+        self._base, self._cap, self._clock = base_s, cap_s, clock
+        self._fails: dict[int, int] = {}
+        self._next_ok: dict[int, float] = {}
+
+    def ready(self, key: int) -> bool:
+        return self._clock() >= self._next_ok.get(key, 0.0)
+
+    def record(self, key: int, ok: bool) -> None:
+        if ok:
+            self._fails.pop(key, None)
+            self._next_ok.pop(key, None)
+            return
+        n = self._fails.get(key, 0) + 1
+        self._fails[key] = n
+        self._next_ok[key] = self._clock() + min(self._base * 2 ** (n - 1), self._cap)
+
+
+class Worker:
+    def __init__(self, state, interval_s: float, backoff: Backoff):
+        self._state, self._interval, self._backoff = state, interval_s, backoff
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def tick(self) -> dict[int, TopUpResult]:
+        """巡检一遍。任何异常都只记日志,绝不让后台线程死掉。"""
+        results: dict[int, TopUpResult] = {}
+        try:
+            llm = ensure_llm(self._state)
+        except LLMError as e:
+            log.warning("后台补货跳过:%s", e)
+            return results
+        conn = connect(self._state.settings.db_path, check_same_thread=False)
+        try:
+            for b in repo.list_books(conn):
+                if b["status"] != "serializing" or not self._backoff.ready(b["id"]):
+                    continue
+                try:
+                    res = top_up(conn, llm, self._state.settings, b["id"], tts=self._state.tts)
+                except Exception:  # noqa: BLE001 —— 单本书的意外不能影响其它书和线程存活
+                    log.exception("书 %s 补货异常", b["id"])
+                    self._backoff.record(b["id"], ok=False)
+                    continue
+                if not res.skipped:
+                    self._backoff.record(b["id"], ok=not (res.error or res.audio_error))
+                results[b["id"]] = res
+        except Exception:  # noqa: BLE001
+            log.exception("后台巡检异常")
+        finally:
+            conn.close()
+        return results
+
+    def _run(self) -> None:
+        while not self._stop.is_set():  # 先巡检再等待:启动即恢复
+            self.tick()
+            self._stop.wait(self._interval)
+
+    def start(self) -> None:
+        self._thread = threading.Thread(target=self._run, name="huaben-worker", daemon=True)
+        self._thread.start()
+
+    def stop(self, timeout: float = 5.0) -> None:
+        self._stop.set()
+        if self._thread:
+            self._thread.join(timeout)

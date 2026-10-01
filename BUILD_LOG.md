@@ -14,7 +14,7 @@
 7. [x] 保底 TTS(edge-tts → MP3;真实合成待实测)
 8a. [x] 开书对话服务(opening/)
 8b. [x] FastAPI 路由(书架/章节/播放/进度/开书/状态)
-8c. [ ] 后台常驻循环(重启恢复 + 失败退避)+ 启动入口
+8c. [x] 后台常驻循环(重启恢复 + 失败退避)+ 启动入口
 9. [ ] PWA 前端(书架/阅读/播放器/Media Session/睡眠定时)
 10. [ ] Dockerfile + docker-compose + 备份脚本(仅文件,不部署)
 
@@ -177,3 +177,23 @@
 - 后台补货靠"开书/翻页"触发;服务重启后缓冲不够的书不会自动续补 —— 8c 的常驻循环解决。
 - 同一本书两个并发 `POST /opening` 会交错写入对话记录(单读者场景,先不加锁)。
 - 真机 iOS 的 Range/锁屏行为仍未验证,只在 TestClient 层面验证了协议。
+
+## 轮 8c — 后台常驻循环 + 启动入口
+
+做了:`worker.py`(`Backoff` 指数退避、`Worker.tick` 单次巡检、守护线程 start/stop)、`api/app.py` 用 lifespan 启停 worker、
+`__main__.py`(`python -m huaben`)、配置项 host/port/worker_*/backoff_*。6 个测试,全库 92 个全绿。
+
+决策:
+- 常驻循环与"开书/翻页触发的补货"互补:触发式响应快,常驻式负责重启恢复与漏触发。线程**先巡检再等待**,所以服务一启动就补齐。
+- 退避按"书"计:失败(文本或配音)指数退避 60s→120s→…封顶 1800s,成功复位;密钥失效时不会每分钟白打一次 401。
+- 任何异常只记日志、绝不让线程死掉;单本书的意外不影响其它书。没配密钥时 worker 只打一条 warning 并跳过。
+- `Backoff` 时钟可注入,退避逻辑用假时钟测,不 sleep。
+
+**实测**:真起了 `python -m huaben`(127.0.0.1):`/api/health`=200;没配密钥时 worker 打 warning、`POST /opening`=503;
+`POST /api/books` 用 httpx 发中文标题=201。
+最初以为 `POST /api/books` 返回 400 是应用 bug —— 实测发现是 Windows git-bash 下 `curl -d` 发出的中文不是 UTF-8,
+换 httpx 发 UTF-8 即正常。以后命令行烟测中文请求体用 httpx/脚本,不用 curl。
+
+暂不处理:
+- 退避状态在内存里,进程重启即清零(重启后立即重试一次,可接受)。
+- worker 与 API 触发的补货靠书级进程内锁互斥(同一进程内),符合 v0 单进程部署。

@@ -23,6 +23,14 @@ class Settings(BaseSettings):
     buffer_chapters: int = 3  # 比读者进度多备几章
     recent_chapters_in_prompt: int = 3
 
+    # 服务与后台循环
+    host: str = "0.0.0.0"
+    port: int = 8000
+    worker_enabled: bool = True
+    worker_interval_s: float = 60.0   # 后台每隔多久巡检一遍所有连载中的书
+    backoff_base_s: float = 60.0      # 某本书补货失败后,首次等多久再试;之后每次翻倍
+    backoff_cap_s: float = 1800.0
+
     # 保底语音
     tts_voice: str = "zh-CN-XiaoxiaoNeural"
     tts_chunk_chars: int = 1500  # 长章按段落切块合成再拼接,单次请求不过长
