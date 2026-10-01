@@ -66,3 +66,25 @@ def unplanned_contradictions(ledger: dict) -> list[str]:
     """只有非"有意反转"的冲突才算硬伤。planned 缺省按 False 处理(宁可误报也不放过)。"""
     return [str(c.get("what", "")) for c in ledger["contradictions"]
             if isinstance(c, dict) and not c.get("planned", False)]
+
+
+def parse_volume_plan(text: str) -> dict:
+    d = extract_json(text)
+    if not _need(d, "goal", str).strip():
+        raise ParseError("empty goal")
+    for k in ("beats", "plant", "resolve"):
+        d.setdefault(k, [])
+        _need(d, k, list)
+    if not d["beats"]:
+        raise ParseError("volume plan has no beats")
+    n = d.get("target_chapters")
+    d["target_chapters"] = n if isinstance(n, int) and 5 <= n <= 200 else None  # 越界交给调用方用默认值
+    return d
+
+
+def parse_seal(text: str) -> dict:
+    d = extract_json(text)
+    for k in ("volume_summary", "synopsis"):
+        if not _need(d, k, str).strip():
+            raise ParseError(f"empty {k}")
+    return d

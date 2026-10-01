@@ -3,39 +3,16 @@
 原则:任何一步失败都要显式失败(抛 ChapterFailed + pipeline_runs 留痕),
 绝不能让"后台没写出来、读者以为有"。入账只发生在核对通过之后,且是原子的。
 """
-import time
-
 from .. import repo
 from ..config import Settings
 from ..context import load_context
 from ..db import dumps
-from ..llm import LLM, LLMError, LLMResult
+from ..llm import LLM
 from . import prompts
+from .errors import ChapterFailed, NoActiveVolume
+from .llm_step import call_step
 from .ledger_apply import apply_ledger
 from .parsing import ParseError, parse_ledger, parse_outline, unplanned_contradictions
-
-
-class ChapterFailed(Exception):
-    pass
-
-
-class NoActiveVolume(ChapterFailed):
-    """没有进行中的卷:需要先做卷规划(切片 5)。"""
-
-
-def _call(conn, llm: LLM, book_id: int, idx: int, step: str, messages, *, json_mode: bool, max_tokens=None,
-          temperature: float = 0.9) -> LLMResult:
-    """一次 LLM 调用 + 记 pipeline_runs。失败也记,然后原样抛出。"""
-    t0 = time.monotonic()
-    try:
-        res = llm.chat(messages, max_tokens=max_tokens, temperature=temperature, json_mode=json_mode)
-    except LLMError as e:
-        repo.log_run(conn, book_id, step, chapter_idx=idx, ok=False, note=str(e)[:300],
-                     duration_ms=int((time.monotonic() - t0) * 1000))
-        raise
-    repo.log_run(conn, book_id, step, chapter_idx=idx, duration_ms=res.duration_ms or int((time.monotonic() - t0) * 1000),
-                 tokens_in=res.tokens_in, tokens_out=res.tokens_out, cost_usd=res.cost_usd)
-    return res
 
 
 def _fail(conn, book_id: int, chapter_id: int, idx: int, step: str, reason: str) -> ChapterFailed:
@@ -55,7 +32,7 @@ def generate_chapter(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
     # 1. 章纲(解析失败直接重试一次:格式问题多为偶发)
     outline = None
     for attempt in range(2):
-        res = _call(conn, llm, book_id, idx, "outline", prompts.outline_messages(ctx), json_mode=True, temperature=0.7)
+        res = call_step(conn, llm, book_id, idx, "outline", prompts.outline_messages(ctx), json_mode=True, temperature=0.7)
         try:
             outline = parse_outline(res.text)
             break
@@ -71,7 +48,7 @@ def generate_chapter(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
     feedback: list[str] = []
     for attempt in range(1, settings.max_write_attempts + 1):
         repo.update_chapter(conn, chapter_id, attempts=attempt)
-        draft = _call(conn, llm, book_id, idx, "write",
+        draft = call_step(conn, llm, book_id, idx, "write",
                       prompts.write_messages(ctx, outline, settings.chapter_words, feedback),
                       json_mode=False, max_tokens=settings.chapter_max_tokens)
         if draft.truncated:
@@ -79,7 +56,7 @@ def generate_chapter(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
             repo.log_run(conn, book_id, "check", chapter_idx=idx, ok=False, note="truncated")
             continue
         repo.update_chapter(conn, chapter_id, body=draft.text.strip(), status="written")
-        rec = _call(conn, llm, book_id, idx, "ledger", prompts.ledger_messages(ctx, outline, draft.text),
+        rec = call_step(conn, llm, book_id, idx, "ledger", prompts.ledger_messages(ctx, outline, draft.text),
                     json_mode=True, temperature=0.2)
         try:
             ledger = parse_ledger(rec.text)

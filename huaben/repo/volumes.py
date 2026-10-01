@@ -1,15 +1,18 @@
 """卷。"""
 from ..db import dumps, loads
-
 from ._util import row
 
+
 def create_volume(conn, book_id: int, idx: int, goal: str = "", beats=None,
-                  plant=None, resolve=None, status: str = "planned") -> int:
+                  plant=None, resolve=None, status: str = "planned", target_chapters: int = 30,
+                  commit: bool = True) -> int:
     cur = conn.execute(
-        "INSERT INTO volumes(book_id, idx, goal, beats, plant, resolve, status) VALUES (?,?,?,?,?,?,?)",
-        (book_id, idx, goal, dumps(beats or []), dumps(plant or []), dumps(resolve or []), status),
+        "INSERT INTO volumes(book_id, idx, goal, beats, plant, resolve, status, target_chapters) "
+        "VALUES (?,?,?,?,?,?,?,?)",
+        (book_id, idx, goal, dumps(beats or []), dumps(plant or []), dumps(resolve or []), status, target_chapters),
     )
-    conn.commit()
+    if commit:
+        conn.commit()
     return cur.lastrowid
 
 
@@ -35,9 +38,10 @@ def active_volume(conn, book_id: int) -> dict | None:
     ).fetchone())
 
 
-def seal_volume(conn, volume_id: int, summary: str) -> None:
+def seal_volume(conn, volume_id: int, summary: str, commit: bool = True) -> None:
     conn.execute("UPDATE volumes SET status='sealed', summary=? WHERE id=?", (summary, volume_id))
-    conn.commit()
+    if commit:
+        conn.commit()
 
 
 def set_volume_status(conn, volume_id: int, status: str) -> None:

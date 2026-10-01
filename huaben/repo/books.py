@@ -1,7 +1,7 @@
 """书与故事圣经。"""
 from ..db import dumps, loads
-
 from ._util import row
+
 
 def create_book(conn, title: str, genre: str = "") -> int:
     cur = conn.execute("INSERT INTO books(title, genre) VALUES (?, ?)", (title, genre))
@@ -18,7 +18,7 @@ def list_books(conn) -> list[dict]:
     return [dict(r) for r in conn.execute("SELECT * FROM books ORDER BY id")]
 
 
-def update_book(conn, book_id: int, **fields) -> None:
+def update_book(conn, book_id: int, *, commit: bool = True, **fields) -> None:
     allowed = {"title", "genre", "synopsis", "status", "read_pos"}
     bad = set(fields) - allowed
     if bad:
@@ -27,7 +27,8 @@ def update_book(conn, book_id: int, **fields) -> None:
         return
     sets = ", ".join(f"{k}=?" for k in fields)
     conn.execute(f"UPDATE books SET {sets} WHERE id=?", (*fields.values(), book_id))
-    conn.commit()
+    if commit:
+        conn.commit()
 
 
 _BIBLE_JSON = {"characters", "style_samples", "taboos"}

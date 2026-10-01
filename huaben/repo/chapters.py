@@ -1,6 +1,7 @@
 """章。"""
 from ._util import row
 
+
 def next_chapter_idx(conn, book_id: int) -> int:
     """下一个要写的章序号 = 已定稿章的最大序号 + 1。失败/半成品章不占号,避免序号出现空洞。"""
     r = conn.execute(

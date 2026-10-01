@@ -1,6 +1,7 @@
 """账本:人物现状、伏笔、世界事实。"""
 from ..db import dumps, loads
 
+
 def upsert_character(conn, book_id: int, name: str, *, alive=True, location="", abilities="",
                      relations="", knows=None, core=False, updated_ch=0, commit: bool = True) -> None:
     conn.execute(

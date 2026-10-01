@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS volumes (
   beats TEXT NOT NULL DEFAULT '[]',         -- JSON
   plant TEXT NOT NULL DEFAULT '[]',         -- JSON: 本卷要埋的伏笔
   resolve TEXT NOT NULL DEFAULT '[]',       -- JSON: 本卷要收的伏笔
+  target_chapters INTEGER NOT NULL DEFAULT 30,  -- 计划章数,写满即封卷
   status TEXT NOT NULL DEFAULT 'planned',   -- planned / active / sealed
   summary TEXT NOT NULL DEFAULT '',         -- 封卷摘要
   UNIQUE(book_id, idx)

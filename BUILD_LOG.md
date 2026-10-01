@@ -9,7 +9,7 @@
 2. [x] LLM 客户端(OpenRouter,关思考、惩罚=0、记 token/耗时/费用;可注入 fake 以便测试)
 3. [x] 分层记忆(取数 context.py + 渲染 render.py);各步骤的指令 prompt 放到切片 4 与流水线一起做
 4. [x] 章节流水线:章纲 → 正文 → 入账+核对(打回重写)
-5. [ ] 卷规划 + 封卷
+5. [x] 卷规划 + 封卷
 6. [ ] 预生成缓冲调度
 7. [ ] 保底 TTS(edge-tts → MP3)
 8. [ ] FastAPI 路由 + 开书对话
@@ -86,3 +86,19 @@
 暂不处理:
 - 卷满/封卷判断与卷规划(切片 5)。
 - 入账与正文是两次独立调用,"摘要+核对"若漏报冲突只能靠后续人工抽查(v0 验收项)。
+
+## 轮 5 — 卷规划 + 封卷
+
+做了:`pipeline/volume.py`(`plan_volume` / `seal_volume` / `ensure_active_volume`)、`volume_prompts.py`、`parsing.py` 增加两个解析器;
+抽出 `llm_step.call_step`(调用+记账,章与卷共用)和 `errors.py`(失败类型)。全库 47 个测试全绿(FakeLLM)。
+
+决策:
+- 卷满的判据 = 已定稿章数 ≥ `volumes.target_chapters`(规划时由编辑给出,越界 5~200 外回退默认 30)。schema 为此加了一列。
+- **封卷原子**:卷摘要 + 刷新全书梗概在同一事务;封卷解析失败则卷仍是 active,下次调度重试(测试覆盖)。
+- `ensure_active_volume` 是调度器每次写章前的入口,`generate_chapter` 本身不管卷的生命周期(单一职责)。
+- 封卷时未回收的伏笔**不清理**,留在账本里由下一卷规划的"要收的伏笔"接手。
+
+暂不处理:
+- `cost_summary` 只统计带章序号的步骤,卷规划/封卷的费用(chapter_idx 为空)没算进"单章平均成本",会略低估;
+  v0 验收要成本数字时,在 summary 里补"摊销卷级成本"。
+- schema 改了列但没有迁移机制(本地尚无真实数据库,无影响;上 13 前必须决定迁移方案)。
