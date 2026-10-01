@@ -1,0 +1,43 @@
+"""把"编辑·入账"的结果写进账本。整章入账在一个事务里:要么全进,要么全不进。"""
+from .. import repo
+from ..db import tx
+
+_CHAR_FIELDS = ("alive", "location", "abilities", "relations", "knows", "core")
+
+
+def merge_character(existing: dict | None, entry: dict) -> dict:
+    """模型只返回变化的字段;没返回的字段沿用旧值(否则 core 之类会被悄悄清零)。"""
+    base = {"alive": True, "location": "", "abilities": "", "relations": "", "knows": [], "core": False}
+    if existing:
+        base.update({k: existing[k] for k in _CHAR_FIELDS})
+    base.update({k: entry[k] for k in _CHAR_FIELDS if k in entry})
+    return base
+
+
+def apply_ledger(conn, book_id: int, chapter_id: int, idx: int, ledger: dict) -> list[str]:
+    """返回警告列表(例如模型引用了不存在的伏笔编号);警告不阻断入账。"""
+    warnings: list[str] = []
+    known = {c["name"]: c for c in repo.list_characters(conn, book_id)}
+    open_ids = {f["id"] for f in repo.list_foreshadows(conn, book_id)}
+    with tx(conn):
+        for entry in ledger["characters"]:
+            name = entry["name"].strip()
+            m = merge_character(known.get(name), entry)
+            repo.upsert_character(conn, book_id, name, updated_ch=idx, commit=False, **m)
+        for f in ledger["foreshadows_new"]:
+            repo.add_foreshadow(conn, book_id, idx, f["content"], f.get("payoff_plan", ""), commit=False)
+        for u in ledger["foreshadows_update"]:
+            fid = u.get("id")
+            if fid not in open_ids:
+                warnings.append(f"foreshadow #{fid} not found, skipped")
+                continue
+            status = u.get("status")
+            if status not in ("progressing", "resolved"):
+                warnings.append(f"foreshadow #{fid} bad status {status!r}, skipped")
+                continue
+            repo.update_foreshadow(conn, fid, status=status,
+                                   resolved_ch=idx if status == "resolved" else None, commit=False)
+        for fact in ledger["facts"]:
+            repo.add_fact(conn, book_id, str(fact), idx, commit=False)
+        repo.update_chapter(conn, chapter_id, summary=ledger["summary"], status="accepted", commit=False)
+    return warnings

@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     llm_model: str = "deepseek/deepseek-v4.1-flash"
     llm_timeout_s: float = 180.0
     chapter_max_tokens: int = 8000  # 3000 字约 4~6k token,留足余量
+    chapter_words: int = 2500  # 单章目标字数
+    max_write_attempts: int = 3  # 正文被打回/截断/解析失败时最多写几稿
 
     # 连载
     buffer_chapters: int = 3  # 比读者进度多备几章

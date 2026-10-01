@@ -8,7 +8,7 @@
 1. [x] 脚手架 + 配置 + SQLite schema + repo 层
 2. [x] LLM 客户端(OpenRouter,关思考、惩罚=0、记 token/耗时/费用;可注入 fake 以便测试)
 3. [x] 分层记忆(取数 context.py + 渲染 render.py);各步骤的指令 prompt 放到切片 4 与流水线一起做
-4. [ ] 章节流水线:章纲 → 正文 → 入账+核对(打回重写)
+4. [x] 章节流水线:章纲 → 正文 → 入账+核对(打回重写)
 5. [ ] 卷规划 + 封卷
 6. [ ] 预生成缓冲调度
 7. [ ] 保底 TTS(edge-tts → MP3)
@@ -67,3 +67,22 @@
 暂不处理:
 - 非核心人物"章纲没提名字但剧情会碰到"的漏选风险(编辑·章纲会在工单里列出出场人物,靠这个兜;若实测漏选再加规则)。
 - 40 条事实的上限是拍的数,没有实测依据;有真实账本后按 token 用量调。
+
+## 轮 4 — 章节流水线
+
+做了:`pipeline/` 包,按职责拆四个文件:`prompts.py`(三步指令,纯函数)、`parsing.py`(JSON 解析校验)、
+`ledger_apply.py`(原子入账)、`chapter.py`(编排 `generate_chapter`)。11 个流水线测试,全库 39 个全绿,全程 FakeLLM,未碰网络。
+
+决策:
+- **入账原子**:repo 写函数加 `commit=False` 选项,`apply_ledger` 在 `db.tx` 里一次写完;被打回的稿子**不入账**(测试覆盖)。
+- **失败显式**:章纲两次解析失败 / 写满 `max_write_attempts` 稿仍冲突 → `ChapterFailed`,章标 failed,原因进 `pipeline_runs`。
+- **序号无空洞**:`next_chapter_idx` 只数 accepted;每次生成前 `discard_unaccepted` 清掉上次的半成品。
+  (最初直接用 MAX(idx)+1,会让一章失败后序号跳空,改了。)
+- 冲突判定:`planned` 缺省按 false(宁可误报重写也不放过);"故意反转"由章纲 `planned_reversals` 声明、入账时核对。
+- 入账只返回变化字段时用 `merge_character` 保留旧值,避免 core 等字段被悄悄清零。
+- prompts 遵守前身教训:约束放 user 消息末尾;示例只用占位词不放专名。
+
+**未实测**:所有 prompt 的实际效果(模型是否按 JSON 结构输出、核对是否可靠 = 架构风险 #2)。需要密钥后做真实 smoke(已有 Magpie 待办)。
+暂不处理:
+- 卷满/封卷判断与卷规划(切片 5)。
+- 入账与正文是两次独立调用,"摘要+核对"若漏报冲突只能靠后续人工抽查(v0 验收项)。
