@@ -1,0 +1,39 @@
+"""配置层:唯一的参数来源。环境变量 HUABEN_* 或 .env,代码里不散落硬编码。"""
+from functools import lru_cache
+from pathlib import Path
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="HUABEN_", env_file=".env", extra="ignore")
+
+    data_dir: Path = Path("./data")
+
+    # LLM(默认值见 CLAUDE.md:长文生成关思考、两项惩罚为 0)
+    openrouter_api_key: str = ""
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    llm_model: str = "deepseek/deepseek-v4.1-flash"
+    llm_timeout_s: float = 180.0
+    chapter_max_tokens: int = 8000  # 3000 字约 4~6k token,留足余量
+
+    # 连载
+    buffer_chapters: int = 3  # 比读者进度多备几章
+    recent_chapters_in_prompt: int = 3
+
+    # 保底语音
+    tts_voice: str = "zh-CN-XiaoxiaoNeural"
+    tts_format: str = "audio-24khz-48kbitrate-mono-mp3"
+
+    @property
+    def db_path(self) -> Path:
+        return self.data_dir / "huaben.db"
+
+    @property
+    def audio_dir(self) -> Path:
+        return self.data_dir / "audio"
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
