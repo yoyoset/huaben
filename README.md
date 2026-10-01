@@ -22,6 +22,17 @@ AI 私人连载 + 听书。开一本书只需要一次对话,之后一键往下�
 - [docs/lessons-from-sillytavern.md](docs/lessons-from-sillytavern.md) — 前身(酒馆小说连载模式)实测踩过的坑
 - [assets/logo.svg](assets/logo.svg) — logo 草稿:醒木 + 油灯("灯下说书")
 
+## 本地跑起来
+
+```bash
+pip install -r requirements-dev.txt
+cp .env.example .env        # 填 HUABEN_OPENROUTER_API_KEY
+python -m pytest -q         # 全部测试(不碰网络)
+python -m huaben            # http://127.0.0.1:8000 ,手机宽度打开最像成品
+```
+
+部署到 13 见 [docs/deploy.md](docs/deploy.md);开发进度与踩坑日志见 [BUILD_LOG.md](BUILD_LOG.md)。
+
 ## 来历
 
 2026-09 在家用 SillyTavern(10.1.1.13:8100)上给家人搭了"小说连载模式":点「下一章」连载、打字提意见、Edge 晓晓朗读。

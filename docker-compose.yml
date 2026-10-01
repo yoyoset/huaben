@@ -1,0 +1,21 @@
+services:
+  huaben:
+    build: .
+    image: huaben:local
+    container_name: huaben
+    restart: unless-stopped
+    ports:
+      # 宿主机端口待在 13 上确认空闲后再定(默认 8210);只经 Tailscale/局域网访问,不对公网暴露
+      - "${HUABEN_HOST_PORT:-8210}:8000"
+    env_file: .env          # 密钥(HUABEN_OPENROUTER_API_KEY)只放这里,不进镜像、不进 git
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      - ./data:/data        # 数据库 + 音频
+      - ${HUABEN_BACKUP_DIR:-./backups}:/backups   # 在 13 上设为 /mnt/4t/backups/huaben
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=4).status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

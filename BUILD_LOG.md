@@ -16,7 +16,9 @@
 8b. [x] FastAPI 路由(书架/章节/播放/进度/开书/状态)
 8c. [x] 后台常驻循环(重启恢复 + 失败退避)+ 启动入口
 9. [x] PWA 前端(书架/阅读/播放器/Media Session/睡眠定时)
-10. [ ] Dockerfile + docker-compose + 备份脚本(仅文件,不部署)
+10. [x] Dockerfile + docker-compose + 备份脚本(仅文件,不部署)
+11. [ ] 数据库迁移机制(上线前硬前置)
+12. [ ] 端到端模拟:FakeLLM 连载 35 章跨卷,核对记忆/账本/卷封存不变量
 
 ## 轮 1 — 脚手架 + 数据层
 
@@ -223,3 +225,26 @@ SW 安装与"添加到主屏幕"体验;iOS 对 Range 的实际表现。
 - 没有"设置"页(默认音色/语速持久化):语速/睡眠定时只在当前会话有效。
 - 目录里没有标"已读"。
 - 浅色/深色之外没有字号调节。
+
+## 轮 10 — 部署文件 + 备份
+
+做了:`Dockerfile`、`docker-compose.yml`、`.dockerignore`、`.gitattributes`(sh/py 强制 LF)、`scripts/backup.sh`、`huaben/backup.py`(SQLite 在线备份 + 完整性校验 + 轮转)、
+`docs/deploy.md`、README 本地运行说明;依赖拆成 `requirements.txt`(运行时)与 `requirements-dev.txt`。全库 106 个测试全绿。
+
+决策:
+- **只备份数据库不备份音频**:音频可由正文重新合成,体积大且无不可替代性;恢复后后台自动补配音。
+- 备份走 `Connection.backup`(库是 WAL 模式,直接 cp 主文件会丢 WAL 里的新数据 —— 有测试用"另一条写连接未关闭"复现并验证)。
+- 容器以 root 运行(避免 bind mount 属主不匹配首次写不进 `/data`;没有 docker 的开发机上无法提前验证这类问题),已写入 deploy.md 的取舍。
+- 宿主机端口默认 8210 且需在 13 上确认空闲(8100 是 SillyTavern);备份目录用 `HUABEN_BACKUP_DIR` 可配。
+
+踩坑:
+- 测试抓到真缺陷:源库损坏时 `Connection.backup` 抛异常,`dest` 文件(由 `sqlite3.connect` 创建)残留成"看似备份的空壳"。
+  修正:任何 sqlite 错误都清理 dest 并统一抛 `BackupError`。
+
+**未验证**:本机没有 docker,Dockerfile/compose **没有真正构建或运行过**,只做了静态自检(`tests/test_deploy_files.py`:密钥不进 compose、
+COPY 路径存在、端口对应、测试依赖不进镜像、sh 脚本为 LF);也**没有登录 13 核对 vpsmon/opencode-usage 的实际惯例**(CLAUDE.md 里是转述)。
+首次部署后把真实情况回写 `docs/deploy.md` 末尾。恢复演练尚未做。
+
+暂不处理:
+- 上线前硬前置:**数据库迁移机制**(下一切片做)。
+- 备份不加密、不异地(同在 13 的 /mnt/4t);家用场景先这样。

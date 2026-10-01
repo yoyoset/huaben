@@ -1,0 +1,11 @@
+.git
+.env
+data
+backups
+tests
+docs
+assets
+__pycache__
+*.pyc
+.pytest_cache
+BUILD_LOG.md
