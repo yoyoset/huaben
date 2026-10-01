@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS books (
   synopsis TEXT NOT NULL DEFAULT '',      -- 全书梗概(分层记忆第 1 层)
   status TEXT NOT NULL DEFAULT 'drafting', -- drafting(开书中) / serializing
   read_pos INTEGER NOT NULL DEFAULT 0,     -- 读者读到第几章(缓冲区以它为基准)
+  gen_error TEXT NOT NULL DEFAULT '',      -- 后台生成最近一次失败的人话摘要;成功即清空,界面据此提示
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE TABLE IF NOT EXISTS bibles (

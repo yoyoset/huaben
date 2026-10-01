@@ -1,0 +1,92 @@
+import json
+import threading
+
+from huaben import repo
+from huaben.config import Settings
+from huaben.llm import LLMError
+from huaben.llm_fake import FakeLLM
+from huaben.scheduler import _lock_for, top_up, top_up_all
+
+S = Settings(openrouter_api_key="x", buffer_chapters=2, _env_file=None)
+
+PLAN = json.dumps({"goal": "g", "beats": ["a"], "plant": [], "resolve": [], "target_chapters": 30}, ensure_ascii=False)
+OUTLINE = json.dumps({"title": "T", "outline": "事", "characters": [], "foreshadows": [],
+                      "planned_reversals": [], "hook": "钩"}, ensure_ascii=False)
+LEDGER = json.dumps({"summary": "摘要", "characters": [], "foreshadows_new": [], "foreshadows_update": [],
+                     "facts": [], "contradictions": []}, ensure_ascii=False)
+
+
+def chapter_replies(n):
+    return [OUTLINE, "正文", LEDGER] * n
+
+
+def serializing_book(conn, title="书"):
+    bid = repo.create_book(conn, title)
+    repo.update_book(conn, bid, status="serializing")
+    return bid
+
+
+def test_top_up_fills_buffer_including_first_volume(conn):
+    bid = serializing_book(conn)
+    res = top_up(conn, FakeLLM([PLAN] + chapter_replies(2)), S, bid)
+    assert res.generated == 2 and res.error == "" and not res.skipped
+    assert repo.buffered_ahead(conn, bid) == 2
+
+
+def test_top_up_is_noop_when_buffer_full(conn):
+    bid = serializing_book(conn)
+    top_up(conn, FakeLLM([PLAN] + chapter_replies(2)), S, bid)
+    assert top_up(conn, FakeLLM([]), S, bid).generated == 0  # 不调 LLM
+
+
+def test_reader_progress_triggers_refill(conn):
+    bid = serializing_book(conn)
+    top_up(conn, FakeLLM([PLAN] + chapter_replies(2)), S, bid)
+    repo.update_book(conn, bid, read_pos=1)  # 读完一章,缓冲只剩 1
+    res = top_up(conn, FakeLLM(chapter_replies(1)), S, bid)
+    assert res.generated == 1 and repo.buffered_ahead(conn, bid) == 2
+
+
+def test_failure_stops_loop_and_is_visible(conn):
+    bid = serializing_book(conn)
+    llm = FakeLLM([PLAN] + chapter_replies(1) + [LLMError("HTTP 503")] * 3)
+    res = top_up(conn, llm, S, bid)
+    assert res.generated == 1 and "503" in res.error
+    assert "503" in repo.get_book(conn, bid)["gen_error"]  # 界面可见,不是静默失败
+
+
+def test_success_clears_previous_error(conn):
+    bid = serializing_book(conn)
+    repo.update_book(conn, bid, gen_error="旧错误")
+    top_up(conn, FakeLLM([PLAN] + chapter_replies(2)), S, bid)
+    assert repo.get_book(conn, bid)["gen_error"] == ""
+
+
+def test_max_chapters_bounds_one_call(conn):
+    bid = serializing_book(conn)
+    res = top_up(conn, FakeLLM([PLAN] + chapter_replies(1)), S, bid, max_chapters=1)
+    assert res.generated == 1 and repo.buffered_ahead(conn, bid) == 1
+
+
+def test_concurrent_top_up_is_skipped(conn):
+    bid = serializing_book(conn)
+    lock = _lock_for(bid)
+    lock.acquire()
+    try:
+        out = {}
+        t = threading.Thread(target=lambda: out.update(r=top_up(conn, FakeLLM([]), S, bid)))
+        t.start()
+        t.join()
+        assert out["r"].skipped
+    finally:
+        lock.release()
+
+
+def test_top_up_all_only_serializing_and_isolated_failures(conn):
+    a = serializing_book(conn, "a")
+    repo.create_book(conn, "draft")  # drafting,不处理
+    b = serializing_book(conn, "b")
+    llm = FakeLLM([LLMError("boom")] + [PLAN] + chapter_replies(2))
+    out = top_up_all(conn, llm, S)
+    assert set(out) == {a, b}
+    assert out[a].error and out[b].generated == 2  # a 失败不拖累 b
