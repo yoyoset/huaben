@@ -43,7 +43,7 @@ def get_bible(conn, book_id: int) -> dict | None:
     return r
 
 
-def save_bible(conn, book_id: int, **fields) -> None:
+def save_bible(conn, book_id: int, *, commit: bool = True, **fields) -> None:
     bad = set(fields) - _BIBLE_JSON - _BIBLE_TEXT
     if bad:
         raise ValueError(f"unknown bible fields: {bad}")
@@ -52,4 +52,5 @@ def save_bible(conn, book_id: int, **fields) -> None:
     vals = [dumps(v) if k in _BIBLE_JSON else v for k, v in fields.items()]
     sets = ", ".join(f"{k}=?" for k in fields)
     conn.execute(f"UPDATE bibles SET {sets} WHERE book_id=?", (*vals, book_id))
-    conn.commit()
+    if commit:
+        conn.commit()

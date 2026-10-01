@@ -94,4 +94,11 @@ CREATE TABLE IF NOT EXISTS audio (
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   PRIMARY KEY(chapter_id, quality)
 );
+CREATE TABLE IF NOT EXISTS opening_messages (  -- 开书对话记录
+  id INTEGER PRIMARY KEY,
+  book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+  role TEXT NOT NULL,                        -- user / assistant
+  content TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 """

@@ -5,11 +5,13 @@ from .chapters import (accepted_chapters, buffered_ahead, create_chapter, discar
                        get_chapter, next_chapter_idx, recent_chapters, update_chapter)
 from .ledger import (add_fact, add_foreshadow, list_characters, list_facts, list_foreshadows,
                      update_foreshadow, upsert_character)
+from .opening import add_message, list_messages
 from .runs import cost_summary, log_run
 from .volumes import (active_volume, create_volume, get_volume, list_volumes, seal_volume,
                       set_volume_status)
 
 __all__ = [
+    "add_message", "list_messages",
     "chapters_missing_audio", "get_audio", "set_audio",
     "create_book", "get_bible", "get_book", "list_books", "save_bible", "update_book",
     "accepted_chapters", "buffered_ahead", "create_chapter", "discard_unaccepted", "get_chapter",

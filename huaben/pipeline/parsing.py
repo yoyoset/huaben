@@ -30,7 +30,7 @@ def extract_json(text: str) -> dict:
     return data
 
 
-def _need(data: dict, key: str, typ):
+def need(data: dict, key: str, typ):
     if not isinstance(data.get(key), typ):
         raise ParseError(f"field {key!r} missing or not {typ.__name__}")
     return data[key]
@@ -38,24 +38,24 @@ def _need(data: dict, key: str, typ):
 
 def parse_outline(text: str) -> dict:
     d = extract_json(text)
-    if not _need(d, "title", str).strip() or not _need(d, "outline", str).strip():
+    if not need(d, "title", str).strip() or not need(d, "outline", str).strip():
         raise ParseError("empty title/outline")
-    _need(d, "hook", str)
+    need(d, "hook", str)
     d.setdefault("characters", [])
     d.setdefault("foreshadows", [])
     d.setdefault("planned_reversals", [])
     for k in ("characters", "foreshadows", "planned_reversals"):
-        _need(d, k, list)
+        need(d, k, list)
     return d
 
 
 def parse_ledger(text: str) -> dict:
     d = extract_json(text)
-    if not _need(d, "summary", str).strip():
+    if not need(d, "summary", str).strip():
         raise ParseError("empty summary")
     for k in ("characters", "foreshadows_new", "foreshadows_update", "facts", "contradictions"):
         d.setdefault(k, [])
-        _need(d, k, list)
+        need(d, k, list)
     for c in d["characters"]:
         if not isinstance(c, dict) or not str(c.get("name", "")).strip():
             raise ParseError("character entry without name")
@@ -70,11 +70,11 @@ def unplanned_contradictions(ledger: dict) -> list[str]:
 
 def parse_volume_plan(text: str) -> dict:
     d = extract_json(text)
-    if not _need(d, "goal", str).strip():
+    if not need(d, "goal", str).strip():
         raise ParseError("empty goal")
     for k in ("beats", "plant", "resolve"):
         d.setdefault(k, [])
-        _need(d, k, list)
+        need(d, k, list)
     if not d["beats"]:
         raise ParseError("volume plan has no beats")
     n = d.get("target_chapters")
@@ -85,6 +85,6 @@ def parse_volume_plan(text: str) -> dict:
 def parse_seal(text: str) -> dict:
     d = extract_json(text)
     for k in ("volume_summary", "synopsis"):
-        if not _need(d, k, str).strip():
+        if not need(d, k, str).strip():
             raise ParseError(f"empty {k}")
     return d
