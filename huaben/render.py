@@ -42,6 +42,13 @@ def render_style_samples(bible: dict) -> str:
     return f"【文风样章(模仿其语感、节奏、句式,不要照抄情节与专名)】\n{body}"
 
 
+def volume_progress(ctx: StoryContext) -> str:
+    """卷按章数封存,所以写每章都必须知道"本卷第几章、还剩几章",否则剧情弧与封卷时机脱节。"""
+    target = ctx.volume["target_chapters"]
+    pos = ctx.volume_done + 1
+    return f"本卷进度:即将写本卷第 {pos}/{target} 章(写完本章后本卷还剩 {max(target - pos, 0)} 章)"
+
+
 def render_memory(ctx: StoryContext, scope: str = "") -> str:
     """分层记忆文本,顺序固定:梗概 → 往卷 → 本卷目标 → 本卷章摘要 → 账本。最近原文单独放,见 recent_text。
     scope:按需挑账本条目的检索文本(写作时 = 章纲;核对时 = 章纲 + 正文)。
@@ -52,7 +59,8 @@ def render_memory(ctx: StoryContext, scope: str = "") -> str:
         parts.append("【往卷摘要】\n" + _lines([f"第{i}卷:{s}" for i, s in ctx.past_volume_summaries]))
     if ctx.volume:
         v = ctx.volume
-        parts.append(f"【本卷(第{v['idx']}卷)目标】{v['goal']}\n节拍:" + ("→".join(v["beats"]) or "(无)")
+        parts.append(f"【本卷(第{v['idx']}卷)目标】{v['goal']}\n{volume_progress(ctx)}\n节拍:"
+                     + ("→".join(v["beats"]) or "(无)")
                      + "\n本卷要埋的伏笔:" + ("、".join(v["plant"]) or "无")
                      + "\n本卷要收的伏笔:" + ("、".join(v["resolve"]) or "无"))
     parts.append("【本卷已发生(章摘要)】\n" + _lines(

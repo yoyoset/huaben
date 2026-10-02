@@ -29,12 +29,30 @@ LEDGER_SCHEMA = """{
 _SYSTEM_EDITOR = "你是长篇连载小说的责任编辑,负责规划、记账与核对。严格只输出 JSON,不要任何解释或代码围栏。"
 
 
+def pacing_rule(ctx: StoryContext) -> str:
+    """按卷进度给节奏要求:卷在第 target 章自动封存,编辑必须让剧情弧恰好在那里收住。"""
+    v = ctx.volume
+    if v is None:
+        return ""
+    target, pos = v["target_chapters"], ctx.volume_done + 1
+    if pos >= target:
+        return "节奏:本章是本卷最后一章——必须完成本卷目标、回收本卷要收的伏笔,并留下通往下一卷的钩子。"
+    left = target - pos
+    if left <= max(2, target // 5):
+        return f"节奏:本卷进入收尾阶段(本章之后只剩 {left} 章)——推向高潮、开始回收本卷伏笔,不要再开新的大支线。"
+    beats = v["beats"] or []
+    if not beats:
+        return ""
+    i = min(len(beats), ctx.volume_done * len(beats) // target + 1)
+    return f"节奏:按进度,本章大约应推进第 {i}/{len(beats)} 个节拍「{beats[i - 1]}」。"
+
+
 def outline_messages(ctx: StoryContext) -> list[dict]:
     user = (
         f"{render_bible(ctx.bible)}\n\n{render_memory(ctx)}\n\n"
         f"【最近原文(用于衔接)】\n{recent_text(ctx)}\n\n"
         f"请为第 {ctx.next_idx} 章写章纲工单。要求:紧扣本卷目标与节拍;伏笔该推进的推进、该收的收;"
-        f"结尾留钩子;不得与账本冲突(除非明确写进 planned_reversals)。\n"
+        f"结尾留钩子;不得与账本冲突(除非明确写进 planned_reversals)。\n{pacing_rule(ctx)}\n"
         f"只输出如下结构的 JSON:\n{OUTLINE_SCHEMA}"
     )
     return [{"role": "system", "content": _SYSTEM_EDITOR}, {"role": "user", "content": user}]

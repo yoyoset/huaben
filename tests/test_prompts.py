@@ -58,3 +58,39 @@ def test_ledger_check_sees_characters_the_writer_brought_in(conn):
     assert "老道" not in write_messages(c, o, 2500)[-1]["content"]          # 写作时不占 prompt
     user = ledger_messages(c, o, "沈照回头,看见老道正站在井边冲他笑。")[-1]["content"]
     assert "老道(已死亡)" in user.split("【本章章纲】")[0]                   # 核对时账本里有他的状态
+
+
+def _ctx_at(conn, done: int, target: int = 10, beats=("起", "承", "转", "合", "收")):
+    from huaben.context import StoryContext
+    vol = {"id": 1, "idx": 2, "goal": "下山", "beats": list(beats), "plant": [], "resolve": [], "target_chapters": target}
+    return StoryContext(book={"synopsis": ""}, bible={}, volume=vol, past_volume_summaries=[],
+                        volume_chapter_summaries=[], recent=[], characters=[], foreshadows=[], facts=[],
+                        next_idx=11 + done, volume_done=done)
+
+
+@pytest.mark.parametrize("done,expect", [
+    (0, "第 1/5 个节拍「起」"),
+    (4, "第 3/5 个节拍「转」"),
+    (7, "收尾阶段(本章之后只剩 2 章)"),
+    (9, "本章是本卷最后一章"),
+])
+def test_pacing_follows_volume_progress(conn, done, expect):
+    from huaben.pipeline.prompts import outline_messages, pacing_rule
+    c = _ctx_at(conn, done)
+    assert expect in pacing_rule(c)
+    assert expect in outline_messages(c)[-1]["content"]
+
+
+def test_writer_also_sees_volume_progress(conn):
+    from huaben.render import render_memory
+    out = render_memory(_ctx_at(conn, 9))
+    assert "本卷进度:即将写本卷第 10/10 章(写完本章后本卷还剩 0 章)" in out
+
+
+def test_load_context_counts_volume_progress(conn):
+    bid = repo.create_book(conn, "x")
+    vid = repo.create_volume(conn, bid, 1, status="active", target_chapters=10)
+    for i in (1, 2, 3):
+        cid = repo.create_chapter(conn, bid, vid, i)
+        repo.update_chapter(conn, cid, status="accepted", summary="s")
+    assert load_context(conn, bid).volume_done == 3

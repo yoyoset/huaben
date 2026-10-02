@@ -7,7 +7,7 @@
 分层(docs/architecture.md 3.3):全书梗概 → 往卷摘要 → 本卷章摘要 → 最近原文 → 账本(按章纲挑)。
 封卷后旧卷原文不再进 prompt,所以第 500 章和第 50 章的 prompt 体量相当。
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from . import repo
 
@@ -26,7 +26,7 @@ class StoryContext:
     foreshadows: list[dict]                           # 未回收
     facts: list[dict]
     next_idx: int = 1
-    extra: dict = field(default_factory=dict)
+    volume_done: int = 0                              # 本卷已定稿章数(卷进度 = volume_done+1 / target)
 
 
 def load_context(conn, book_id: int, recent_n: int = 3) -> StoryContext:
@@ -50,6 +50,7 @@ def load_context(conn, book_id: int, recent_n: int = 3) -> StoryContext:
         foreshadows=repo.list_foreshadows(conn, book_id, open_only=True),
         facts=repo.list_facts(conn, book_id),
         next_idx=repo.next_chapter_idx(conn, book_id),
+        volume_done=len(vol_chapters),
     )
 
 
