@@ -22,10 +22,16 @@ class FakeEngine:
         return self.FRAME * max(1, len(text) // 10)
 
 
-ENGINES: dict[str, Callable[[], Engine]] = {"fake": FakeEngine}
+def _kokoro_zh(**opts) -> Engine:
+    from .kokoro_zh import KokoroZh  # 惰性:没装 torch/kokoro 时 fake 引擎与测试照常可用
+    return KokoroZh(**opts)
 
 
-def create_engine(name: str) -> Engine:
+ENGINES: dict[str, Callable[..., Engine]] = {"fake": lambda **_: FakeEngine(), "kokoro-zh": _kokoro_zh}
+
+
+def create_engine(name: str, **opts) -> Engine:
+    """opts:引擎参数(如 voice、speed);fake 忽略。"""
     if name not in ENGINES:
         raise ValueError(f"未知的 TTS 引擎 {name!r},可用:{sorted(ENGINES)}")
-    return ENGINES[name]()
+    return ENGINES[name](**opts)

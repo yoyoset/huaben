@@ -1,0 +1,12 @@
+# Kokoro-82M-v1.1-zh 引擎(电脑端,RTX 3060)。先装 CUDA 版 torch:
+#   uv pip install --python .venv/Scripts/python.exe torch --index-url https://download.pytorch.org/whl/cu124
+# 再装本文件:
+#   uv pip install --python .venv/Scripts/python.exe -r requirements-kokoro.txt
+httpx>=0.27
+kokoro>=0.8.2
+# 不钉住时解析器会退回 transformers 4.12 → tokenizers 0.10 只有源码包,Windows 上要现场编译 Rust 并失败(2026-10-02 实测)
+transformers>=4.44
+misaki[zh]>=0.8.2
+soundfile>=0.12
+# misaki 处理中文里夹的英文词要用 spaCy 英文模型;运行时自动下载在 uv 环境里会失败(没有 pip),必须预装(2026-10-02 实测)
+en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl

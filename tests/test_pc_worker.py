@@ -57,3 +57,14 @@ def test_errors_back_off_and_never_exit():
 def test_unknown_engine_is_a_clear_error():
     with pytest.raises(ValueError, match="可用"):
         create_engine("nope")
+
+
+def test_kokoro_segments_keep_every_char_and_respect_limit():
+    from huaben_voice.kokoro_zh import segments
+    text = "第一段。很短。\n\n" + "长句子没有标点" * 30 + "。结尾!\n最后一段"
+    paras = segments(text, max_chars=40)
+    assert len(paras) == 3                                  # 空行不算段
+    flat = [s for p in paras for s in p]
+    assert all(len(s) <= 40 for s in flat)
+    assert "".join(flat) == text.replace("\n", "")          # 不丢字、不重复
+    assert paras[0] == ["第一段。很短。"]                     # 短句拼成一段
