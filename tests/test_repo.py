@@ -101,3 +101,19 @@ def test_open_chapter_tracks_furthest_and_last_opened(conn):
     b = repo.get_book(conn, bid)
     assert (b["read_pos"], b["last_opened"]) == (3, 1)
     assert repo.open_chapter(conn, bid, 4) is True
+
+
+def test_chapter_index_and_count_skip_bodies(conn):
+    bid = repo.create_book(conn, "x")
+    v1 = repo.create_volume(conn, bid, 1)
+    v2 = repo.create_volume(conn, bid, 2)
+    for i, vid in ((1, v1), (2, v1), (3, v2)):
+        cid = repo.create_chapter(conn, bid, vid, i, title=f"T{i}")
+        repo.update_chapter(conn, cid, body="很长的正文" * 500, summary=f"s{i}", status="accepted")
+    repo.create_chapter(conn, bid, v2, 4)  # 未定稿,不计
+    repo.set_audio(conn, repo.get_chapter(conn, bid, 2)["id"], "basic", "x.mp3")
+    idx = repo.chapter_index(conn, bid)
+    assert [c["idx"] for c in idx] == [1, 2, 3] and "body" not in idx[0]
+    assert [c["has_audio"] for c in idx] == [False, True, False]
+    assert [c["idx"] for c in repo.chapter_index(conn, bid, v2)] == [3]
+    assert repo.count_accepted(conn, bid) == 3 and repo.count_accepted(conn, bid, v1) == 2

@@ -55,7 +55,7 @@ def unresolved_targets(conn, book_id: int, volume: dict) -> list[int]:
 def seal_volume(conn, llm: LLM, settings: Settings, book_id: int, volume: dict) -> None:
     """封卷:卷摘要 + 刷新全书梗概 + 并入世界设定定本,在一个事务里写入。"""
     ctx = load_context(conn, book_id, settings.recent_chapters_in_prompt)
-    chapters = repo.accepted_chapters(conn, book_id, volume["id"])
+    chapters = repo.chapter_index(conn, book_id, volume["id"])  # 封卷只需要章摘要
     need_canon = bool(ctx.facts or (ctx.bible or {}).get("canon"))
     sealed = _ask(conn, llm, book_id, "volume_seal", volume_prompts.seal_messages(ctx, volume, chapters),
                   lambda text: parse_seal(text, canon_required=need_canon))
@@ -74,7 +74,7 @@ def seal_volume(conn, llm: LLM, settings: Settings, book_id: int, volume: dict) 
 def ensure_active_volume(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
     """调度器在每次写章前调用:当前卷写满就封卷并规划下一卷;没有进行中的卷就规划一卷。"""
     vol = repo.active_volume(conn, book_id)
-    if vol is not None and len(repo.accepted_chapters(conn, book_id, vol["id"])) >= vol["target_chapters"]:
+    if vol is not None and repo.count_accepted(conn, book_id, vol["id"]) >= vol["target_chapters"]:
         seal_volume(conn, llm, settings, book_id, vol)
         vol = None
     return vol if vol is not None else plan_volume(conn, llm, settings, book_id)

@@ -34,7 +34,7 @@ def load_context(conn, book_id: int, recent_n: int = 3) -> StoryContext:
     volume = repo.active_volume(conn, book_id)
     recent = repo.recent_chapters(conn, book_id, recent_n)
     recent_idx = {c["idx"] for c in recent}
-    vol_chapters = repo.accepted_chapters(conn, book_id, volume["id"]) if volume else []
+    vol_chapters = repo.chapter_index(conn, book_id, volume["id"]) if volume else []
     return StoryContext(
         book=book,
         bible=repo.get_bible(conn, book_id),

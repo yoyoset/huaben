@@ -24,8 +24,8 @@ def _accepted(conn, book_id: int, idx: int) -> dict:
 @router.get("/chapters")
 def chapters(book_id: int, conn=Depends(get_conn)):
     book_or_404(conn, book_id)
-    return [{"idx": c["idx"], "title": c["title"], "has_audio": repo.get_audio(conn, c["id"]) is not None}
-            for c in repo.accepted_chapters(conn, book_id)]
+    return [{"idx": c["idx"], "title": c["title"], "has_audio": c["has_audio"]}
+            for c in repo.chapter_index(conn, book_id)]
 
 
 @router.get("/chapters/{idx}")

@@ -43,12 +43,34 @@ def update_chapter(conn, chapter_id: int, *, commit: bool = True, **fields) -> N
         conn.commit()
 
 
-def accepted_chapters(conn, book_id: int, volume_id: int | None = None) -> list[dict]:
-    q, args = "SELECT * FROM chapters WHERE book_id=? AND status='accepted'", [book_id]
+def _accepted_where(book_id: int, volume_id: int | None) -> tuple[str, list]:
+    where, args = "c.book_id=? AND c.status='accepted'", [book_id]
     if volume_id is not None:
-        q += " AND volume_id=?"
+        where += " AND c.volume_id=?"
         args.append(volume_id)
-    return [dict(r) for r in conn.execute(q + " ORDER BY idx", args)]
+    return where, args
+
+
+def accepted_chapters(conn, book_id: int, volume_id: int | None = None) -> list[dict]:
+    """定稿章的完整行(**含正文**)。只为列目录/计数时请用 chapter_index / count_accepted:
+    一章约 3000 字,几百章全读出来只为数个数或列标题是纯浪费。"""
+    where, args = _accepted_where(book_id, volume_id)
+    return [dict(r) for r in conn.execute(f"SELECT * FROM chapters c WHERE {where} ORDER BY c.idx", args)]
+
+
+def chapter_index(conn, book_id: int, volume_id: int | None = None) -> list[dict]:
+    """定稿章的目录(不含正文):id、序号、标题、摘要、所属卷、是否已有保底音频。一条查询,不逐章查音频。"""
+    where, args = _accepted_where(book_id, volume_id)
+    rows = conn.execute(
+        "SELECT c.id, c.idx, c.title, c.summary, c.volume_id, (a.chapter_id IS NOT NULL) AS has_audio "
+        "FROM chapters c LEFT JOIN audio a ON a.chapter_id = c.id AND a.quality = 'basic' "
+        f"WHERE {where} ORDER BY c.idx", args)
+    return [{**dict(r), "has_audio": bool(r["has_audio"])} for r in rows]
+
+
+def count_accepted(conn, book_id: int, volume_id: int | None = None) -> int:
+    where, args = _accepted_where(book_id, volume_id)
+    return conn.execute(f"SELECT COUNT(*) FROM chapters c WHERE {where}", args).fetchone()[0]
 
 
 def recent_chapters(conn, book_id: int, n: int) -> list[dict]:
