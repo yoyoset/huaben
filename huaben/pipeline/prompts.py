@@ -40,22 +40,43 @@ def outline_messages(ctx: StoryContext) -> list[dict]:
     return [{"role": "system", "content": _SYSTEM_EDITOR}, {"role": "user", "content": user}]
 
 
+def outline_scope(outline: dict) -> str:
+    """章纲文字 + 出场人物:按需挑账本条目时的检索范围。"""
+    return " ".join([outline["outline"], *outline.get("characters", [])])
+
+
+def work_order(idx: int, outline: dict) -> str:
+    """作者看到的本章工单。有意反转必须交到作者手上:否则作者只看到"死者不得复活"之类的硬约束,
+    会拒绝执行编辑计划好的反转,或者写了却与指令自相矛盾。"""
+    lines = [f"【本章工单】第 {idx} 章《{outline['title']}》", outline["outline"]]
+    if outline.get("planned_reversals"):
+        lines.append("本章计划好的有意反转(必须写出来,并写得像伏笔回收、让读者恍然大悟,而不是像笔误):")
+        lines += [f"- {r}" for r in outline["planned_reversals"]]
+    lines.append(f"结尾钩子:{outline['hook']}")
+    return "\n".join(lines)
+
+
+def _consistency_rule(outline: dict) -> str:
+    exception = "除工单列出的有意反转外," if outline.get("planned_reversals") else ""
+    return f"2. {exception}严格遵守账本里的人物现状与世界事实,人名与设定不得漂移,死者不得复活;\n"
+
+
 def write_messages(ctx: StoryContext, outline: dict, words: int, feedback: list[str] | None = None) -> list[dict]:
     system = (
         "你是长篇连载小说的作者,为一位读者私人连载。读者只读不参与,所以每章必须自成一个完整、好看的剧情节拍。\n\n"
         f"{render_bible(ctx.bible)}\n\n{render_style_samples(ctx.bible)}".rstrip()
     )
     parts = [
-        render_memory(ctx, outline=outline["outline"] + " ".join(outline.get("characters", []))),
+        render_memory(ctx, outline=outline_scope(outline)),
         f"【最近原文(衔接文风与情绪)】\n{recent_text(ctx)}",
-        f"【本章工单】第 {ctx.next_idx} 章《{outline['title']}》\n{outline['outline']}\n结尾钩子:{outline['hook']}",
+        work_order(ctx.next_idx, outline),
     ]
     if feedback:
         parts.append("【上一稿被编辑打回,以下问题必须修正】\n" + "\n".join(f"- {f}" for f in feedback))
     parts.append(  # 后置指令:紧贴输出位置
         f"现在写第 {ctx.next_idx} 章正文,约 {words} 字。硬性要求:\n"
         "1. 只输出正文,不要标题、不要解释、不要状态栏、不要任何前后缀;\n"
-        "2. 严格遵守账本里的人物现状与世界事实,人名与设定不得漂移,死者不得复活;\n"
+        + _consistency_rule(outline) +
         "3. 保持风格指纹与样章的语感;全文使用完整的中文标点;\n"
         "4. 结尾落在工单指定的钩子上。"
     )
