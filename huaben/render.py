@@ -103,3 +103,21 @@ def recent_text(ctx: StoryContext) -> str:
     if not ctx.recent:
         return "(这是开篇,没有前文)"
     return "\n\n".join(f"〔第{c['idx']}章《{c['title']}》〕\n{c['body']}" for c in ctx.recent)
+
+
+# 写正文时不再给最近几章全文:2026-10-02 生产环境《杂役仙尊》第 13 章 6 稿里有 6 稿被"照抄前文"打回(11%~97%),
+# 已定稿章之间的 12 字片段重合也从第 4 章的 0.4% 一路涨到第 14 章的 3.6%——前文全文就摆在提示里,模型越写越照搬。
+# 剧情由章摘要交代,衔接只需要上一章的结尾。
+HANDOFF_TAIL_CHARS = 1200
+
+
+def handoff_text(ctx: StoryContext, tail_chars: int = HANDOFF_TAIL_CHARS) -> str:
+    """作者用的"前情 + 上一章结尾":最近几章只给摘要,最后一章另附结尾原文。纯函数。"""
+    if not ctx.recent:
+        return "(这是开篇,没有前文)"
+    lines = [f"第{c['idx']}章《{c['title']}》:{c['summary'] or '(无摘要)'}" for c in ctx.recent]
+    last = ctx.recent[-1]
+    tail = last["body"][-tail_chars:]
+    cut = "……" if len(last["body"]) > tail_chars else ""
+    return ("【紧接前情(章摘要)】\n" + "\n".join(lines)
+            + f"\n\n【第{last['idx']}章结尾原文(本章从这里之后接着写;不要复述、不要改写这段)】\n{cut}{tail}")

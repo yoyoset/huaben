@@ -89,6 +89,26 @@ def test_recent_text(conn, book):
     assert "开篇" in recent_text(load_context(conn, empty))
 
 
+def test_handoff_gives_summaries_and_only_the_tail_of_last_chapter(conn, book):
+    """生产环境第 13 章:前 3 章全文摆在提示里,6 稿都照抄前文被打回。作者只该看到摘要 + 上一章结尾。"""
+    from huaben.render import handoff_text
+    cid = repo.get_chapter(conn, book, 5)["id"]
+    repo.update_chapter(conn, cid, body="开头不该出现" + "中" * 50 + "结尾这句要在")
+    out = handoff_text(load_context(conn, book, recent_n=3), tail_chars=20)
+    assert "第3章《T3》:摘要3" in out and "第5章《T5》:摘要5" in out
+    assert "原文3" not in out and "原文4" not in out      # 更早几章不给原文
+    assert "结尾这句要在" in out and "开头不该出现" not in out
+    assert "开篇" in handoff_text(load_context(conn, repo.create_book(conn, "空书")))
+
+
+def test_write_prompt_uses_handoff_not_full_text(conn, book):
+    from huaben.pipeline.prompts import write_messages
+    ctx = load_context(conn, book, recent_n=3)
+    outline = {"title": "T", "outline": "事", "characters": [], "foreshadows": [], "planned_reversals": [], "hook": "钩"}
+    user = write_messages(ctx, outline, 1000)[1]["content"]
+    assert "原文3" not in user and "接着写" in user
+
+
 def test_render_bible_and_samples():
     bible = {"world": "灵气枯竭", "characters": [{"name": "沈照", "role": "主角", "traits": "腹黑"}],
              "style_fingerprint": "短句,冷幽默", "taboos": ["现代梗"], "style_samples": ["夜很长。"]}

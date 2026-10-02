@@ -5,7 +5,7 @@
 - 示例里只用占位词("角色名"),不放任何专名 —— 示例文本也是 prompt,会被当成指令串进正文。
 """
 from ..context import StoryContext
-from ..render import recent_text, render_bible, render_memory, render_style_samples
+from ..render import handoff_text, recent_text, render_bible, render_memory, render_style_samples
 
 OUTLINE_SCHEMA = """{
   "title": "本章标题(4~10 字)",
@@ -94,7 +94,7 @@ def write_messages(ctx: StoryContext, outline: dict, words: int, feedback: list[
     )
     parts = [
         render_memory(ctx, scope=outline_scope(outline), focus_ids=outline.get("foreshadows", [])),
-        f"【最近原文(衔接文风与情绪)】\n{recent_text(ctx)}",
+        handoff_text(ctx),
         work_order(ctx.next_idx, outline, ctx.foreshadows),
     ]
     if feedback:

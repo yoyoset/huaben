@@ -47,7 +47,7 @@ def test_volumes_rolled_over_with_sealed_summaries(world):
 
 
 def test_prompt_size_is_bounded_not_linear(world):
-    """架构核心承诺:第 N 章的 prompt 体量不随 N 线性增长(封卷压缩 + 只带最近 3 章原文)。"""
+    """架构核心承诺:第 N 章的 prompt 体量不随 N 线性增长(封卷压缩 + 只带上一章结尾原文)。"""
     _, _, llm = world
     p15, p25, p35 = (len(llm.write_prompts[n]) for n in (15, 25, 35))
     total_text = sum(len(f"（第{n}章）") + 600 for n in range(1, 35))
@@ -58,7 +58,8 @@ def test_prompt_size_is_bounded_not_linear(world):
 def test_recent_original_text_in_prompt_old_text_only_as_summary(world):
     _, _, llm = world
     p = llm.write_prompts[35]
-    assert "（第34章）" in p and "（第32章）" in p            # 最近 3 章原文
+    assert "（第34章）" in p and "（第32章）" not in p        # 只有上一章的结尾原文(全文照抄问题见 render.handoff_text)
+    assert "第32章《章32》:第32章摘要" in p                  # 最近几章给摘要
     assert "（第10章）" not in p and "（第30章）" not in p   # 更早的原文不带
     assert "第31章《章31》:第31章摘要" in p                  # 本卷更早章只带摘要
     assert "第1卷:第1卷摘要" in p and "第3卷:第3卷摘要" in p  # 往卷摘要都在
