@@ -19,7 +19,7 @@ from .pipeline.chapter import generate_chapter
 from .pipeline.errors import ChapterFailed
 from .pipeline.volume import ensure_active_volume
 from .tts.base import TTS
-from .tts.service import fill_audio
+from .tts.service import audio_round_limit, fill_audio
 
 log = logging.getLogger("huaben.scheduler")
 _locks: dict[int, threading.Lock] = {}
@@ -73,7 +73,8 @@ def _fill(conn, llm: LLM, settings: Settings, book_id: int, max_chapters: int | 
     if text:
         repo.update_book(conn, book_id, gen_error=res.error)
     if tts is not None:  # 文本失败时也给已有章补音频;配音失败不影响文本缓冲
-        _, res.audio_error = fill_audio(conn, tts, settings, book_id)
+        pos = max(1, repo.get_book(conn, book_id)["last_opened"])  # 从读者正在听/读的章开始配
+        _, res.audio_error = fill_audio(conn, tts, settings, book_id, pos=pos, limit=audio_round_limit(settings))
         repo.update_book(conn, book_id, audio_error=res.audio_error)
     if res.generated or res.error or res.audio_error:
         log.info("top_up generated=%d error=%s audio_error=%s", res.generated, bool(res.error), bool(res.audio_error))

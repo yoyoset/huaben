@@ -68,15 +68,30 @@ def audio_file_ok(settings: Settings, relpath: str | None) -> bool:
 
 
 def chapters_needing_audio(conn, settings: Settings, book_id: int) -> list[dict]:
-    """没登记音频的章 + 登记了但文件已丢失的章,按章序。"""
+    """没登记音频的章 + 登记了但文件已丢失的章(先后顺序由 listening_order 决定)。"""
     lost = [c for c in repo.voiced_chapters(conn, book_id) if not audio_file_ok(settings, c["audio_path"])]
-    return sorted(repo.chapters_missing_audio(conn, book_id) + lost, key=lambda c: c["idx"])
+    return repo.chapters_missing_audio(conn, book_id) + lost
 
 
-def fill_audio(conn, tts: TTS, settings: Settings, book_id: int, sleep=time.sleep) -> tuple[int, str]:
-    """给所有缺音频(含文件丢失)的已定稿章配音,也补历史空缺。遇到失败就停,返回 (已完成章数, 错误摘要)。"""
+def listening_order(chapters: list[dict], pos: int) -> list[dict]:
+    """配音的先后:先配读者接下来要听的(从当前章往后),再往回补已经听过的(越近越先,重听的多半是最近几章)。"""
+    ahead = sorted((c for c in chapters if c["idx"] >= pos), key=lambda c: c["idx"])
+    behind = sorted((c for c in chapters if c["idx"] < pos), key=lambda c: -c["idx"])
+    return ahead + behind
+
+
+def audio_round_limit(settings: Settings) -> int:
+    """一轮最多配几章。正常连载时一轮新增的章不超过缓冲章数,再加上正在听的这一章——所以平时碰不到上限;
+    只有恢复备份后大批重配时才分轮进行:每轮都放锁,文字补货和别的书(后台只有一个线程)不会被拖住几十分钟。"""
+    return settings.buffer_chapters + 1
+
+
+def fill_audio(conn, tts: TTS, settings: Settings, book_id: int, sleep=time.sleep, *,
+               pos: int = 1, limit: int | None = None) -> tuple[int, str]:
+    """按 listening_order 给缺音频(含文件丢失)的已定稿章配音,最多 limit 章(None = 不限);剩下的留给下一轮。
+    遇到失败就停,返回 (已完成章数, 错误摘要)。"""
     done = 0
-    for ch in chapters_needing_audio(conn, settings, book_id):
+    for ch in listening_order(chapters_needing_audio(conn, settings, book_id), pos)[:limit]:
         try:
             ensure_chapter_audio(conn, tts, settings, ch, sleep)
         except TTSError as e:
