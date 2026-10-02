@@ -49,4 +49,4 @@ def finalize(book_id: int, request: Request, tasks: BackgroundTasks, conn=Depend
     except (LLMError, ChapterFailed) as e:
         raise HTTPException(502, f"开书没成功。{explain(e, auto_retry=False)}") from e
     tasks.add_task(topup_in_background, request.app.state, book_id)  # 开书即开始预生成
-    return book_view(conn, book, request.app.state.settings.buffer_chapters)
+    return book_view(conn, book, request.app.state.settings)

@@ -22,7 +22,8 @@ GUIDE = json.dumps({"reply": "喜欢什么题材?", "ready": False}, ensure_asci
 
 
 def make_client(tmp_path, replies=(), tts=None, **kw):
-    s = Settings(openrouter_api_key="x", chapter_words=1, data_dir=tmp_path, buffer_chapters=1, _env_file=None, **kw)
+    s = Settings(openrouter_api_key="x", chapter_words=1, data_dir=tmp_path, buffer_chapters=1, _env_file=None,
+                 **{"tts_mode": "edge", **kw})  # 这组测试验证服务器自动 edge 配音的旧路径
     llm = FakeLLM(list(replies))
     return TestClient(create_app(s, llm=llm, tts=tts)), llm
 
@@ -80,7 +81,7 @@ def test_full_flow_open_book_then_read_and_listen(tmp_path):
     assert c.get(f"/api/books/{bid}").json()["ready_chapters"] == 1
     assert c.get(f"/api/books/{bid}/chapters").json() == [{"idx": 1, "title": "夜巡", "has_audio": True}]
     ch = c.get(f"/api/books/{bid}/chapters/1").json()
-    assert ch["body"] == "这是第一章的正文。" and ch["audio_url"].endswith("/chapters/1/audio")
+    assert ch["body"] == "这是第一章的正文。" and "/chapters/1/audio?v=" in ch["audio_url"]  # v= 标出播的是哪一份
     assert "outline" not in ch  # 章纲是内部工单,读者不可见
     a = c.get(ch["audio_url"])
     assert a.status_code == 200 and a.headers["content-type"] == "audio/mpeg" and a.content[:3] == b"ID3"

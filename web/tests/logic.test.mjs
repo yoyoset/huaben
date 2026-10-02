@@ -118,3 +118,15 @@ test('spendNote:超过提醒线或金额不可信时才提醒', async () => {
   assert.match(spendNote({ ...base, spent_usd: 2.5, over_remind: true }), /\$2\.50.*\$2\.00.*只是提醒/);
   assert.match(spendNote({ ...base, unpriced_calls: 3, reliable: false }), /3 次调用上游没报费用/);
 });
+
+test('voiceNote:电脑离线提醒开机并提供 edge,在线告知进度,其余不提示', async () => {
+  const { voiceNote } = await import('../js/logic.js');
+  const off = { mode: 'pc', worker_online: false };
+  assert.equal(voiceNote(0, off), null);
+  assert.equal(voiceNote(3, { mode: 'edge', worker_online: false }), null);
+  assert.equal(voiceNote(3, null), null);
+  const n = voiceNote(3, off);
+  assert.ok(n.offerFallback && /3 章在等电脑配音/.test(n.text) && /打开电脑/.test(n.text));
+  const on = voiceNote(2, { mode: 'pc', worker_online: true });
+  assert.ok(!on.offerFallback && /正在配音.*2 章/.test(on.text));
+});

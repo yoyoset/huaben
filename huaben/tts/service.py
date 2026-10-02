@@ -2,7 +2,6 @@
 
 MP3 是帧流,字节拼接即可连续播放,所以分块合成后直接拼。
 """
-import os
 import time
 from pathlib import Path
 
@@ -10,11 +9,13 @@ from .. import repo
 from ..config import Settings
 from .base import TTS, TTSError
 from .mp3 import is_mp3
+from .store import PREFERENCE, audio_file_ok, audio_relpath, best_playable, write_audio  # noqa: F401
 from .text import clean_for_tts, split_for_tts
 
 
-def audio_relpath(book_id: int, idx: int) -> str:
-    return f"{book_id}/{idx:04d}.mp3"
+def spoken_text(chapter: dict) -> str:
+    """朗读的文本:章名 + 正文。电脑上的配音程序拿到的也是这一份,两种音色念的内容一致。"""
+    return f"第{chapter['idx']}章,{chapter['title']}。\n{chapter['body']}" if chapter["title"] else chapter["body"]
 
 
 def synthesize_text(tts: TTS, text: str, settings: Settings, sleep=time.sleep) -> bytes:
@@ -44,33 +45,45 @@ def ensure_chapter_audio(conn, tts: TTS, settings: Settings, chapter: dict, slee
     dest = settings.audio_dir / rel
     if existing and dest.exists():
         return dest
-    spoken = f"第{chapter['idx']}章,{chapter['title']}。\n{chapter['body']}" if chapter["title"] else chapter["body"]
     t0 = time.monotonic()
     try:
-        data = synthesize_text(tts, spoken, settings, sleep)
+        data = synthesize_text(tts, spoken_text(chapter), settings, sleep)
     except TTSError as e:
         repo.log_run(conn, chapter["book_id"], "tts", chapter_idx=chapter["idx"], ok=False, note=str(e)[:300],
                      duration_ms=int((time.monotonic() - t0) * 1000))
         raise
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    tmp = dest.with_suffix(".mp3.tmp")
-    tmp.write_bytes(data)
-    os.replace(tmp, dest)  # 原子:播放器永远看不到写了一半的文件
+    write_audio(settings, rel, data)
     repo.set_audio(conn, chapter["id"], "basic", rel)
     repo.log_run(conn, chapter["book_id"], "tts", chapter_idx=chapter["idx"],
                  duration_ms=int((time.monotonic() - t0) * 1000), note=f"{len(data)} bytes")
     return dest
 
 
-def audio_file_ok(settings: Settings, relpath: str | None) -> bool:
-    """"可以播"以文件为准:数据库有记录但文件不在(例如只恢复了数据库备份)不算。"""
-    return bool(relpath) and (settings.audio_dir / relpath).is_file()
+def chapter_audio(conn, settings: Settings, chapter_id: int) -> str | None:
+    """这一章现在能播的音频(相对路径):优先电脑版 hq,没有或文件丢了退到 edge 版;都没有返回 None。"""
+    paths = {q: (rec or {}).get("path") for q in PREFERENCE for rec in [repo.get_audio(conn, chapter_id, q)]}
+    return best_playable(settings, paths)
 
 
-def chapters_needing_audio(conn, settings: Settings, book_id: int) -> list[dict]:
-    """没登记音频的章 + 登记了但文件已丢失的章(先后顺序由 listening_order 决定)。"""
-    lost = [c for c in repo.voiced_chapters(conn, book_id) if not audio_file_ok(settings, c["audio_path"])]
-    return repo.chapters_missing_audio(conn, book_id) + lost
+def voice_fallback(conn, tts: TTS, settings: Settings, book_id: int, pos: int = 1,
+                   sleep=time.sleep) -> tuple[int, str]:
+    """电脑没开时,用户手动选"先用 edge-tts 配":只配**现在一份能播的音频都没有**的章(已有电脑版的不重复配)。
+    电脑版之后照样会来升级——edge 版只是先顶着。遇到失败就停,返回 (已完成章数, 人话错误)。"""
+    todo = [c for c in chapters_needing_audio(conn, settings, book_id) if chapter_audio(conn, settings, c["id"]) is None]
+    done = 0
+    for ch in listening_order(todo, pos):
+        try:
+            ensure_chapter_audio(conn, tts, settings, ch, sleep)
+        except TTSError:
+            return done, f"第 {ch['idx']} 章用 edge-tts 配音失败,文字可以照常阅读;可以稍后再试,或等电脑开机。"
+        done += 1
+    return done, ""
+
+
+def chapters_needing_audio(conn, settings: Settings, book_id: int, quality: str = "basic") -> list[dict]:
+    """没登记该质量音频的章 + 登记了但文件已丢失的章(先后顺序由 listening_order 决定)。"""
+    lost = [c for c in repo.voiced_chapters(conn, book_id, quality) if not audio_file_ok(settings, c["audio_path"])]
+    return repo.chapters_missing_audio(conn, book_id, quality) + lost
 
 
 def listening_order(chapters: list[dict], pos: int) -> list[dict]:

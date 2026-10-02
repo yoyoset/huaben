@@ -10,7 +10,8 @@ AI 私人连载 + 听书(PWA)。先读 `README.md`,再按需读 `docs/`:
 
 - 部署目标:10.1.1.13(Docker Compose,`/opt/huaben`),沿用 13 上 vpsmon / opencode-usage 的惯例;
   远程执行用 `F:/my_ai/openwrt/tools/rsh.sh`(`rsh 13 ...`)。
-- 用户的 PC 只做可选的增强算力(v1 高质量语音工人),**任何功能不得依赖 PC 在线**。
+- 正文生成**不得依赖 PC 在线**。配音以 PC(RTX 3060)上的本地中文模型为主(2026-10-02 用户改定,见 architecture.md 第 2 节):
+  PC 没开就提醒开机、可手动先用 edge-tts;不要在 edge-tts 上多花精力。
 - LLM 默认 OpenRouter `deepseek/deepseek-v4.1-flash`,长文生成:关思考、frequency/presence penalty = 0。
 - 用户偏好:新旧内容并行保留,不随手删除或替换;不可逆/对外操作先确认。
 

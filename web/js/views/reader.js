@@ -6,6 +6,7 @@ import { bookHome, chapterAvailability, chapterMark, nextChapter, paragraphs, pr
 import { play } from '../player.js';
 import { poll } from '../poll.js';
 import { prefsToolbar } from '../reading_prefs.js';
+import { voiceNoteEl } from './voice_note.js';
 
 const go = (bookId, idx) => { location.hash = `#/read/${bookId}/${idx}`; };
 const errorBanner = (book) => [
@@ -18,7 +19,8 @@ export async function readerView(bookId, idxParam) {
   const box = h('div', {}, h('p', { class: 'muted' }, '加载中…'));
   mount(box);
   try {
-    const [book, chapters] = await Promise.all([api.book(bookId), api.chapters(bookId)]);
+    // 配音状态取不到不影响阅读(只是少一条提示)
+    const [book, chapters, voice] = await Promise.all([api.book(bookId), api.chapters(bookId), api.voiceStatus().catch(() => null)]);
     setTopTitle(book.title);
     // 开书阶段的书不会自己开始写:不要在这里空等"第一章",直接回到开书对话
     if (book.status === 'drafting') { location.replace(bookHome(book)); return; }
@@ -37,6 +39,7 @@ export async function readerView(bookId, idxParam) {
       next ? '下一章 →' : '下一章还在写');
     fill(box,
       errorBanner(book),
+      voiceNoteEl(book, voice),
       h('div', { class: 'row', style: 'justify-content:space-between' },
         h('a', { class: 'btn', href: `#/stats/${bookId}`, 'aria-label': '本书运行统计' }, '📊 统计'), prefsToolbar()),
       h('h1', { class: 'chapter-title' }, `第${idx}章 ${ch.title}`),

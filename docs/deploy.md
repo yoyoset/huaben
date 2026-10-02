@@ -52,3 +52,11 @@ curl -s http://127.0.0.1:${HUABEN_HOST_PORT:-8210}/api/health   # {"ok":true}
 ## 首次部署记录
 
 (待填)
+
+## 配音(电脑上的配音程序)
+
+默认 `HUABEN_TTS_MODE=pc`:服务器不自己配音,电脑上的配音程序来取任务(`GET /api/voice/jobs`)、交 MP3
+(`PUT /api/voice/jobs/{book}/{idx}`)。电脑只需要能访问服务器(局域网或 Tailscale),不用开端口。
+- 可选 `HUABEN_VOICE_WORKER_TOKEN`:设了之后配音程序必须带 `Authorization: Bearer <token>`。
+- 电脑多久没来取任务算离线:`HUABEN_VOICE_WORKER_ONLINE_S`(默认 600 秒)。离线时书页提醒开机,并可"先用 edge-tts 配"。
+- 想回到服务器自动用 edge-tts 配:`HUABEN_TTS_MODE=edge`。

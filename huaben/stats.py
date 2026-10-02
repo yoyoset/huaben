@@ -14,12 +14,12 @@ def _per(total: float, n: int) -> float:
     return total / n if n else 0.0
 
 
-def book_stats(conn, book_id: int, audio_ok=lambda path: path is not None) -> dict:
-    """audio_ok:判断音频文件是否真的可播(API 层传入按文件核对的函数;默认只看数据库登记)。"""
+def book_stats(conn, book_id: int, audio_ok=lambda row: row["has_audio"]) -> dict:
+    """audio_ok:判断一章(chapter_index 的一行)是否真的有能播的音频(API 层按文件核对;默认只看数据库登记)。"""
     t = repo.run_totals(conn, book_id)
     n = repo.count_accepted(conn, book_id)
     att = repo.attempt_stats(conn, book_id)
-    voiced = sum(1 for c in repo.chapter_index(conn, book_id) if audio_ok(c["audio_path"]))
+    voiced = sum(1 for c in repo.chapter_index(conn, book_id) if audio_ok(c))
     return {
         "chapters": n,
         "avg_cost_usd": _per(t["chapter"]["cost_usd"] + t["volume"]["cost_usd"], n),

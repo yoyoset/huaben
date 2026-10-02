@@ -4,6 +4,7 @@
 而不是带着坏配置跑起来、到生成第 N 章时才崩。
 """
 from functools import lru_cache
+from typing import Literal
 from pathlib import Path
 
 from pydantic import Field, ValidationError, field_validator, model_validator
@@ -43,7 +44,13 @@ class Settings(BaseSettings):
     backoff_base_s: float = Field(60.0, gt=0)      # 某本书补货失败后,首次等多久再试;之后每次翻倍
     backoff_cap_s: float = Field(1800.0, gt=0)
 
-    # 保底语音
+    # 配音。2026-10-02 用户定:以电脑(RTX 3060)上的本地中文模型为主,"不要死磕 edge-tts"。
+    # pc:服务器不自己配音,电脑上的配音程序来取任务(拉取,电脑不用开端口);电脑没开时界面提醒开机,
+    #     并可手动选"先用 edge-tts 配"。edge:旧行为,服务器用 edge-tts 自动配。
+    tts_mode: Literal["pc", "edge"] = "pc"
+    voice_worker_token: str = ""                          # 设了则电脑配音程序必须带上(Bearer);家里 Tailscale 内可不设
+    voice_worker_online_s: float = Field(600.0, gt=0)     # 多久没来取任务就算电脑离线(一章合成可能要几分钟)
+    # edge-tts(手动"先用 edge 配",或 tts_mode=edge)
     tts_voice: str = Field("zh-CN-XiaoxiaoNeural", min_length=1)
     tts_chunk_chars: int = Field(1500, ge=1, le=10_000)  # 长章按段落切块合成再拼接,单次请求不过长
     tts_retries: int = Field(2, ge=0, le=10)

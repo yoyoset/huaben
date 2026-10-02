@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 
 from .. import foreshadow_report, repo, stats
-from ..tts.service import audio_file_ok
+from ..tts.store import best_playable, index_paths
+from ..voice_queue import unplayable_count
 from .deps import book_or_404, get_conn
 from .routes_profiles import profile_or_404
 
@@ -15,9 +16,10 @@ class NewBook(BaseModel):
     profile_id: int | None = None  # 开在谁的书架上;前端总会带上
 
 
-def book_view(conn, b: dict, buffer_target: int) -> dict:
-    """buffer_target:预生成缓冲目标章数。generating = 后台还会继续补货,前端据此决定要不要自动刷新。"""
+def book_view(conn, b: dict, settings) -> dict:
+    """generating = 后台还会继续补货(缓冲没满),前端据此决定要不要自动刷新。"""
     buffered = repo.buffered_ahead(conn, b["id"])
+    buffer_target = settings.buffer_chapters
     return {
         "id": b["id"], "title": b["title"], "genre": b["genre"], "status": b["status"],
         "profile_id": b["profile_id"],
@@ -29,6 +31,7 @@ def book_view(conn, b: dict, buffer_target: int) -> dict:
         "generating": b["status"] == "serializing" and buffered < buffer_target,
         "gen_error": b["gen_error"],      # 非空 = 后台写文字遇到问题,界面应提示
         "audio_error": b["audio_error"],  # 非空 = 配音遇到问题(文字照常可读)
+        "audio_pending": unplayable_count(conn, settings, b["id"]),  # 还没有能播音频的章数(等电脑配音)
     }
 
 
@@ -37,8 +40,8 @@ def list_books(request: Request, profile: int | None = None, conn=Depends(get_co
     """profile:只看这个人的书架(前端总会带上);不带则列出全部。读者不存在回 404,前端据此回到"谁在看"。"""
     if profile is not None:
         profile_or_404(conn, profile)
-    target = request.app.state.settings.buffer_chapters
-    return [book_view(conn, b, target) for b in repo.list_books(conn, profile)]
+    settings = request.app.state.settings
+    return [book_view(conn, b, settings) for b in repo.list_books(conn, profile)]
 
 
 @router.post("", status_code=201)
@@ -46,12 +49,12 @@ def create_book(body: NewBook, request: Request, conn=Depends(get_conn)):
     if body.profile_id is not None:
         profile_or_404(conn, body.profile_id)
     book = repo.get_book(conn, repo.create_book(conn, body.title, profile_id=body.profile_id))
-    return book_view(conn, book, request.app.state.settings.buffer_chapters)
+    return book_view(conn, book, request.app.state.settings)
 
 
 @router.get("/{book_id}")
 def get_book(book_id: int, request: Request, conn=Depends(get_conn)):
-    return book_view(conn, book_or_404(conn, book_id), request.app.state.settings.buffer_chapters)
+    return book_view(conn, book_or_404(conn, book_id), request.app.state.settings)
 
 
 @router.get("/{book_id}/stats")
@@ -59,7 +62,7 @@ def book_stats(book_id: int, request: Request, conn=Depends(get_conn)):
     """可观测:单章平均成本/耗时、重写率、配音覆盖、失败分布(口径见 huaben/stats.py)。"""
     book_or_404(conn, book_id)
     settings = request.app.state.settings
-    return stats.book_stats(conn, book_id, audio_ok=lambda path: audio_file_ok(settings, path))
+    return stats.book_stats(conn, book_id, audio_ok=lambda c: best_playable(settings, index_paths(c)) is not None)
 
 
 @router.get("/{book_id}/foreshadows")

@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from typing import Callable
 
 from . import repo
-from .api.deps import ensure_llm
+from .api.deps import auto_tts, ensure_llm
 from .db import connect
 from .human_errors import explain
 from .llm import LLMError
@@ -100,7 +100,8 @@ class Worker:
 
     def _tick_book(self, conn, llm, book_id: int) -> TopUpResult | None:
         text_ok = self._backoff.ready(book_id)
-        tts = self._state.tts if self._state.tts and self._audio_backoff.ready(book_id) else None
+        auto = auto_tts(self._state)
+        tts = auto if auto and self._audio_backoff.ready(book_id) else None
         if not text_ok and tts is None:
             return None  # 两类都在退避中
         try:

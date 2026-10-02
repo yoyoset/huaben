@@ -4,7 +4,8 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from .. import repo
-from ..tts.service import audio_file_ok
+from ..tts.service import chapter_audio
+from ..tts.store import best_playable, index_paths
 from .background import topup_in_background
 from .deps import book_or_404, get_conn
 
@@ -26,7 +27,7 @@ def _accepted(conn, book_id: int, idx: int) -> dict:
 def chapters(book_id: int, request: Request, conn=Depends(get_conn)):
     book_or_404(conn, book_id)
     settings = request.app.state.settings
-    return [{"idx": c["idx"], "title": c["title"], "has_audio": audio_file_ok(settings, c["audio_path"])}
+    return [{"idx": c["idx"], "title": c["title"], "has_audio": best_playable(settings, index_paths(c)) is not None}
             for c in repo.chapter_index(conn, book_id)]
 
 
@@ -34,19 +35,20 @@ def chapters(book_id: int, request: Request, conn=Depends(get_conn)):
 def chapter(book_id: int, idx: int, request: Request, conn=Depends(get_conn)):
     book_or_404(conn, book_id)
     ch = _accepted(conn, book_id, idx)
-    rec = repo.get_audio(conn, ch["id"])
-    has_audio = audio_file_ok(request.app.state.settings, rec["path"] if rec else None)
+    rel = chapter_audio(conn, request.app.state.settings, ch["id"])
+    # 地址里带上是哪一份:电脑版替换 edge 版后地址随之变化,浏览器不会继续播缓存里的旧音频
     return {"idx": idx, "title": ch["title"], "body": ch["body"],
-            "audio_url": f"/api/books/{book_id}/chapters/{idx}/audio" if has_audio else None}
+            "audio_url": f"/api/books/{book_id}/chapters/{idx}/audio?v={rel.replace('/', '_')}" if rel else None}
 
 
 @router.get("/chapters/{idx}/audio")
 def audio(book_id: int, idx: int, request: Request, conn=Depends(get_conn)):
     book_or_404(conn, book_id)
-    rec = repo.get_audio(conn, _accepted(conn, book_id, idx)["id"])
-    path = request.app.state.settings.audio_dir / rec["path"] if rec else None
-    if path is None or not path.exists():
+    settings = request.app.state.settings
+    rel = chapter_audio(conn, settings, _accepted(conn, book_id, idx)["id"])
+    if rel is None:
         raise HTTPException(404, "这一章的音频还没准备好")
+    path = settings.audio_dir / rel
     # FileResponse 自带 Range 支持:iOS 的 <audio> 必须能分段取流才能拖动/锁屏续播
     return FileResponse(path, media_type="audio/mpeg")
 

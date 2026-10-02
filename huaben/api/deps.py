@@ -39,6 +39,11 @@ def get_tts(request: Request) -> TTS | None:
     return request.app.state.tts
 
 
+def auto_tts(state) -> TTS | None:
+    """后台补货时要不要顺带用服务器上的 TTS(edge)自动配音。tts_mode=pc 时不配:由电脑上的配音程序来取任务。"""
+    return state.tts if state.settings.tts_mode == "edge" else None
+
+
 def book_or_404(conn, book_id: int) -> dict:
     book = repo.get_book(conn, book_id)
     if book is None:

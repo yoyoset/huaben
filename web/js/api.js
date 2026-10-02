@@ -35,5 +35,7 @@ export const api = {
   foreshadows: (id) => call('GET', `/api/books/${id}/foreshadows`),
   stats: (id) => call('GET', `/api/books/${id}/stats`),
   spend: () => call('GET', '/api/spend'),
+  voiceStatus: () => call('GET', '/api/voice/status'),
+  voiceFallback: (id) => call('POST', `/api/voice/fallback/${id}`),
   openChapter: (id, chapter) => call('PUT', `/api/books/${id}/progress`, { chapter }),
 };

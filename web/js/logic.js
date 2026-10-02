@@ -156,3 +156,16 @@ export function spendNote(s) {
   if (!s.reliable) parts.push(`有 ${s.unpriced_calls} 次调用上游没报费用,实际花费可能更高`);
   return parts.length ? `💰 ${parts.join(';')}` : null;
 }
+
+/**
+ * 配音提示(2026-10-02 起配音以电脑上的本地中文模型为主)。返回 { text, offerFallback } 或 null。
+ *  - 没有待配的章 / 服务器自己配(edge 模式)→ 不提示
+ *  - 电脑在线 → 告知正在配
+ *  - 电脑离线 → 提醒开机,并提供"先用 edge-tts 配"(用户定:告知、提醒开机、让人决定要不要先用 edge 继续)
+ */
+export function voiceNote(pending, voice) {
+  if (!pending || !voice || voice.mode !== 'pc') return null;
+  if (voice.worker_online) return { text: `🎧 电脑正在配音,这本书还有 ${pending} 章没配好`, offerFallback: false };
+  return { text: `🎧 有 ${pending} 章在等电脑配音:请打开电脑上的配音程序。急着听可以先用 edge-tts 配(电脑开机后会换成高质量版)`,
+    offerFallback: true };
+}
