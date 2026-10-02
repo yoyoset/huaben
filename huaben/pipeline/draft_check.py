@@ -10,9 +10,13 @@ MIN_PUNCT_DENSITY = 1 / 60  # 每 60 字至少 1 个中文标点。前身踩坑:
 TAIL_WINDOW = 600           # 标点密度单独查最后这么多字(标点消失总是发生在后半段)
 REPEAT_LIMIT = 3            # 同一段落出现 ≥3 次视为生成退化
 
-_PUNCT = re.compile(r"[,。!?;:、“”‘’…—「」『』(),!?]")
-_HEADING = re.compile(r"^\s*(#+\s*|第\s*[0-9一二三四五六七八九十百千零〇]+\s*章|标题\s*[::]|《[^》]{1,30}》\s*$)")
-_TRAILER = re.compile(r"^\s*[((【\[]?\s*(本章完|全章完|完|未完待续|待续)\s*[))】\]]?\s*$")
+# 全角标点一律写成 \u 转义:2026-10-02 生产环境第 1 章被误判"后半部分标点缺失"打回——源码里本该是全角的
+# 逗号/叹号/问号/冒号/分号/括号被写成了半角,检查只认得句号和顿号,模型真实写出的全角标点全不算数。
+# 转义写法不会再被编辑过程悄悄换掉;tests/test_draft_check.py 也用转义钉住。
+FULLWIDTH = "，！？：；（）"  # 全角 逗号 叹号 问号 冒号 分号 左右括号
+_PUNCT = re.compile("[,!?;:()。、“”‘’…—「」『』" + FULLWIDTH + "]")
+_HEADING = re.compile("^\\s*(#+\\s*|第\\s*[0-9一二三四五六七八九十百千零〇]+\\s*章|标题\\s*[:：]|《[^》]{1,30}》\\s*$)")
+_TRAILER = re.compile("^\\s*[(（【\\[]?\\s*(本章完|全章完|完|未完待续|待续)\\s*[)）】\\]]?\\s*$")
 # 模型拒绝写作时,拒绝语就是回复的开头;"作为 AI/语言模型"的自我声明则在对白之外出现。
 # 不能在开头一段里随处找"抱歉/我不能提供"——那是常见的人物台词(实测误伤:"“抱歉,我来晚了。”沈照推门而入")。
 _REFUSAL_START = re.compile(r"(很)?抱歉|对不起|我无法|我不能|作为(一个)?\s*(AI|人工智能|语言模型)"
@@ -35,7 +39,7 @@ def clean_draft(text: str) -> str:
     """去掉模型常加的开头标题行与结尾"本章完"之类,正文本身不动。"""
     lines = text.strip().splitlines()
     # 只在后面还有正文时才当标题去掉;像标题的句子若是全部内容,保留原样交给篇幅检查
-    while len(lines) > 1 and len(lines[0].strip()) <= 40 and not re.search(r"[。!?!?]", lines[0]) \
+    while len(lines) > 1 and len(lines[0].strip()) <= 40 and not re.search("[。!?！？]", lines[0]) \
             and _HEADING.match(lines[0]):
         lines.pop(0)
     while lines and _TRAILER.match(lines[-1]):

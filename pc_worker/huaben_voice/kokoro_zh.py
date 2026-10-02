@@ -14,7 +14,8 @@ SAMPLE_RATE = 24000
 MAX_SEG_CHARS = 120        # 单段过长会超出模型的音素上限被截断(Kokoro 约 510 个音素),按句切小
 PARAGRAPH_PAUSE_S = 0.45   # 段与段之间的停顿;句与句之间的停顿由模型按标点自己处理
 
-_SENT_END = re.compile(r"(?<=[。!?!?…;;])")
+# 全角标点用 \u 转义写:源码编辑时全角符号曾被悄悄换成半角(见 huaben/pipeline/draft_check.py)
+_SENT_END = re.compile("(?<=[!?;。！？…；])")
 
 
 def segments(text: str, max_chars: int = MAX_SEG_CHARS) -> list[list[str]]:

@@ -1,7 +1,8 @@
 """朗读前的文本处理。纯函数。"""
 import re
 
-_SENTENCE_END = re.compile(r"(?<=[。!?!?…”」』])")
+# 全角标点用 \u 转义写(原因见 pipeline/draft_check.py):句号 叹号 问号 省略号 右引号 右直角引号
+_SENTENCE_END = re.compile("(?<=[!?。！？…”」』])")
 
 
 def clean_for_tts(text: str) -> str:

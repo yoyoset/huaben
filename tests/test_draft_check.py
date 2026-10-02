@@ -80,3 +80,19 @@ def test_pipeline_rewrites_bad_draft_without_spending_on_ledger(conn):
     assert ch["attempts"] == 2 and ch["body"] == GOOD  # 拒答被打回;第二稿的标题行被清掉
     assert "不是小说正文" in llm.calls[2][-1]["content"]  # 打回理由交给了重写
     assert len(llm.calls) == 4  # 拒答那稿没有调用入账
+
+
+# 用 \u 转义构造"模型真实写法"的正文:全角 逗号(ff0c) 叹号(ff01) 问号(ff1f) 冒号(ff1a)。
+# 2026-10-02 生产环境:这样的正文被误判"后半部分标点缺失",第 1 章三稿全被打回。
+FW_SENT = "他停下脚步，侧耳听了听：是谁？没人回答！"
+
+
+def test_fullwidth_punctuated_chapter_passes():
+    body = "\n".join(f"第{i}段" + FW_SENT * 3 for i in range(30))  # 每句只有全角标点、没有句号;每段不同,免得触发重复检查
+    assert draft_problems(body, 500) == []
+
+
+def test_fullwidth_trailer_and_heading_are_cleaned():
+    text = "标题：夜巡\n" + GOOD + "\n（本章完）"  # 标题:夜巡 … (本章完)
+    cleaned = clean_draft(text)
+    assert not cleaned.startswith("标题") and not cleaned.endswith("）")

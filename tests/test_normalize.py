@@ -49,7 +49,7 @@ def test_absent_character_fields_stay_absent():
     {"characters": [{"name": "x", "alive": "也许"}]},
     {"foreshadows_update": [3]},
     {"foreshadows_update": [{"id": "abc", "status": "resolved"}]},
-    {"foreshadows_update": [{"id": 1, "status": "done"}]},
+    {"foreshadows_update": [{"id": 1, "status": "maybe"}]},
     {"foreshadows_new": [{"content": ""}]},
     {"facts": "不是列表"},
     {"summary": ""},
@@ -106,3 +106,12 @@ def test_bad_ledger_retries_ledger_only_then_visible_failure(conn):
     llm2 = FakeLLM([PLAN, OUTLINE] + ["正文", bad, bad] * 3)
     res2 = top_up(conn, llm2, Settings(openrouter_api_key="x", chapter_words=1, buffer_chapters=1, _env_file=None), bid2)
     assert res2.error and repo.get_book(conn, bid2)["gen_error"]
+
+
+def test_real_run_ledger_shapes_are_tolerated():
+    """2026-10-02 生产环境第 1 章:'planted' 状态、单个对象不套列表——两次都让整份入账作废、整章重写。"""
+    d = normalize_ledger(ledger(foreshadows_update=[{"id": 1, "status": "planted"}, {"id": 2, "status": "已回收"},
+                                                    {"id": 3, "status": "推进中"}]))
+    assert d["foreshadows_update"] == [{"id": 2, "status": "resolved"}, {"id": 3, "status": "progressing"}]
+    one = normalize_ledger(ledger(foreshadows_update={"id": 4, "status": "resolved"}, characters={"name": "周小满"}))
+    assert one["foreshadows_update"] == [{"id": 4, "status": "resolved"}] and one["characters"][0]["name"] == "周小满"

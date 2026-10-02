@@ -9,6 +9,12 @@ from .jsonout import ParseError
 _TRUE = {"true", "yes", "y", "1", "是", "存活", "活", "活着", "对"}
 _FALSE = {"false", "no", "n", "0", "否", "死亡", "死", "已死", "已死亡", "不是", "错"}
 FORESHADOW_STATUSES = ("progressing", "resolved")
+# 模型对伏笔状态的常见写法(2026-10-02 真实运行:写成 'planted' 导致整份入账被打回、整章重写)
+_FS_ALIASES = {"推进": "progressing", "推进中": "progressing", "in_progress": "progressing", "progress": "progressing",
+               "developing": "progressing", "回收": "resolved", "已回收": "resolved", "已收": "resolved",
+               "closed": "resolved", "done": "resolved", "paid_off": "resolved"}
+# "仍是埋着/没变化"本来就不是更新,丢掉即可,不值得为此打回整章
+_FS_NOOP = {"planted", "埋下", "已埋", "open", "pending", "unchanged", "未变", "无变化"}
 
 
 def to_bool(v, field: str) -> bool:
@@ -56,6 +62,8 @@ def _list(d: dict, key: str) -> list:
     v = d.get(key)
     if v is None:
         return []
+    if isinstance(v, dict):  # 只有一条时模型常直接给对象不套列表(2026-10-02 真实运行:因此整章重写)
+        return [v]
     if not isinstance(v, list):
         raise ParseError(f"{key}: 期望列表,得到 {type(v).__name__}")
     return v
@@ -91,10 +99,14 @@ def normalize_foreshadow_new(f) -> dict:
     return {"content": content, "payoff_plan": to_text(f.get("payoff_plan"), "foreshadows_new.payoff_plan")}
 
 
-def normalize_foreshadow_update(u) -> dict:
+def normalize_foreshadow_update(u) -> dict | None:
+    """返回 None 表示这条不是真正的更新("还埋着"),由调用方丢掉。"""
     if not isinstance(u, dict):
         raise ParseError(f"foreshadows_update: 条目不是对象 {u!r}")
-    status = to_text(u.get("status"), "foreshadows_update.status").lower()
+    status = to_text(u.get("status"), "foreshadows_update.status").strip().lower()
+    status = _FS_ALIASES.get(status, status)
+    if status in _FS_NOOP:
+        return None
     if status not in FORESHADOW_STATUSES:
         raise ParseError(f"foreshadows_update: 未知状态 {status!r}")
     return {"id": to_int(u.get("id"), "foreshadows_update.id"), "status": status}
@@ -126,7 +138,7 @@ def normalize_ledger(d: dict) -> dict:
         "summary": summary,
         "characters": [normalize_character(c) for c in _list(d, "characters")],
         "foreshadows_new": [normalize_foreshadow_new(f) for f in _list(d, "foreshadows_new")],
-        "foreshadows_update": [normalize_foreshadow_update(u) for u in _list(d, "foreshadows_update")],
+        "foreshadows_update": [x for x in map(normalize_foreshadow_update, _list(d, "foreshadows_update")) if x],
         "facts": to_text_list(_list(d, "facts"), "facts"),
         "contradictions": [normalize_contradiction(c) for c in _list(d, "contradictions")],
     }
