@@ -20,7 +20,7 @@ def test_shell_served_and_api_not_shadowed(tmp_path):
     c = client(tmp_path)
     home = c.get("/")
     assert home.status_code == 200 and "话本" in home.text and 'type="module"' in home.text
-    assert c.get("/api/health").json() == {"ok": True}  # 静态挂载在根,不能盖住 /api
+    assert c.get("/api/health").json()["ok"] is True  # 静态挂载在根,不能盖住 /api
     assert c.get("/api/books").json() == []
 
 

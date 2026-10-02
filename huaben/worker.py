@@ -6,6 +6,7 @@
 import logging
 import threading
 import time
+from datetime import datetime, timezone
 from typing import Callable
 
 from . import repo
@@ -43,6 +44,8 @@ class Worker:
         self._state, self._interval, self._backoff = state, interval_s, backoff
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
+        self.last_tick_at: str | None = None  # 供 /api/health 判断后台是否还在转
+        self.ticks = 0
 
     def tick(self) -> dict[int, TopUpResult]:
         """巡检一遍。任何异常都只记日志,绝不让后台线程死掉。"""
@@ -75,7 +78,14 @@ class Worker:
     def _run(self) -> None:
         while not self._stop.is_set():  # 先巡检再等待:启动即恢复
             self.tick()
+            self.ticks += 1
+            self.last_tick_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
             self._stop.wait(self._interval)
+
+    def status(self) -> dict:
+        alive = bool(self._thread and self._thread.is_alive())
+        return {"enabled": True, "running": alive, "ticks": self.ticks, "last_tick_at": self.last_tick_at,
+                "interval_s": self._interval}
 
     def start(self) -> None:
         self._thread = threading.Thread(target=self._run, name="huaben-worker", daemon=True)

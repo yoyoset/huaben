@@ -32,7 +32,7 @@ def open_book(c, title="未命名"):
 
 def test_health_and_empty_shelf(tmp_path):
     c, _ = make_client(tmp_path)
-    assert c.get("/api/health").json() == {"ok": True}
+    assert c.get("/api/health").json()["ok"] is True
     assert c.get("/api/books").json() == []
 
 

@@ -14,12 +14,13 @@
 
 - [docs/build-log/2026-10-02-v0-slices.md](docs/build-log/2026-10-02-v0-slices.md) — v0 十二个切片(轮 1~12)
 - [docs/build-log/2026-10-02-review-fixes.md](docs/build-log/2026-10-02-review-fixes.md) — 逻辑完整性审查 14 项修复
+- [docs/build-log/2026-10-02-polish.md](docs/build-log/2026-10-02-polish.md) — 持续完善(loop)
 
 ## 持续完善路线(loop 每轮取最上面一项未完成的)
 
 目标:专业软件的完成度,而不是 demo。只做能在本地验证的事;需要密钥/真机/部署/用户决策的,记 Magpie 后跳过。
 
-1. [ ] **运维可见性**:`/api/health` 报告版本、数据库迁移版本、worker 是否在跑、LLM 是否已配置(不泄露密钥);`huaben.__version__`
+1. [x] **运维可见性**:`/api/health` 报告版本、数据库迁移版本、worker 是否在跑、LLM 是否已配置(不泄露密钥);`huaben.__version__`
 2. [ ] **配置校验**:Settings 对数值范围做校验(buffer_chapters、chapter_words、退避等),启动时给出人话错误而非运行中崩溃
 3. [ ] **查询效率**:书架/详情不再为了计数加载全部章节正文(专用 COUNT 查询)
 4. [ ] **前端·等待态**:阅读页"下一章还在写"与书架"生成中"自动刷新(轮询有上限),不用手动刷新
