@@ -130,3 +130,14 @@ def test_retry_after_more_conversation_reextracts_bible(conn, book):
     assert out["synopsis"] == "女夜巡人的故事。"
     assert [c["name"] for c in repo.list_characters(conn, book)] == ["阿蘅"]  # 旧圣经的人物没有残留
     assert repo.get_bible(conn, book)["extracted_msgs"] == 2
+
+
+def test_failed_turn_stores_nothing_so_resend_is_not_duplicated(conn, book):
+    from huaben.llm import LLMError
+    with pytest.raises(LLMError):
+        opening_turn(conn, FakeLLM([LLMError("down", kind="server")]), book, "古代恐怖")
+    assert repo.list_messages(conn, book) == []  # 失败:不留悬空的用户消息
+    llm = FakeLLM([guide("好")])
+    opening_turn(conn, llm, book, "古代恐怖")    # 重发
+    assert [m["content"] for m in repo.list_messages(conn, book)] == ["古代恐怖", "好"]
+    assert llm.calls[0][-1] == {"role": "user", "content": "古代恐怖"}  # 新消息仍然在发给模型的末尾

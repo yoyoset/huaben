@@ -1,9 +1,10 @@
 """开书对话记录。"""
 
 
-def add_message(conn, book_id: int, role: str, content: str) -> None:
+def add_message(conn, book_id: int, role: str, content: str, commit: bool = True) -> None:
     conn.execute("INSERT INTO opening_messages(book_id, role, content) VALUES (?,?,?)", (book_id, role, content))
-    conn.commit()
+    if commit:
+        conn.commit()
 
 
 def list_messages(conn, book_id: int) -> list[dict]:

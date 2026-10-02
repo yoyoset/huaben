@@ -13,7 +13,11 @@ export async function openingView(bookId) {
   const err = h('div', { class: 'banner', hidden: true });
   let userCount = 0;
 
-  const bubble = (role, text) => chat.append(h('div', { class: `bubble ${role}` }, text));
+  const bubble = (role, text) => {
+    const el = h('div', { class: `bubble ${role}` }, text);
+    chat.append(el);
+    return el;
+  };
   const showErr = (m) => { err.textContent = m; err.hidden = !m; };
   const busy = (on) => { send.disabled = finish.disabled = on; };
 
@@ -28,12 +32,16 @@ export async function openingView(bookId) {
     const text = input.value.trim();
     if (!text) return;
     busy(true); showErr('');
-    bubble('user', text); input.value = ''; userCount++;
+    const mine = bubble('user', text); input.value = '';
     try {
       const r = await api.say(bookId, text);
       bubble('assistant', r.reply);
+      userCount++;
       if (r.ready) finish.classList.add('primary'); // 向导觉得问够了:高亮"开书",但不强制
-    } catch (e) { showErr(e.message); }
+    } catch (e) {
+      // 服务端失败时这条消息没有保存:撤回气泡、把原文放回输入框,用户点发送即可重试,不会重复
+      mine.remove(); input.value = text; showErr(e.message);
+    }
     busy(false); finish.disabled = userCount === 0;
   };
 

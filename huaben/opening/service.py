@@ -42,11 +42,14 @@ def opening_turn(conn, llm: LLM, book_id: int, user_text: str) -> dict:
         raise OpeningError("这本书已经开书,不能再聊开书对话了")
     if not user_text.strip():
         raise OpeningError("消息不能为空")
-    repo.add_message(conn, book_id, "user", user_text)
-    msgs = [{"role": "system", "content": prompts.GUIDE_SYSTEM}] + repo.list_messages(conn, book_id)
+    msgs = ([{"role": "system", "content": prompts.GUIDE_SYSTEM}] + repo.list_messages(conn, book_id)
+            + [{"role": "user", "content": user_text}])
     res = call_step(conn, llm, book_id, None, "opening", msgs, json_mode=True, temperature=0.8, max_tokens=800)
     out = parse_guide(res.text)
-    repo.add_message(conn, book_id, "assistant", out["reply"])
+    # 一问一答成对落库:调用失败时什么都不存,用户重发不会留下悬空/重复的消息
+    with tx(conn):
+        repo.add_message(conn, book_id, "user", user_text, commit=False)
+        repo.add_message(conn, book_id, "assistant", out["reply"], commit=False)
     return {"reply": out["reply"], "ready": out["ready"]}
 
 
