@@ -33,6 +33,15 @@ def _record(conn, llm: LLM, book_id: int, idx: int, messages) -> dict | None:
     return None
 
 
+def _thread_follow_through(ctx, outline: dict, ledger: dict) -> list[str]:
+    """章纲点名要推进的伏笔,入账里却没有任何进展:不打回(可能只是没写到),但留痕供对账。"""
+    open_ids = {f["id"] for f in ctx.foreshadows}
+    touched = {u["id"] for u in ledger["foreshadows_update"]}
+    notes = [f"章纲点名的伏笔 #{i} 本章未见推进" for i in outline["foreshadows"] if i in open_ids and i not in touched]
+    notes += [f"章纲点名的伏笔 #{i} 不存在或已回收" for i in outline["foreshadows"] if i not in open_ids]
+    return notes
+
+
 def generate_chapter(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
     """生成并定稿下一章,返回定稿后的章记录。失败抛 ChapterFailed。"""
     repo.discard_unaccepted(conn, book_id)
@@ -83,7 +92,7 @@ def generate_chapter(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
             repo.log_run(conn, book_id, "check", chapter_idx=idx, ok=False, note="contradiction: " + "; ".join(bad)[:250])
             feedback = bad
             continue
-        for w in apply_ledger(conn, book_id, chapter_id, idx, ledger):
+        for w in apply_ledger(conn, book_id, chapter_id, idx, ledger) + _thread_follow_through(ctx, outline, ledger):
             repo.log_run(conn, book_id, "ledger", chapter_idx=idx, note=w)
         repo.log_run(conn, book_id, "check", chapter_idx=idx, note=f"accepted at attempt {attempt}")
         return repo.get_chapter(conn, book_id, idx)

@@ -63,10 +63,16 @@ def outline_scope(outline: dict) -> str:
     return " ".join([outline["outline"], *outline.get("characters", [])])
 
 
-def work_order(idx: int, outline: dict) -> str:
-    """作者看到的本章工单。有意反转必须交到作者手上:否则作者只看到"死者不得复活"之类的硬约束,
-    会拒绝执行编辑计划好的反转,或者写了却与指令自相矛盾。"""
+def work_order(idx: int, outline: dict, open_foreshadows: list[dict] = ()) -> str:
+    """作者看到的本章工单。编辑的计划要完整交到作者手上:
+    - 本章要推进/回收的伏笔:否则"伏笔该推进的推进"只停留在编辑脑子里;
+    - 有意反转:否则作者只看到"死者不得复活"之类的硬约束,会拒绝执行或写得自相矛盾。"""
     lines = [f"【本章工单】第 {idx} 章《{outline['title']}》", outline["outline"]]
+    by_id = {f["id"]: f for f in open_foreshadows}
+    threads = [by_id[i] for i in outline.get("foreshadows", []) if i in by_id]
+    if threads:
+        lines.append("本章要推进或回收的伏笔(要在情节里落到实处):")
+        lines += [f"- #{f['id']} {f['content']}(第{f['planted_ch']}章埋)" for f in threads]
     if outline.get("planned_reversals"):
         lines.append("本章计划好的有意反转(必须写出来,并写得像伏笔回收、让读者恍然大悟,而不是像笔误):")
         lines += [f"- {r}" for r in outline["planned_reversals"]]
@@ -87,7 +93,7 @@ def write_messages(ctx: StoryContext, outline: dict, words: int, feedback: list[
     parts = [
         render_memory(ctx, scope=outline_scope(outline), focus_ids=outline.get("foreshadows", [])),
         f"【最近原文(衔接文风与情绪)】\n{recent_text(ctx)}",
-        work_order(ctx.next_idx, outline),
+        work_order(ctx.next_idx, outline, ctx.foreshadows),
     ]
     if feedback:
         parts.append("【上一稿被编辑打回,以下问题必须修正】\n" + "\n".join(f"- {f}" for f in feedback))
@@ -105,7 +111,9 @@ def ledger_messages(ctx: StoryContext, outline: dict, body: str) -> list[dict]:
     user = (
         # 检索范围 = 章纲 + 正文:作者自己带进来的人(章纲没提)也必须拿账本状态核对,否则死人复活查不出
         f"{render_memory(ctx, scope=outline_scope(outline) + ' ' + body, focus_ids=outline.get('foreshadows', []))}\n\n"
-        f"【本章章纲】\n{outline['outline']}\n本章有意为之的反转:{outline.get('planned_reversals') or '无'}\n\n"
+        f"【本章章纲】\n{outline['outline']}\n本章有意为之的反转:{outline.get('planned_reversals') or '无'}\n"
+        f"章纲点名要推进的伏笔:{'、'.join(f'#{i}' for i in outline.get('foreshadows', [])) or '无'}"
+        "(正文里确有推进/回收的,务必在 foreshadows_update 登记)\n\n"
         f"【第 {ctx.next_idx} 章正文】\n{body}\n\n"
         "请完成入账与核对:提取摘要;更新出场人物的现状(生死/位置/能力/关系/知情);登记新伏笔与伏笔进展;"
         "登记新确立的世界事实;并核对正文是否与账本冲突(人名、生死、能力、知情范围、世界事实)。"

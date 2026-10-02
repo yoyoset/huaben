@@ -94,3 +94,32 @@ def test_load_context_counts_volume_progress(conn):
         cid = repo.create_chapter(conn, bid, vid, i)
         repo.update_chapter(conn, cid, status="accepted", summary="s")
     assert load_context(conn, bid).volume_done == 3
+
+
+def test_named_foreshadows_reach_writer_and_ledger(conn):
+    bid = repo.create_book(conn, "x")
+    repo.create_volume(conn, bid, 1, goal="g", status="active")
+    fid = repo.add_foreshadow(conn, bid, 2, "玉佩发烫")
+    c = load_context(conn, bid)
+    o = outline(foreshadows=[fid, 999])
+    w = write_messages(c, o, 2500)[-1]["content"]
+    assert f"本章要推进或回收的伏笔(要在情节里落到实处):\n- #{fid} 玉佩发烫(第2章埋)" in w
+    assert "#999" not in w.split("【本章工单】")[1]  # 不存在的编号不进工单
+    assert f"章纲点名要推进的伏笔:#{fid}、#999" in ledger_messages(c, o, "正文")[-1]["content"]
+
+
+def test_unfollowed_thread_is_logged(conn):
+    import json
+    from huaben.config import Settings
+    from huaben.llm_fake import FakeLLM
+    from huaben.pipeline.chapter import generate_chapter
+    bid = repo.create_book(conn, "x")
+    repo.create_volume(conn, bid, 1, goal="g", status="active")
+    fid = repo.add_foreshadow(conn, bid, 0, "玉佩")
+    o = json.dumps(outline(foreshadows=[fid]), ensure_ascii=False)
+    led = json.dumps({"summary": "s", "characters": [], "foreshadows_new": [], "foreshadows_update": [],
+                      "facts": [], "contradictions": []})
+    generate_chapter(conn, FakeLLM([o, "正文", led]), Settings(openrouter_api_key="x", chapter_words=1,
+                                                                 _env_file=None), bid)
+    note = conn.execute("SELECT note FROM pipeline_runs WHERE note LIKE '%未见推进%'").fetchone()[0]
+    assert f"#{fid}" in note
