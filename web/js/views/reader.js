@@ -1,6 +1,7 @@
 // 阅读:最近读到的章(或指定章)、上/下章、"听这一章";目录是单独一页(views/toc.js)。
 // 等待态(要看的章还在写 / 下一章还在写 / 语音还在准备)自动轮询刷新,不用读者手动刷新。
 import { api } from '../api.js';
+import { autoScrollControls } from '../autoscroll.js';
 import { fill, h, mount, setTopTitle } from '../dom.js';
 import { bookHome, chapterAvailability, nextChapter, paragraphs, prevChapter } from '../logic.js';
 import { play } from '../player.js';
@@ -39,17 +40,26 @@ export async function readerView(bookId, idxParam) {
     const audioHint = h('span', { class: 'muted' }, ch.audio_url ? '' : '语音还在准备');
     const nextBtn = h('button', { class: 'primary', disabled: !next, onclick: () => go(bookId, next.idx) },
       next ? '下一章 →' : '下一章还在写');
+    const body = h('div', { class: 'chapter-body' }, paragraphs(ch.body).map((p) => h('p', {}, p)));
+    // 自动滚屏到章末:下一章好了就翻过去(翻过去会接着滚);还在写就等,等到了自动翻(watchPending 会把按钮点亮)
+    const onEnd = () => {
+      const turn = () => !nextBtn.disabled && (nextBtn.click(), true);
+      if (turn()) return;
+      note.textContent = '下一章还在写,写好会自动接着读…';
+      const t = setInterval(() => { if (!body.isConnected || turn()) clearInterval(t); }, 3000);
+    };
     fill(box,
       errorBanner(book),
       voiceNoteEl(book, voice),
       h('div', { class: 'row', style: 'justify-content:space-between' },
         h('div', { class: 'row' }, tocLink(bookId, book), h('a', { class: 'btn', href: `#/stats/${bookId}`, 'aria-label': '本书运行统计' }, '📊 统计')),
         prefsToolbar()),
+      autoScrollControls(body, onEnd),
       h('h1', { class: 'chapter-title' }, `第${idx}章 ${ch.title}`),
       h('div', { class: 'row' },
         h('button', { class: 'primary', onclick: () => listen(bookId, idx, book.title, note) }, '🎧 听这一章'),
         audioHint),
-      h('div', { class: 'chapter-body' }, paragraphs(ch.body).map((p) => h('p', {}, p))),
+      body,
       h('div', { class: 'chapter-nav' },
         h('button', { disabled: !prev, onclick: () => go(bookId, prev.idx) }, '← 上一章'), nextBtn),
       tocLink(bookId, book),

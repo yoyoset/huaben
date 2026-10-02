@@ -181,3 +181,14 @@ export function tocPage(page, size, total) {
   const p = Math.min(Math.max(1, page | 0), pages);
   return { page: p, pages, from: (p - 1) * size + 1, to: Math.min(p * size, Math.max(total, 1)) };
 }
+
+/** 自动滚屏速度档(像素/秒)。默认第 2 档:中文 18px、1.95 倍行距下约每秒 1 行半,接近默读速度。 */
+export const SCROLL_SPEEDS = [15, 25, 40, 60, 90];
+export function stepScrollSpeed(i, dir) {
+  return Math.min(SCROLL_SPEEDS.length - 1, Math.max(0, (i | 0) + dir));
+}
+
+/** 滚到底了没有(留 2px 余量:缩放后的小数像素会让 scrollY 永远差一点点到不了)。 */
+export function atPageEnd(scrollY, viewH, docH) {
+  return scrollY + viewH >= docH - 2;
+}

@@ -150,3 +150,13 @@ test('chapterAvailability:只取了前后几章时,用调用方给的全书最�
   assert.equal(av(window, 501, true, 500), 'writing');
   assert.equal(av([], 300, true, 500), 'missing');  // 取的就是它前后:不在里面 = 确实没有;不会因为这一小段是空的就误判成"第一章在写"
 });
+
+test('自动滚屏:速度档不越界;滚到底的判断容忍小数像素', async () => {
+  const { SCROLL_SPEEDS, stepScrollSpeed, atPageEnd } = await import('../js/logic.js');
+  assert.equal(stepScrollSpeed(0, -1), 0);
+  assert.equal(stepScrollSpeed(SCROLL_SPEEDS.length - 1, +1), SCROLL_SPEEDS.length - 1);
+  assert.equal(stepScrollSpeed(1, +1), 2);
+  assert.equal(atPageEnd(1000, 800, 1800), true);
+  assert.equal(atPageEnd(998.6, 800, 1800), true);
+  assert.equal(atPageEnd(900, 800, 1800), false);
+});

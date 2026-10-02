@@ -6,9 +6,9 @@ import { currentProfile } from './profile.js';
 
 // 每人一份:同一台平板可能两个人轮流用,字号习惯各不相同
 const key = () => `huaben.reading.${currentProfile()?.id ?? 0}`;
-const DEFAULTS = { fontSize: 18, leading: LEADINGS[0] };
+const DEFAULTS = { fontSize: 18, leading: LEADINGS[0], scrollSpeed: 1 };
 
-function load() {
+export function load() {
   try {
     return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(key()) || '{}') };
   } catch {
@@ -16,7 +16,7 @@ function load() {
   }
 }
 
-function save(p) {
+export function save(p) {
   try { localStorage.setItem(key(), JSON.stringify(p)); } catch { /* 不可用:不记忆即可 */ }
 }
 
