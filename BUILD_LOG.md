@@ -8,6 +8,8 @@
 - v0 十二个切片全部完成(本地):开书对话 → 一键连载(分层记忆 + 账本 + 卷)→ 预生成缓冲 → 保底语音 → PWA → 部署文件。
 - 逻辑完整性审查找出的 14 个问题已全部修复,逐条提交。
 - 测试:全部不碰网络(FakeLLM / 剧本 LLM / MockTransport);`python -m pytest -q`。
+- **2026-10-02 用户改定方向**:每人一个书架(profile = 人);配音以电脑(3060)上的本地中文模型为主,电脑没开提醒开机、可先用 edge;
+  花费只提醒不拦;**之后重点是故事质量**。
 - **未实测**(需要用户):真实 OpenRouter 调用、edge-tts 真实合成、docker 构建与部署、iPhone/安卓真机。已记 Magpie。
 
 ## 归档
@@ -15,6 +17,7 @@
 - [docs/build-log/2026-10-02-v0-slices.md](docs/build-log/2026-10-02-v0-slices.md) — v0 十二个切片(轮 1~12)
 - [docs/build-log/2026-10-02-review-fixes.md](docs/build-log/2026-10-02-review-fixes.md) — 逻辑完整性审查 14 项修复
 - [docs/build-log/2026-10-02-polish.md](docs/build-log/2026-10-02-polish.md) — 持续完善(loop)
+- [docs/build-log/2026-10-02-user-direction.md](docs/build-log/2026-10-02-user-direction.md) — 用户改定方向:每人一个书架、配音以电脑为主、花费只提醒
 
 ## 持续完善路线(loop 每轮取最上面一项未完成的)
 
@@ -82,3 +85,9 @@
 29. [x] **真实配音没有超时,挂住的连接会卡死唯一的后台线程**(中·实测):`EdgeTTS` 依赖库自身的超时,而 requirements 只写
     `edge-tts>=6`(各版本内置超时不一定有)。实测替身连接挂住时,旧适配层 5 秒后仍阻塞;后台单线程卡住 = 所有书停更
 
+
+**用户改定方向后的待办**(2026-10-02):
+
+30. [ ] **中文 TTS 选型**(待用户):在电脑上出几种中文模型的样音(候选 CosyVoice2 / IndexTTS2 等),用户试听后定,
+    再在 `pc_worker/huaben_voice/engines.py` 接入。要下载模型、装依赖,须先征得同意
+31. [ ] **故事质量**(用户定的重点):下一轮审查以"写出来的故事好不好看、前后是否一致"为主线
