@@ -112,3 +112,12 @@ def test_world_facts_survive_volume_seals_via_canon(world):
     current_part = p.split("【账本·本卷新确立的事实】")[1]
     assert "第34章确立的事实" in current_part and "第30章确立的事实" not in current_part
     assert repo.get_bible(conn, bid)["canon"].count("确立的事实") == 30  # 3 次封卷,每次并入一卷
+
+
+def test_foreshadow_report_over_35_chapters(world):
+    from huaben.foreshadow_report import load
+    conn, bid, _ = world
+    rep = load(conn, bid)
+    assert (rep["total"]["planted"], rep["total"]["resolved"], rep["total"]["open"]) == (7, 6, 1)
+    assert rep["total"]["avg_chapters_to_resolve"] == 3
+    assert [v["planted"] for v in rep["volumes"]] == [2, 2, 2, 1]  # 每卷 10 章、每 5 章埋一条

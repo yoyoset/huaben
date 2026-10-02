@@ -12,7 +12,7 @@ export async function statsView(bookId) {
   const box = h('div', {}, h('p', { class: 'muted' }, '加载中…'));
   mount(box);
   try {
-    const [book, s] = await Promise.all([api.book(bookId), api.stats(bookId)]);
+    const [book, s, fr] = await Promise.all([api.book(bookId), api.stats(bookId), api.foreshadows(bookId)]);
     setTopTitle(`${book.title} · 统计`);
     const failures = Object.entries(s.failures);
     fill(box,
@@ -25,6 +25,7 @@ export async function statsView(bookId) {
         tile('重写率', fmtPct(s.rewrite_rate), `平均 ${s.avg_attempts.toFixed(1)} 稿`),
         tile('已配音', `${s.voiced}/${s.chapters}`),
         tile('累计花费', fmtUSD(s.total_cost_usd), `开书 ${fmtUSD(s.cost_breakdown_usd.opening)}`)),
+      foreshadowSection(fr),
       h('h2', {}, '问题记录'),
       failures.length
         ? h('ul', {}, failures.map(([step, n]) => h('li', {}, `${STEP_LABELS[step] ?? step}:${n} 次`)))
@@ -37,4 +38,21 @@ export async function statsView(bookId) {
   } catch (e) {
     fill(box, h('div', { class: 'banner' }, e.message));
   }
+}
+
+/** 伏笔回收:全书汇总 + 每卷"计划收 / 实际收 / 没收"(验收项:卷内伏笔有回收记录)。 */
+function foreshadowSection(fr) {
+  const t = fr.total;
+  const ids = (xs) => (xs.length ? xs.map((i) => `#${i}`).join('、') : '无');
+  return h('section', {},
+    h('h2', {}, '伏笔'),
+    h('div', { class: 'stats' },
+      tile('已埋', String(t.planted)), tile('已回收', String(t.resolved)), tile('未回收', String(t.open)),
+      tile('平均几章后回收', t.avg_chapters_to_resolve == null ? '—' : t.avg_chapters_to_resolve.toFixed(1))),
+    t.oldest_open.length
+      ? h('p', { class: 'muted' }, '拖得最久的:', t.oldest_open.map((o) => `#${o.id} ${o.content}(已 ${o.age} 章)`).join(';'))
+      : null,
+    h('ul', {}, fr.volumes.map((v) => h('li', {},
+      `第${v.idx}卷${v.status === 'sealed' ? '(已封卷)' : '(进行中)'}:埋 ${v.planted} 条;计划收 ${ids(v.planned_resolve)};`
+      + `已收 ${ids(v.resolved)}${v.missed.length ? `;${v.status === 'sealed' ? '没收' : '尚未收'} ${ids(v.missed)}` : ''}`))));
 }
