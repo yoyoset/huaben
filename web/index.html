@@ -18,17 +18,18 @@
     <a class="brand" href="#/">话本</a>
     <span id="topbar-title"></span>
   </header>
-  <main id="app" aria-live="polite"></main>
+  <div id="net-banner" class="banner net" role="alert" hidden></div>
+  <main id="app" tabindex="-1"></main>
 
   <!-- 播放条常驻:换页面不打断播放。同一个 <audio> 一直复用,iOS 锁屏后才能自动接下一章 -->
-  <footer id="player" class="player" hidden>
-    <div class="player-info"><strong id="player-title"></strong><small id="player-status"></small></div>
+  <footer id="player" class="player" aria-label="播放器" hidden>
+    <div class="player-info"><strong id="player-title"></strong><small id="player-status" role="status" aria-live="polite"></small></div>
     <div class="player-ctrl">
       <button id="btn-prev" aria-label="上一章">⏮</button>
-      <button id="btn-toggle" class="primary" aria-label="播放/暂停">▶</button>
+      <button id="btn-toggle" class="primary" aria-label="播放">▶</button>
       <button id="btn-next" aria-label="下一章">⏭</button>
-      <button id="btn-rate" aria-label="语速">1.0×</button>
-      <button id="btn-sleep" aria-label="睡眠定时">🌙</button>
+      <button id="btn-rate" aria-label="语速 1.0 倍">1.0×</button>
+      <button id="btn-sleep" aria-label="睡眠定时:关闭">🌙</button>
     </div>
   </footer>
   <audio id="audio" preload="auto"></audio>

@@ -14,6 +14,7 @@ function card(b) {
     h('h3', {}, b.title, ' ', h('span', { class: `chip ${b.status === 'serializing' ? 'live' : ''}` }, STATUS[b.status] ?? b.status)),
     h('div', { class: 'muted' }, b.genre || '', progress),
     // gen_error 非空 = 后台生成遇到问题:必须让用户看见,不能让 TA 以为一切正常
+    // 书架会定时刷新,这里不用 role=alert,否则每次刷新读屏都会重新播报
     b.gen_error ? h('div', { class: 'banner' }, `后台生成遇到问题:${b.gen_error}`) : null);
 }
 
@@ -38,7 +39,7 @@ export async function shelfView() {
       });
     }
   } catch (e) {
-    fill(box, h('div', { class: 'banner' }, e.message));
+    fill(box, h('div', { class: 'banner', role: 'alert' }, e.message));
   }
 }
 

@@ -47,3 +47,14 @@ def test_every_module_in_shell_list_exists(tmp_path):
 def test_frontend_logic_with_node():
     r = subprocess.run(["node", "--test", str(ROOT / "web" / "tests" / "logic.test.mjs")], capture_output=True, text=True, encoding="utf-8")
     assert r.returncode == 0, r.stdout + r.stderr
+
+
+def test_icon_only_buttons_have_accessible_names():
+    """▶ ⏮ 🌙 这类纯符号按钮,读屏念不出意思:必须有 aria-label。"""
+    import re
+    html = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
+    for tag, text in re.findall(r"(<button[^>]*>)(.*?)</button>", html):
+        if not re.search(r"[\u4e00-\u9fffA-Za-z]{2,}", text):
+            assert "aria-label=" in tag, tag
+    assert 'id="app" tabindex="-1"' in html and 'aria-live="polite"></main>' not in html  # 不再整页播报
+    assert 'id="net-banner"' in html and 'role="alert"' in html

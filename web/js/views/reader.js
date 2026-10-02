@@ -8,7 +8,7 @@ import { poll } from '../poll.js';
 import { prefsToolbar } from '../reading_prefs.js';
 
 const go = (bookId, idx) => { location.hash = `#/read/${bookId}/${idx}`; };
-const errorBanner = (book) => (book.gen_error ? h('div', { class: 'banner' }, `后台生成遇到问题:${book.gen_error}`) : null);
+const errorBanner = (book) => (book.gen_error ? h('div', { class: 'banner', role: 'alert' }, `后台生成遇到问题:${book.gen_error}`) : null);
 
 export async function readerView(bookId, idxParam) {
   const box = h('div', {}, h('p', { class: 'muted' }, '加载中…'));
@@ -44,7 +44,7 @@ export async function readerView(bookId, idxParam) {
     );
     if (!next || !ch.audio_url) watchPending(bookId, idx, nextBtn, audioHint, !next, !ch.audio_url);
   } catch (e) {
-    fill(box, h('div', { class: 'banner' }, e.message));
+    fill(box, h('div', { class: 'banner', role: 'alert' }, e.message));
   }
 }
 

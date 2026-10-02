@@ -92,8 +92,10 @@ audio.addEventListener('ended', async () => {
   else { status('睡眠定时:已停止'); setSleep(0); }
   emit();
 });
-audio.addEventListener('play', () => { $('btn-toggle').textContent = '⏸'; emit(); });
-audio.addEventListener('pause', () => { $('btn-toggle').textContent = '▶'; emit(); });
+audio.addEventListener('play', () => { setToggle('⏸', '暂停'); emit(); });
+audio.addEventListener('pause', () => { setToggle('▶', '播放'); emit(); });
+// 图标按钮的可读名要随状态变(读屏念的是 aria-label,不是 ▶/⏸ 这种符号)
+function setToggle(icon, label) { $('btn-toggle').textContent = icon; $('btn-toggle').setAttribute('aria-label', label); }
 audio.addEventListener('timeupdate', syncPosition);
 audio.addEventListener('error', () => status('音频加载失败,稍后重试'));
 
@@ -102,6 +104,7 @@ function setSleep(idx) {
   clearTimeout(st.sleepTimer);
   const opt = SLEEP_OPTIONS[idx];
   $('btn-sleep').textContent = opt.minutes || opt.endOfChapter ? `🌙 ${opt.label}` : '🌙';
+  $('btn-sleep').setAttribute('aria-label', `睡眠定时:${opt.label}`);
   if (opt.minutes) st.sleepTimer = setTimeout(() => { audio.pause(); status('睡眠定时:已暂停'); setSleep(0); }, opt.minutes * 60000);
 }
 
@@ -114,5 +117,6 @@ $('btn-rate').addEventListener('click', () => {
   audio.playbackRate = r;
   $('btn-rate').dataset.rate = r;
   $('btn-rate').textContent = `${r.toFixed(2).replace(/0$/, '')}×`;
+  $('btn-rate').setAttribute('aria-label', `语速 ${r} 倍`);
 });
 bindMediaSession();

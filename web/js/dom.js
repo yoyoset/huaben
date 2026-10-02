@@ -29,6 +29,7 @@ export function mount(el) {
   const app = document.getElementById('app');
   fill(app, el);
   window.scrollTo(0, 0);
+  app.focus({ preventScroll: true }); // 换页后焦点回到正文区:读屏从新页面开头读,键盘不必从顶部重新 Tab
 }
 
 export function setTopTitle(text) {

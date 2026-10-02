@@ -7,10 +7,10 @@ const GREETING = '想看什么样的故事?可以说说题材、喜欢的作品,
 export async function openingView(bookId) {
   setTopTitle('开一本新书');
   const chat = h('div', { class: 'chat' });
-  const input = h('textarea', { rows: 4, placeholder: '说说你想看的故事…(可以直接粘贴样章)' });
+  const input = h('textarea', { rows: 4, 'aria-label': '你的回复', placeholder: '说说你想看的故事…(可以直接粘贴样章)' });
   const send = h('button', { class: 'primary' }, '发送');
   const finish = h('button', {}, '开书');
-  const err = h('div', { class: 'banner', hidden: true });
+  const err = h('div', { class: 'banner', role: 'alert', hidden: true });
   let userCount = 0;
 
   const bubble = (role, text) => {

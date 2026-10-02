@@ -29,6 +29,9 @@ textarea, input[type=text] {
   width: 100%; font: inherit; color: var(--text); background: var(--surface);
   border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px;
 }
+main:focus { outline: none; } /* 程序化聚焦正文区不画框;键盘焦点仍由各控件自己的 :focus-visible 显示 */
+button:focus-visible, a:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.banner.net { position: sticky; top: 0; z-index: 10; margin: 0; border-radius: 0; text-align: center; }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .muted { color: var(--muted); font-size: 14px; }
 .banner { background: color-mix(in srgb, var(--danger) 18%, var(--surface)); border: 1px solid var(--danger);

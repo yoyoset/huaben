@@ -1,6 +1,7 @@
 // 入口:hash 路由 + service worker 注册。
 import { h, mount } from './dom.js';
 import './player.js';
+import { watchNetwork } from './network.js';
 import { cancelAllPolls } from './poll.js';
 import { applyPrefs } from './reading_prefs.js';
 import { openingView } from './views/opening.js';
@@ -27,6 +28,7 @@ function route() {
 
 applyPrefs(); // 字号/行距在第一次渲染前就生效,避免跳动
 window.addEventListener('hashchange', route);
+watchNetwork(route); // 网络恢复时刷新当前页
 route();
 
 if ('serviceWorker' in navigator) {

@@ -36,7 +36,7 @@ export async function statsView(bookId) {
             `${f.created_at} · ${STEP_LABELS[f.step] ?? f.step}${f.chapter_idx ? ` · 第${f.chapter_idx}章` : ''} · ${f.note}`)))
         : null);
   } catch (e) {
-    fill(box, h('div', { class: 'banner' }, e.message));
+    fill(box, h('div', { class: 'banner', role: 'alert' }, e.message));
   }
 }
 
