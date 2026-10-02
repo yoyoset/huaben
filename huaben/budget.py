@@ -6,10 +6,13 @@
 做法:用装饰器包住真正的 LLM 客户端(所有模型调用的唯一出口),调用前查一次已花费;超限抛
 BudgetExceeded(属于 LLMError,沿用现有的"写进 gen_error + 退避"路径,无需各处特判)。
 """
+import logging
+
 from .db import connect
 from .llm import LLM, LLMError, LLMResult
 
 WINDOW_HOURS = 24
+log = logging.getLogger("huaben.budget")
 
 
 class BudgetExceeded(LLMError):
@@ -29,6 +32,7 @@ class BudgetGuard:
 
     def __init__(self, llm: LLM, db_path, limit_usd: float):
         self._llm, self._db_path, self._limit = llm, db_path, limit_usd
+        self._warned_unpriced = False  # 每个进程只告警一次;持续的可见性由 /api/health 与统计页从数据推导
 
     def spent(self) -> float:
         conn = connect(self._db_path, check_same_thread=False)
@@ -42,4 +46,9 @@ class BudgetGuard:
             spent = self.spent()
             if spent >= self._limit:
                 raise BudgetExceeded(spent, self._limit)
-        return self._llm.chat(messages, **kw)
+        res = self._llm.chat(messages, **kw)
+        if res.tokens_in + res.tokens_out > 0 and not res.cost_usd and not self._warned_unpriced:
+            self._warned_unpriced = True
+            log.warning("上游没有返回本次调用的费用(usage.cost):花费上限与统计里的金额将不可信。"
+                        "若换了非 OpenRouter 的接口,请自行监控花费")
+        return res

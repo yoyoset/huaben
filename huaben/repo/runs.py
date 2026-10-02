@@ -51,3 +51,19 @@ def recent_failures(conn, book_id: int, limit: int = 5) -> list[dict]:
     return [dict(r) for r in conn.execute(
         "SELECT step, chapter_idx, note, created_at FROM pipeline_runs WHERE book_id=? AND ok=0 "
         "ORDER BY id DESC LIMIT ?", (book_id, limit))]
+
+
+def unpriced_calls(conn, book_id: int | None = None, hours: int | None = None) -> int:
+    """用了 token 却没有记到费用的模型调用次数。
+
+    费用取自上游返回的 usage.cost;换成不返回费用的兼容接口时它恒为 0——花费上限与统计会**静默失效**。
+    从已记录的数据推导(不靠进程内状态),重启后照样看得见。免费模型也会被算进来,那时上限本来就无意义。
+    """
+    where, args = ["tokens_in + tokens_out > 0", "cost_usd = 0"], []
+    if book_id is not None:
+        where.append("book_id = ?")
+        args.append(book_id)
+    if hours is not None:
+        where.append("created_at >= datetime('now', ?)")
+        args.append(f"-{hours} hours")
+    return conn.execute(f"SELECT COUNT(*) FROM pipeline_runs WHERE {' AND '.join(where)}", args).fetchone()[0]

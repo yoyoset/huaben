@@ -24,7 +24,9 @@ export async function statsView(bookId) {
         tile('单章平均耗时', fmtSeconds(s.avg_seconds)),
         tile('重写率', fmtPct(s.rewrite_rate), `平均 ${s.avg_attempts.toFixed(1)} 稿`),
         tile('已配音', `${s.voiced}/${s.chapters}`),
-        tile('累计花费', fmtUSD(s.total_cost_usd), `开书 ${fmtUSD(s.cost_breakdown_usd.opening)}`),
+        tile('累计花费', fmtUSD(s.total_cost_usd), s.unpriced_calls
+          ? `⚠ 有 ${s.unpriced_calls} 次调用上游没报费用,金额偏低`
+          : `开书 ${fmtUSD(s.cost_breakdown_usd.opening)}`),
         canonTile(s.canon)),
       foreshadowSection(fr),
       h('h2', {}, '问题记录'),

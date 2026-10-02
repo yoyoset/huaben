@@ -5,8 +5,8 @@
 """
 from fastapi import APIRouter, Request
 
-from .. import __version__
-from ..budget import spent_recently
+from .. import __version__, repo
+from ..budget import WINDOW_HOURS, spent_recently
 from ..db import connect
 from ..migrate import current_version
 from ..migrations import MIGRATIONS
@@ -21,6 +21,7 @@ def health(request: Request):
     try:
         db_version = current_version(conn)
         spent = spent_recently(conn)
+        unpriced = repo.unpriced_calls(conn, hours=WINDOW_HOURS)
     finally:
         conn.close()
     worker = st.worker.status() if st.worker else {"enabled": False}
@@ -32,5 +33,7 @@ def health(request: Request):
         "llm": {"configured": bool(st.settings.openrouter_api_key) or st.llm is not None,
                 "model": st.settings.llm_model},
         "tts": type(st.tts).__name__ if st.tts else None,
-        "spend_24h": {"spent_usd": round(spent, 6), "limit_usd": st.settings.spend_limit_usd_24h},
+        # unpriced_calls > 0:上游没报费用,spent_usd 偏低、上限可能形同虚设(见 repo.unpriced_calls)
+        "spend_24h": {"spent_usd": round(spent, 6), "limit_usd": st.settings.spend_limit_usd_24h,
+                      "unpriced_calls": unpriced, "reliable": unpriced == 0},
     }

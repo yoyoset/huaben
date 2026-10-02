@@ -6,7 +6,7 @@ from .chapters import (accepted_chapters, buffered_ahead, chapter_index, count_a
 from .ledger import (add_fact, add_foreshadow, clear_characters, list_characters, list_facts, list_foreshadows,
                      update_foreshadow, upsert_character)
 from .opening import add_message, list_messages
-from .runs import cost_summary, failure_counts, log_run, recent_failures, run_totals
+from .runs import cost_summary, failure_counts, log_run, recent_failures, run_totals, unpriced_calls
 from .volumes import (active_volume, create_volume, get_volume, list_volumes, seal_volume,
                       set_volume_status)
 
@@ -18,6 +18,6 @@ __all__ = [
     "next_chapter_idx", "recent_chapters", "update_chapter",
     "add_fact", "add_foreshadow", "clear_characters", "list_characters", "list_facts", "list_foreshadows",
     "update_foreshadow", "upsert_character",
-    "cost_summary", "failure_counts", "log_run", "recent_failures", "run_totals",
+    "cost_summary", "failure_counts", "log_run", "recent_failures", "run_totals", "unpriced_calls",
     "active_volume", "create_volume", "get_volume", "list_volumes", "seal_volume", "set_volume_status",
 ]

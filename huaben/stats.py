@@ -34,5 +34,6 @@ def book_stats(conn, book_id: int, audio_ok=lambda path: path is not None) -> di
         "voiced": voiced,
         "failures": repo.failure_counts(conn, book_id),
         "recent_failures": repo.recent_failures(conn, book_id),
+        "unpriced_calls": repo.unpriced_calls(conn, book_id),  # > 0 时金额偏低、不可信
         "canon": canon_size((repo.get_bible(conn, book_id) or {}).get("canon")),
     }
