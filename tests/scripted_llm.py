@@ -6,7 +6,10 @@ import re
 
 from huaben.llm import LLMResult
 
-BODY_FILLER = "夜色沉沉,风过竹林。" * 60  # 约 600 字,让"原文是否被带进 prompt"在体量上可观察
+def body_for(n: int) -> str:
+    """约 700 字,让"原文是否被带进 prompt"在体量上可观察;每章各不相同(否则会被"照抄前文"检查打回):
+    每个 12 字窗口里都带章号。"""
+    return "".join(f"第{n}章第{i}夜,风过{n}号竹林。" for i in range(45))
 
 
 def _j(d) -> str:
@@ -46,7 +49,7 @@ class ScriptedLLM:
             self.steps.append("write")
             n = int(m[1])
             self.write_prompts[n] = text
-            return self._r(f"（第{n}章）{BODY_FILLER}" + ("重写稿" if self._ledger_calls.get(n) else ""))
+            return self._r(f"（第{n}章）{body_for(n)}" + ("重写稿" if self._ledger_calls.get(n) else ""))
         if m := re.search(r"【第 (\d+) 章正文】", user):
             self.steps.append("ledger")
             return self._r(self._ledger(int(m[1])))

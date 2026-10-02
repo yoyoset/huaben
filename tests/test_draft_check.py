@@ -106,3 +106,13 @@ def test_degeneration_symptoms_from_production_chapter_1_are_rejected():
     trad = "錢管事說這可是三百年的老參" * 3  # 繁体,每份 3 个繁体专用字,3 份 = 9 ≥ 8
     assert any("繁体" in p for p in draft_problems(GOOD + "\n" + trad, 100))
     assert draft_problems(GOOD + "\n他说这钱给你。", 100) == []  # 简体同义字不误伤
+
+
+def test_copying_an_earlier_chapter_is_rejected():
+    """2026-10-02 生产环境第 3 章开头几乎逐句重写了第 1 章(12 字片段 13% 重合;正常相邻章 0%)。"""
+    from huaben.pipeline.draft_check import COPY_LIMIT, copied_ratio, copy_problems
+    ch1 = "\n".join(f"第{i}段。周小满缩在伙房角落啃窝头,钱管事掀帘进来说三百年赤参没了。" for i in range(20))
+    rewrite = ch1[: len(ch1) // 2] + "\n" + GOOD          # 前一半照抄,后一半是新的
+    assert copied_ratio(rewrite, [ch1]) > COPY_LIMIT and copy_problems(rewrite, [ch1])
+    assert copied_ratio(GOOD, [ch1]) == 0 and copy_problems(GOOD, [ch1]) == []
+    assert copy_problems(GOOD, []) == []                 # 第一章没有前文

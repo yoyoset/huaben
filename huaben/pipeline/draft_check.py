@@ -63,6 +63,31 @@ def traditional_count(text: str) -> int:
     return sum(ch in _TRAD_ONLY for ch in text)
 
 
+# 照抄前文:2026-10-02 生产环境第 3 章开头几乎逐句重写了第 1 章(前文退化后,模型去"修"它而不是往下写)。
+# 实测 12 字片段:第 3 章有 13% 原样出现在第 1 章里,正常的相邻章之间是 0%。
+COPY_GRAM = 12
+COPY_LIMIT = 0.08
+
+
+def _grams(text: str, step: int = 1) -> list[str]:
+    t = "".join(text.split())
+    return [t[i:i + COPY_GRAM] for i in range(0, max(len(t) - COPY_GRAM + 1, 0), step)]
+
+
+def copied_ratio(text: str, earlier: list[str]) -> float:
+    """新正文里有多大比例的 12 字片段原样出现在前面章节里(新正文隔 3 字取样,前文取全)。纯函数。"""
+    sample = _grams(text, step=3)
+    if not sample or not earlier:
+        return 0.0
+    ref = {g for e in earlier for g in _grams(e)}
+    return sum(g in ref for g in sample) / len(sample)
+
+
+def copy_problems(text: str, earlier: list[str]) -> list[str]:
+    r = copied_ratio(text, earlier)
+    return [f"这一章大段照抄了前面章节的原文(约 {r:.0%}),请接着前文往下写新的情节"] if r > COPY_LIMIT else []
+
+
 def draft_problems(text: str, target_words: int) -> list[str]:
     """返回打回理由(写给作者看的人话);空列表 = 通过。text 应是 clean_draft 之后的。"""
     problems: list[str] = []
