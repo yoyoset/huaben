@@ -11,14 +11,19 @@ from .base import TTSError
 
 
 class EdgeTTS:
-    def __init__(self, voice: str = "zh-CN-XiaoxiaoNeural"):
+    def __init__(self, voice: str = "zh-CN-XiaoxiaoNeural", timeout_s: float = 120.0):
         self.voice = voice
+        # 自己设总超时,不依赖库:requirements 只写了 edge-tts>=6,各版本的内置超时不一定有、默认值也不同。
+        # 没有超时时,一次挂住的连接会卡死唯一的后台线程——所有书的文字补货都跟着停
+        self.timeout_s = timeout_s
 
     def synthesize(self, text: str) -> bytes:
         try:
-            return asyncio.run(self._stream(text))
+            return asyncio.run(asyncio.wait_for(self._stream(text), self.timeout_s))
         except TTSError:
             raise
+        except (asyncio.TimeoutError, TimeoutError) as e:
+            raise TTSError(f"配音请求超过 {self.timeout_s:g} 秒没有完成") from e
         except Exception as e:  # edge-tts 抛的异常种类多(网络/协议),统一成 TTSError
             raise TTSError(f"{type(e).__name__}: {e}") from e
 

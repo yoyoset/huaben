@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     tts_voice: str = Field("zh-CN-XiaoxiaoNeural", min_length=1)
     tts_chunk_chars: int = Field(1500, ge=1, le=10_000)  # 长章按段落切块合成再拼接,单次请求不过长
     tts_retries: int = Field(2, ge=0, le=10)
+    tts_timeout_s: float = Field(120.0, gt=0, le=1800)   # 单块合成的总超时;一块 ≤1500 字,正常十几秒
 
     @field_validator("openrouter_base_url")
     @classmethod
