@@ -14,7 +14,7 @@ from .. import repo
 from ..db import connect
 from ..tts.mp3 import is_mp3
 from ..tts.service import spoken_text
-from ..tts.store import audio_relpath, write_audio
+from ..tts.store import audio_relpath, remove_audio, write_audio
 from ..voice_queue import pending_jobs, unplayable_count
 from .background import voice_fallback_in_background
 from .deps import book_or_404, get_conn
@@ -41,35 +41,40 @@ def worker_status(state) -> dict:
 
 
 @router.get("/jobs", dependencies=[Depends(worker_auth)])
-def jobs(request: Request, limit: int = Query(1, ge=1, le=10), conn=Depends(get_conn)):
+def jobs(request: Request, limit: int = Query(1, ge=1, le=10), voice: str = Query("", max_length=120),
+         conn=Depends(get_conn)):
+    """voice:电脑当前用的"引擎:音色"。带上它,读者还没听到的、别的音色配的章也会排进来重配。"""
     _seen(request)
     return [{"book_id": c["book_id"], "idx": c["idx"], "title": c["title"], "text": spoken_text(c)}
-            for c in pending_jobs(conn, request.app.state.settings, limit)]
+            for c in pending_jobs(conn, request.app.state.settings, limit, voice)]
 
 
-def _save(settings, book_id: int, idx: int, data: bytes) -> None:
+def _save(settings, book_id: int, idx: int, data: bytes, voice: str = "") -> None:
     conn = connect(settings.db_path, check_same_thread=False)
     try:
         ch = repo.get_chapter(conn, book_id, idx)
         if ch is None or ch["status"] != "accepted":
             raise HTTPException(404, "没有这一章(或还没定稿)")
-        rel = audio_relpath(book_id, idx, "hq")
+        old = repo.get_audio(conn, ch["id"], "hq")
+        rel = audio_relpath(book_id, idx, "hq", voice)
         write_audio(settings, rel, data)
-        repo.set_audio(conn, ch["id"], "hq", rel)
-        repo.log_run(conn, book_id, "tts", chapter_idx=idx, note=f"pc hq {len(data)} bytes")
+        repo.set_audio(conn, ch["id"], "hq", rel, voice=voice)
+        if old and old["path"] != rel:  # 换了音色:新文件登记好之后再删旧的,中间任何时刻都有一份能播
+            remove_audio(settings, old["path"])
+        repo.log_run(conn, book_id, "tts", chapter_idx=idx, note=f"pc hq {len(data)} bytes {voice}".rstrip())
     finally:
         conn.close()
 
 
 @router.put("/jobs/{book_id}/{idx}", dependencies=[Depends(worker_auth)])
-async def upload(book_id: int, idx: int, request: Request):
+async def upload(book_id: int, idx: int, request: Request, voice: str = Query("", max_length=120)):
     _seen(request)
     data = await request.body()
     if not data or len(data) > MAX_AUDIO_BYTES:
         raise HTTPException(413 if data else 400, "音频为空或过大")
     if not is_mp3(data):  # 播放器与锁屏续播都按 MP3 处理;别的格式在这里拦下,不入库
         raise HTTPException(415, "只接受 MP3")
-    await run_in_threadpool(_save, request.app.state.settings, book_id, idx, data)
+    await run_in_threadpool(_save, request.app.state.settings, book_id, idx, data, voice)
     return {"ok": True}
 
 

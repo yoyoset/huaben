@@ -6,7 +6,7 @@
 """
 from . import repo
 from .config import Settings
-from .tts.service import chapters_needing_audio, listening_order
+from .tts.service import chapters_needing_audio, listening_order, stale_voice
 from .tts.store import best_playable, index_paths
 
 
@@ -20,14 +20,20 @@ def interleave(per_book: list[list[dict]], limit: int) -> list[dict]:
     return out
 
 
-def pending_jobs(conn, settings: Settings, limit: int) -> list[dict]:
-    """还没有电脑版(hq)音频、或电脑版文件丢了的章(完整行,含正文)。"""
+def pending_jobs(conn, settings: Settings, limit: int, voice: str = "") -> list[dict]:
+    """还没有电脑版(hq)音频、或电脑版文件丢了的章(完整行,含正文);
+    voice 非空(电脑报上自己的音色)时,再加上读者还没听到、但是别的音色配的章——排在缺音频的后面。"""
     per_book = []
     for b in repo.list_books(conn):
         if b["status"] != "serializing":
             continue
-        need = chapters_needing_audio(conn, settings, b["id"], "hq")
-        per_book.append(listening_order(need, max(1, b["last_opened"])))
+        pos = max(1, b["last_opened"])
+        need = listening_order(chapters_needing_audio(conn, settings, b["id"], "hq"), pos)
+        if voice:
+            missing = {c["idx"] for c in need}
+            voiced = [c for c in repo.voiced_chapters(conn, b["id"], "hq") if c["idx"] not in missing]
+            need += stale_voice(voiced, voice, pos)
+        per_book.append(need)
     return interleave(per_book, limit)
 
 

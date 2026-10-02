@@ -9,3 +9,5 @@ pc_worker/HuabenVoice.exe
 pc_worker/HuabenVoice.ini
 pc_worker/logs/
 .claude/launch.json
+pc_worker/.venv-*/
+samples/

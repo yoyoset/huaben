@@ -54,7 +54,7 @@ def test_errors_back_off_and_never_exit():
         def __init__(self):
             self.n = 0
 
-        def fetch_jobs(self, limit=1):
+        def fetch_jobs(self, limit=1, voice=""):
             self.n += 1
             raise ServerError("服务器重启中")
 
@@ -78,3 +78,11 @@ def test_kokoro_segments_keep_every_char_and_respect_limit():
     assert all(len(s) <= 40 for s in flat)
     assert "".join(flat) == text.replace("\n", "")          # 不丢字、不重复
     assert paras[0] == ["第一段。很短。"]                     # 短句拼成一段
+
+
+def test_qwen3_engine_is_registered_and_speed_becomes_an_instruction():
+    """Qwen3-TTS 没有语速参数:launcher 里的 speed 要翻成朗读指令;注册表里有它,但导入不需要 torch(惰性)。"""
+    from huaben_voice.engines import ENGINES
+    from huaben_voice.qwen3_zh import speed_hint
+    assert "qwen3-zh" in ENGINES
+    assert (speed_hint(1.0), speed_hint(1.2), speed_hint(0.8)) == ("", "语速稍快", "语速稍慢")

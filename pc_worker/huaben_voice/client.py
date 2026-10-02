@@ -15,15 +15,17 @@ class VoiceClient:
     def connect(cls, server: str, token: str = "", timeout_s: float = 60.0) -> "VoiceClient":
         return cls(httpx.Client(base_url=server.rstrip("/"), timeout=timeout_s), token)
 
-    def fetch_jobs(self, limit: int = 1) -> list[dict]:
-        """[{book_id, idx, title, text}],按服务器排好的先后。取任务本身也是"我还在线"的心跳。"""
-        r = self._http.get("/api/voice/jobs", params={"limit": limit}, headers=self._headers)
+    def fetch_jobs(self, limit: int = 1, voice: str = "") -> list[dict]:
+        """[{book_id, idx, title, text}],按服务器排好的先后。取任务本身也是"我还在线"的心跳。
+        voice:本机的"引擎:音色";报上去,服务器会把别的音色配过、读者还没听到的章也排进来换新音色。"""
+        params = {"limit": limit, **({"voice": voice} if voice else {})}
+        r = self._http.get("/api/voice/jobs", params=params, headers=self._headers)
         if r.status_code != 200:
             raise ServerError(f"取任务失败 HTTP {r.status_code}: {r.text[:200]}")
         return r.json()
 
-    def upload(self, book_id: int, idx: int, mp3: bytes) -> None:
-        r = self._http.put(f"/api/voice/jobs/{book_id}/{idx}", content=mp3,
+    def upload(self, book_id: int, idx: int, mp3: bytes, voice: str = "") -> None:
+        r = self._http.put(f"/api/voice/jobs/{book_id}/{idx}", content=mp3, params={"voice": voice} if voice else None,
                            headers={**self._headers, "Content-Type": "audio/mpeg"})
         if r.status_code != 200:
             raise ServerError(f"交音频失败(第 {idx} 章)HTTP {r.status_code}: {r.text[:200]}")

@@ -1,4 +1,4 @@
-"""TTS 引擎:窄接口 + 注册表。真实的中文模型等出样音、用户试听定下来之后再加(见 README)。
+"""TTS 引擎:窄接口 + 注册表。kokoro-zh(快、音色一般)/ qwen3-zh(音质好,要 .venv-qwen),见 README。
 
 接口:synthesize(text) -> MP3 bytes。长章怎么切块、用什么音色,都是引擎自己的事——不同模型的单次长度上限不同。
 """
@@ -27,7 +27,13 @@ def _kokoro_zh(**opts) -> Engine:
     return KokoroZh(**opts)
 
 
-ENGINES: dict[str, Callable[..., Engine]] = {"fake": lambda **_: FakeEngine(), "kokoro-zh": _kokoro_zh}
+def _qwen3_zh(**opts) -> Engine:
+    from .qwen3_zh import Qwen3Zh  # 惰性:只在 .venv-qwen 里装了依赖
+    return Qwen3Zh(**opts)
+
+
+ENGINES: dict[str, Callable[..., Engine]] = {"fake": lambda **_: FakeEngine(), "kokoro-zh": _kokoro_zh,
+                                             "qwen3-zh": _qwen3_zh}
 
 
 def create_engine(name: str, **opts) -> Engine:

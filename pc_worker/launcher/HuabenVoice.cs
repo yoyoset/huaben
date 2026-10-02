@@ -102,7 +102,7 @@ sealed class MainForm : Form
     void StartWorker()
     {
         cfg = LauncherConfig.Load(Path.Combine(baseDir, "HuabenVoice.ini"));
-        string python = Path.Combine(baseDir, @".venv\Scripts\python.exe");
+        string python = Path.Combine(baseDir, cfg.VenvDir(), "Scripts", "python.exe");
         detail.Text = string.Format("服务器 {0}  ·  音色 {1}  ·  语速 {2}  ·  日志另存在 logs 文件夹", cfg.Server, cfg.Voice, cfg.Speed);
         if (!File.Exists(python))
         {

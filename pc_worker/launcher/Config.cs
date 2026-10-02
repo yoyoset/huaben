@@ -13,6 +13,7 @@ sealed class LauncherConfig
     public string Voice = "zf_001";
     public string Speed = "1.0";
     public string Token = "";
+    public string Instruct = "";
     public string Path;
 
     const string Template =
@@ -20,13 +21,16 @@ sealed class LauncherConfig
         "\r\n" +
         "# 话本服务器地址\r\n" +
         "server={0}\r\n" +
-        "# 配音引擎:kokoro-zh(显卡上的中文模型)\r\n" +
+        "# 配音引擎:qwen3-zh(音质好,约 1.8 倍实时)/ kokoro-zh(快 15 倍,音色一般)\r\n" +
         "engine={1}\r\n" +
-        "# 音色:zf_ 开头是女声(如 zf_001 zf_002 zf_017),zm_ 开头是男声(如 zm_009 zm_010)。\r\n" +
-        "# 编号不连续,写了不存在的会在日志里报错;完整列表见 pc_worker\\README.md\r\n" +
+        "# 音色。qwen3-zh:Uncle_Fu(低沉醇厚男声)Serena(温柔女声)Vivian(明亮女声)Dylan(北京青年男声)Eric(成都男声);\r\n" +
+        "#   也可以写 设计:一句话描述,如 设计:三十多岁的男性说书人,嗓音温厚有磁性\r\n" +
+        "# kokoro-zh:zf_ 开头女声、zm_ 开头男声,完整列表见 pc_worker\\README.md\r\n" +
         "voice={2}\r\n" +
         "# 语速倍率:1.0 正常,1.2 快一些\r\n" +
         "speed={3}\r\n" +
+        "# 朗读语气(只对 qwen3-zh 有效),如:像说书人讲故事一样娓娓道来\r\n" +
+        "instruct={5}\r\n" +
         "# 服务器设了配音令牌(HUABEN_VOICE_WORKER_TOKEN)才需要填\r\n" +
         "token={4}\r\n";
 
@@ -35,7 +39,7 @@ sealed class LauncherConfig
         var c = new LauncherConfig { Path = path };
         if (!File.Exists(path))
         {
-            File.WriteAllText(path, string.Format(Template, c.Server, c.Engine, c.Voice, c.Speed, c.Token), new UTF8Encoding(false));
+            File.WriteAllText(path, string.Format(Template, c.Server, c.Engine, c.Voice, c.Speed, c.Token, c.Instruct), new UTF8Encoding(false));
             return c;
         }
         var kv = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -53,14 +57,19 @@ sealed class LauncherConfig
         double d;
         if (kv.TryGetValue("speed", out v) && double.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out d)) c.Speed = v;
         if (kv.TryGetValue("token", out v)) c.Token = v;
+        if (kv.TryGetValue("instruct", out v)) c.Instruct = v;
         return c;
     }
+
+    /// 每个引擎的依赖装在各自的虚拟环境里(Qwen 要 transformers 5.x,与 Kokoro 的 4.x 冲突),按引擎名选
+    public string VenvDir() { return Engine.StartsWith("qwen") ? ".venv-qwen" : ".venv"; }
 
     public string PythonArgs()
     {
         var sb = new StringBuilder("-u -m huaben_voice");
         sb.AppendFormat(" --server \"{0}\" --engine \"{1}\" --voice \"{2}\" --speed {3}", Server, Engine, Voice, Speed);
         if (Token != "") sb.AppendFormat(" --token \"{0}\"", Token);
+        if (Instruct != "") sb.AppendFormat(" --instruct \"{0}\"", Instruct.Replace("\"", "'"));
         return sb.ToString();
     }
 }

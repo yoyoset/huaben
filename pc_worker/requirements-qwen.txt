@@ -1,0 +1,12 @@
+# Qwen3-TTS 引擎(qwen3-zh)的依赖,装在单独的 .venv-qwen(transformers 5.x 与 Kokoro 的 4.x 冲突)。
+# 2026-10-02 在 RTX 3060 / Windows 上实测可用的组合;顺序与踩坑见 README「Qwen3-TTS」一节。
+#   uv venv --python 3.12 .venv-qwen
+#   uv pip install --python .venv-qwen/Scripts/python.exe "torch==2.11.0+cu128" "torchaudio==2.11.0+cu128" --index-url https://download.pytorch.org/whl/cu128
+#   uv pip install --python .venv-qwen/Scripts/python.exe -r requirements-qwen.txt --constraint torch-pin.txt --extra-index-url https://download.pytorch.org/whl/cu128 --index-strategy unsafe-best-match
+qwen-tts==0.1.1
+faster-qwen3-tts==0.5.3
+qwen-tts-hf==0.1.1.post1
+transformers==5.15.1
+huggingface-hub>=1.5.0,<2
+hf_xet
+soundfile

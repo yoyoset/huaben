@@ -1,0 +1,3 @@
+# 装 Qwen 依赖时钉住 CUDA 版 torch:qwen-tts 不钉 torch,不加约束时解析器会换成 PyPI 上的 CPU 版
+torch==2.11.0+cu128
+torchaudio==2.11.0+cu128

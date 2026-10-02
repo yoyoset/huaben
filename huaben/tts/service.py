@@ -86,6 +86,12 @@ def chapters_needing_audio(conn, settings: Settings, book_id: int, quality: str 
     return repo.chapters_missing_audio(conn, book_id, quality) + lost
 
 
+def stale_voice(voiced: list[dict], voice: str, pos: int) -> list[dict]:
+    """已有电脑版、但不是 voice 这个音色配的、读者还没听到的章(第 pos 章及以后)。纯函数。
+    听过的不重配:那是白花几个小时显卡;读者要重听,旧音色照样能播。"""
+    return [c for c in voiced if c["idx"] >= pos and c.get("audio_voice", "") != voice]
+
+
 def listening_order(chapters: list[dict], pos: int) -> list[dict]:
     """配音的先后:先配读者接下来要听的(从当前章往后),再往回补已经听过的(越近越先,重听的多半是最近几章)。"""
     ahead = sorted((c for c in chapters if c["idx"] >= pos), key=lambda c: c["idx"])

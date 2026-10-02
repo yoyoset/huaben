@@ -43,4 +43,7 @@ UPDATE books SET profile_id = (SELECT id FROM profiles WHERE name = '我') WHERE
     # 9: 伏笔分大小 short / medium / long(2026-10-02 用户:伏笔太死,有的该很短、有的该很长)。
     #    已有的伏笔按中线(本卷内收)处理,见 foreshadow_scale.py
     "ALTER TABLE ledger_foreshadows ADD COLUMN scale TEXT NOT NULL DEFAULT 'medium';",
+    # 10: 电脑版音频是哪个音色配的(引擎:音色)。2026-10-02 用户嫌 Kokoro 音色差、换成 Qwen3-TTS:
+    #     没有这一列,已经配过的章永远不会换新音色。旧记录为空 = 未知音色
+    "ALTER TABLE audio ADD COLUMN voice TEXT NOT NULL DEFAULT '';",
 ]
