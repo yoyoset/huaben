@@ -5,9 +5,11 @@ from fastapi import HTTPException, Request
 
 from .. import repo
 from ..budget import BudgetGuard
+from ..config import Settings
 from ..db import connect
 from ..human_errors import explain
 from ..llm import LLM, LLMError, OpenRouterClient
+from ..llm_config import effective
 from ..tts.base import TTS
 
 
@@ -20,10 +22,20 @@ def get_conn(request: Request) -> Iterator:
         conn.close()
 
 
+def llm_settings(state) -> Settings:
+    """实际生效的模型配置:网页「设置」里保存的值优先,没填的沿用 .env。"""
+    conn = connect(state.settings.db_path, check_same_thread=False)
+    try:
+        return effective(state.settings, repo.get_app_settings(conn))
+    finally:
+        conn.close()
+
+
 def ensure_llm(state) -> LLM:
-    """取 LLM;没注入就按配置惰性创建。没配密钥时抛 LLMError(调用方决定怎么告诉用户)。"""
+    """取 LLM;没注入就按配置惰性创建。没配密钥时抛 LLMError(调用方决定怎么告诉用户)。
+    网页上改了设置会把 state.llm 清空,下一次调用就按新配置重建——不用重启服务。"""
     if state.llm is None:  # 真实客户端一律套上花费安全阀(测试注入的替身不套)
-        st = state.settings
+        st = llm_settings(state)
         state.llm = BudgetGuard(OpenRouterClient(st), st.db_path, st.spend_limit_usd_24h)
     return state.llm
 

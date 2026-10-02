@@ -33,4 +33,11 @@ MIGRATIONS: list[str] = [
 ALTER TABLE books ADD COLUMN profile_id INTEGER REFERENCES profiles(id);
 INSERT INTO profiles(name) SELECT '我' WHERE EXISTS (SELECT 1 FROM books);
 UPDATE books SET profile_id = (SELECT id FROM profiles WHERE name = '我') WHERE profile_id IS NULL;""",
+    # 8: 网页"设置"页保存的配置(模型接口地址/密钥/模型名等)。用户要能在网页里填密钥、以后换成 OpenCode 的 key,
+    #    不必登录服务器改 .env。这里的值优先于环境变量;没填的项沿用 .env
+    """CREATE TABLE app_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);""",
 ]

@@ -10,6 +10,7 @@ from ..budget import WINDOW_HOURS, spend_status, spent_recently
 from ..db import connect
 from ..migrate import current_version
 from ..migrations import MIGRATIONS
+from .deps import llm_settings
 
 router = APIRouter(prefix="/api", tags=["system"])
 
@@ -25,13 +26,14 @@ def health(request: Request):
     finally:
         conn.close()
     worker = st.worker.status() if st.worker else {"enabled": False}
+    eff = llm_settings(st)  # 网页「设置」里的值优先
     return {
         "ok": True,
         "version": __version__,
         "db": {"version": db_version, "latest": len(MIGRATIONS)},
         "worker": worker,
-        "llm": {"configured": bool(st.settings.openrouter_api_key) or st.llm is not None,
-                "model": st.settings.llm_model},
+        "llm": {"configured": bool(eff.openrouter_api_key) or st.llm is not None,
+                "model": eff.llm_model, "base_url": eff.openrouter_base_url},
         "tts": type(st.tts).__name__ if st.tts else None,
         # unpriced_calls > 0:上游没报费用,spent_usd 偏低、提醒与上限可能失灵(见 repo.unpriced_calls)
         "spend_24h": spend_status(spent, st.settings.spend_remind_usd_24h, st.settings.spend_limit_usd_24h, unpriced),

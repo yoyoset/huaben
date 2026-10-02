@@ -12,6 +12,7 @@ from typing import Callable, Protocol
 import httpx
 
 from .config import Settings
+from .llm_config import is_openrouter
 
 
 class LLMError(Exception):
@@ -64,7 +65,7 @@ class LLM(Protocol):
 
 
 def build_payload(model: str, messages: list[dict], *, max_tokens: int, temperature: float,
-                  json_mode: bool = False) -> dict:
+                  json_mode: bool = False, openrouter: bool = True) -> dict:
     payload = {
         "model": model,
         "messages": messages,
@@ -72,9 +73,10 @@ def build_payload(model: str, messages: list[dict], *, max_tokens: int, temperat
         "temperature": temperature,
         "frequency_penalty": 0,
         "presence_penalty": 0,
-        "reasoning": {"effort": "none"},
-        "usage": {"include": True},  # OpenRouter 在 usage.cost 里返回真实费用
     }
+    if openrouter:  # OpenRouter 扩展字段;别家(如 OpenCode Zen)可能把未知参数当错误拒绝,不发
+        payload["reasoning"] = {"effort": "none"}
+        payload["usage"] = {"include": True}  # OpenRouter 在 usage.cost 里返回真实费用
     if json_mode:
         payload["response_format"] = {"type": "json_object"}
     return payload
@@ -104,7 +106,7 @@ class OpenRouterClient:
     def __init__(self, settings: Settings, *, transport: httpx.BaseTransport | None = None,
                  retries: int = 2, sleep: Callable[[float], None] = time.sleep):
         if not settings.openrouter_api_key:
-            raise LLMError("HUABEN_OPENROUTER_API_KEY 未配置", kind="no_key")
+            raise LLMError("模型密钥未配置(网页「设置」或 HUABEN_OPENROUTER_API_KEY)", kind="no_key")
         self._s = settings
         self._retries = retries
         self._sleep = sleep
@@ -119,7 +121,8 @@ class OpenRouterClient:
              temperature: float = 0.9, json_mode: bool = False) -> LLMResult:
         payload = build_payload(self._s.llm_model, messages,
                                 max_tokens=max_tokens or self._s.chapter_max_tokens,
-                                temperature=temperature, json_mode=json_mode)
+                                temperature=temperature, json_mode=json_mode,
+                                openrouter=is_openrouter(self._s.openrouter_base_url))
         last: LLMError | None = None
         wasted = LLMResult(text="")  # 被丢弃但已计费的尝试(空正文):计入最终结果或最终错误,不能凭空消失
         for attempt in range(self._retries + 1):

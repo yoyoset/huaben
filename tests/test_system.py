@@ -16,7 +16,7 @@ def test_health_reports_versions_and_config_without_secret(tmp_path):
     assert r.status_code == 200 and body["ok"] is True and body["version"] == __version__
     assert body["db"] == {"version": len(MIGRATIONS), "latest": len(MIGRATIONS)}
     assert body["worker"] == {"enabled": False}
-    assert body["llm"] == {"configured": True, "model": s.llm_model}
+    assert body["llm"] == {"configured": True, "model": s.llm_model, "base_url": s.openrouter_base_url}
     assert "sk-secret-123" not in r.text  # 只报告配没配,不回显密钥
 
 

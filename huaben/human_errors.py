@@ -10,8 +10,8 @@ from .tts.base import TTSError
 AUTO = "稍后会自动重试,不用管。"
 
 _LLM = {
-    "no_key": "还没有配置模型密钥:请在服务器的 .env 里填写 HUABEN_OPENROUTER_API_KEY,然后重启服务。",
-    "auth": "模型密钥无效或已失效:请更新服务器 .env 里的 HUABEN_OPENROUTER_API_KEY,然后重启服务。",
+    "no_key": "还没有配置模型密钥:请在右上角「⚙ 设置」里填写(或在服务器 .env 里填 HUABEN_OPENROUTER_API_KEY)。",
+    "auth": "模型密钥无效或已失效:请在右上角「⚙ 设置」里更新密钥。",
     "quota": "OpenRouter 账户余额不足:充值后会自动继续。",
     "rate_limit": "模型调用太频繁被限流了," + AUTO,
     "server": "模型服务暂时不可用," + AUTO,

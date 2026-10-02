@@ -17,6 +17,10 @@ body { font: 16px/1.6 -apple-system, "PingFang SC", "Noto Sans SC", "Microsoft Y
 .brand { font-size: 20px; font-weight: 700; color: var(--accent); text-decoration: none; letter-spacing: 2px; }
 #topbar-title { color: var(--muted); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .who { margin-left: auto; color: var(--muted); font-size: 14px; text-decoration: none; white-space: nowrap; }
+.gear { margin-left: auto; color: var(--muted); font-size: 18px; text-decoration: none; }
+.who:not([hidden]) ~ .gear { margin-left: 0; }
+.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
+.field > span { font-weight: 600; }
 .profiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
 .profile-card { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 16px; text-align: left; }
 .profile-card strong { font-size: 18px; }
@@ -29,7 +33,7 @@ button, .btn {
 }
 button.primary, .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
 button:disabled { opacity: .45; cursor: default; }
-textarea, input[type=text] {
+textarea, input[type=text], input[type=password], select {
   width: 100%; font: inherit; color: var(--text); background: var(--surface);
   border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px;
 }

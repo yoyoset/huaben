@@ -9,6 +9,7 @@ import { openingView } from './views/opening.js';
 import { readerView } from './views/reader.js';
 import { shelfView } from './views/shelf.js';
 import { statsView } from './views/stats.js';
+import { settingsView } from './views/settings.js';
 import { whoView } from './views/who.js';
 
 const routes = [
@@ -16,6 +17,7 @@ const routes = [
   [/^#\/read\/(\d+)(?:\/(\d+))?$/, (m) => readerView(+m[1], m[2] ? +m[2] : undefined)],
   [/^#\/stats\/(\d+)$/, (m) => statsView(+m[1])],
   [/^#\/who$/, () => whoView()],
+  [/^#\/settings$/, () => settingsView()],
   // 书架是"某个人的书架":还没选人就先去选
   [/^#?\/?$/, () => (currentProfile() ? shelfView() : location.replace('#/who'))],
 ];
