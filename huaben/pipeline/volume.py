@@ -2,7 +2,10 @@
 
 卷是规划单位,也是记忆压缩边界:封卷把本卷压成摘要并刷新全书梗概,之后旧卷原文不再进 prompt。
 """
+import logging
+
 from .. import repo
+from ..canon_size import CANON_WARN_CHARS, canon_size, seal_note
 from ..config import Settings
 from ..context import load_context
 from ..db import tx
@@ -13,6 +16,7 @@ from .llm_step import call_step
 from .parsing import ParseError, parse_seal, parse_volume_plan
 
 DEFAULT_TARGET_CHAPTERS = 30
+log = logging.getLogger("huaben.volume")
 
 
 def _ask(conn, llm: LLM, book_id: int, step: str, messages, parse):
@@ -65,10 +69,14 @@ def seal_volume(conn, llm: LLM, settings: Settings, book_id: int, volume: dict) 
         if sealed["canon"]:
             repo.save_bible(conn, book_id, canon=sealed["canon"], commit=False)
     missed = unresolved_targets(conn, book_id, volume)
+    old_canon = (ctx.bible or {}).get("canon") or ""
+    new_canon = sealed["canon"] or old_canon
+    if canon_size(new_canon)["too_long"]:
+        log.warning("世界设定定本 %d 字,超过观测线 %d 字", len(new_canon.strip()), CANON_WARN_CHARS)
     # 对账:计划要收却没收的留痕(下一卷规划会点名优先安排);全收则记录"计划内伏笔全部回收"
     repo.log_run(conn, book_id, "volume_seal",
                  note=(f"第{volume['idx']}卷计划回收未完成: {missed}" if missed
-                       else f"第{volume['idx']}卷计划内伏笔全部回收"))
+                       else f"第{volume['idx']}卷计划内伏笔全部回收") + ";" + seal_note(old_canon, new_canon))
 
 
 def ensure_active_volume(conn, llm: LLM, settings: Settings, book_id: int) -> dict:

@@ -24,7 +24,8 @@ export async function statsView(bookId) {
         tile('单章平均耗时', fmtSeconds(s.avg_seconds)),
         tile('重写率', fmtPct(s.rewrite_rate), `平均 ${s.avg_attempts.toFixed(1)} 稿`),
         tile('已配音', `${s.voiced}/${s.chapters}`),
-        tile('累计花费', fmtUSD(s.total_cost_usd), `开书 ${fmtUSD(s.cost_breakdown_usd.opening)}`)),
+        tile('累计花费', fmtUSD(s.total_cost_usd), `开书 ${fmtUSD(s.cost_breakdown_usd.opening)}`),
+        canonTile(s.canon)),
       foreshadowSection(fr),
       h('h2', {}, '问题记录'),
       failures.length
@@ -38,6 +39,15 @@ export async function statsView(bookId) {
   } catch (e) {
     fill(box, h('div', { class: 'banner', role: 'alert' }, e.message));
   }
+}
+
+/** 世界设定定本:每章都整段带上,封卷时由模型合并;过长说明可能没去重,会推高每章成本。 */
+function canonTile(c) {
+  if (!c.chars) return tile('世界设定定本', '—', '第一卷封卷后生成');
+  const hint = c.too_long ? `偏长(超过 ${c.warn_chars} 字):每章都要带上,可能合并时没去重` : `${c.lines} 条,每章都会带上`;
+  return h('div', { class: c.too_long ? 'stat warn' : 'stat' },
+    h('div', { class: 'stat-value' }, `${c.chars} 字`), h('div', { class: 'muted' }, '世界设定定本'),
+    h('div', { class: 'stat-hint' }, hint));
 }
 
 /** 伏笔回收:全书汇总 + 每卷"计划收 / 实际收 / 没收"(验收项:卷内伏笔有回收记录)。 */

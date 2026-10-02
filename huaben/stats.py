@@ -7,6 +7,7 @@
 - 重写率 = 定稿章里写了不止一稿的比例。
 """
 from . import repo
+from .canon_size import canon_size
 
 
 def _per(total: float, n: int) -> float:
@@ -33,4 +34,5 @@ def book_stats(conn, book_id: int, audio_ok=lambda path: path is not None) -> di
         "voiced": voiced,
         "failures": repo.failure_counts(conn, book_id),
         "recent_failures": repo.recent_failures(conn, book_id),
+        "canon": canon_size((repo.get_bible(conn, book_id) or {}).get("canon")),
     }

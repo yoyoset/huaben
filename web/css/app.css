@@ -63,6 +63,8 @@ details.toc a.current { color: var(--accent); font-weight: 600; }
 .stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; }
 .stat-value { font-size: 22px; font-weight: 700; color: var(--accent); }
 .stat-hint { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.stat.warn { border-color: var(--danger); }
+.stat.warn .stat-value { color: var(--danger); }
 .mono { font-family: ui-monospace, Consolas, monospace; font-size: 12px; word-break: break-all; }
 
 .player { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--line);
