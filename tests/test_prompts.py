@@ -46,3 +46,15 @@ def test_ledger_check_still_sees_reversals(ctx):
 
 def test_outline_scope_separates_words():
     assert outline_scope(outline(outline="井", characters=["阿蘅", "老道"])) == "井 阿蘅 老道"
+
+
+def test_ledger_check_sees_characters_the_writer_brought_in(conn):
+    """章纲没提、作者自己写进正文的已死配角:核对 prompt 里必须有他的"已死亡"状态,否则复活查不出。"""
+    bid = repo.create_book(conn, "x")
+    repo.create_volume(conn, bid, 1, goal="g", status="active")
+    repo.upsert_character(conn, bid, "老道", alive=False)
+    c = load_context(conn, bid)
+    o = outline()  # 章纲只提沈照
+    assert "老道" not in write_messages(c, o, 2500)[-1]["content"]          # 写作时不占 prompt
+    user = ledger_messages(c, o, "沈照回头,看见老道正站在井边冲他笑。")[-1]["content"]
+    assert "老道(已死亡)" in user.split("【本章章纲】")[0]                   # 核对时账本里有他的状态

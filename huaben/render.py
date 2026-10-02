@@ -42,9 +42,11 @@ def render_style_samples(bible: dict) -> str:
     return f"【文风样章(模仿其语感、节奏、句式,不要照抄情节与专名)】\n{body}"
 
 
-def render_memory(ctx: StoryContext, outline: str = "") -> str:
-    """分层记忆文本,顺序固定:梗概 → 往卷 → 本卷目标 → 本卷章摘要 → 账本。最近原文单独放,见 recent_text。"""
-    chars, facts = select_ledger(ctx.characters, ctx.facts, outline)
+def render_memory(ctx: StoryContext, scope: str = "") -> str:
+    """分层记忆文本,顺序固定:梗概 → 往卷 → 本卷目标 → 本卷章摘要 → 账本。最近原文单独放,见 recent_text。
+    scope:按需挑账本条目的检索文本(写作时 = 章纲;核对时 = 章纲 + 正文)。
+    """
+    chars, facts = select_ledger(ctx.characters, ctx.facts, scope)
     parts = [f"【全书梗概】\n{ctx.book.get('synopsis') or '(尚无)'}"]
     if ctx.past_volume_summaries:
         parts.append("【往卷摘要】\n" + _lines([f"第{i}卷:{s}" for i, s in ctx.past_volume_summaries]))

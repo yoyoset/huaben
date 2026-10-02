@@ -53,9 +53,9 @@ def load_context(conn, book_id: int, recent_n: int = 3) -> StoryContext:
     )
 
 
-def select_ledger(characters: list[dict], facts: list[dict], outline: str = "") -> tuple[list[dict], list[dict]]:
-    """按章纲挑账本。核心人物永远带(前身教训:名字没出现就不进上下文会导致名字漂移);
-    非核心人物只有名字出现在章纲里才带;已死亡的人物也保留,否则会"复活"。
+def select_ledger(characters: list[dict], facts: list[dict], scope: str = "") -> tuple[list[dict], list[dict]]:
+    """按检索文本挑账本。核心人物永远带(前身教训:名字没出现就不进上下文会导致名字漂移);
+    非核心人物只有名字出现在 scope(章纲,核对时再加上正文)里才带;已死亡的人物也保留,否则会"复活"。
     """
-    chars = [c for c in characters if c["core"] or (outline and c["name"] in outline)]
+    chars = [c for c in characters if c["core"] or (scope and c["name"] in scope)]
     return chars, facts[-MAX_FACTS:]

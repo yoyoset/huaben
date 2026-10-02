@@ -52,7 +52,7 @@ def test_select_ledger_caps_facts():
 
 
 def test_render_memory_contains_all_layers(conn, book):
-    out = render_memory(load_context(conn, book, recent_n=2), outline="阿蘅出场")
+    out = render_memory(load_context(conn, book, recent_n=2), scope="阿蘅出场")
     for needle in ["少年入宗门", "第1卷:主角入了太玄宗", "下山", "离宗→遇险", "第3章《T3》:摘要3",
                    "沈照(存活)", "阿蘅(存活)", "玉佩发烫", "太玄宗禁夜行"]:
         assert needle in out, needle
@@ -60,7 +60,7 @@ def test_render_memory_contains_all_layers(conn, book):
 
 
 def test_dead_character_stays_visible_when_in_outline(conn, book):
-    out = render_memory(load_context(conn, book), outline="老道的遗物")
+    out = render_memory(load_context(conn, book), scope="老道的遗物")
     assert "老道(已死亡)" in out  # 否则模型会让死人复活
 
 
