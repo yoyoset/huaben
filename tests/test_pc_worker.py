@@ -80,9 +80,13 @@ def test_kokoro_segments_keep_every_char_and_respect_limit():
     assert paras[0] == ["第一段。很短。"]                     # 短句拼成一段
 
 
-def test_qwen3_engine_is_registered_and_speed_becomes_an_instruction():
-    """Qwen3-TTS 没有语速参数:launcher 里的 speed 要翻成朗读指令;注册表里有它,但导入不需要 torch(惰性)。"""
+def test_qwen3_engine_clones_a_named_reference_voice(tmp_path):
+    """克隆模式:音色名 = voices/ 里的一段参考音 + 它的文字;名字不存在时说清楚有哪些。导入不需要 torch(惰性)。"""
     from huaben_voice.engines import ENGINES
-    from huaben_voice.qwen3_zh import speed_hint
+    from huaben_voice.qwen3_zh import VOICES_DIR, reference
     assert "qwen3-zh" in ENGINES
-    assert (speed_hint(1.0), speed_hint(1.2), speed_hint(0.8)) == ("", "语速稍快", "语速稍慢")
+    assert {"女声", "男声"} <= {p.stem for p in VOICES_DIR.glob("*.wav")}  # 交付的两个音色都在
+    wav, text = reference("女声")
+    assert wav.is_file() and text
+    with pytest.raises(ValueError, match="现有"):
+        reference("不存在", tmp_path)

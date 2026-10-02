@@ -9,8 +9,8 @@ using System.Text;
 sealed class LauncherConfig
 {
     public string Server = "http://10.1.1.13:8210";
-    public string Engine = "kokoro-zh";
-    public string Voice = "zf_001";
+    public string Engine = "qwen3-zh";
+    public string Voice = "女声";
     public string Speed = "1.0";
     public string Token = "";
     public string Instruct = "";
@@ -23,13 +23,12 @@ sealed class LauncherConfig
         "server={0}\r\n" +
         "# 配音引擎:qwen3-zh(音质好,约 1.8 倍实时)/ kokoro-zh(快 15 倍,音色一般)\r\n" +
         "engine={1}\r\n" +
-        "# 音色。qwen3-zh:Uncle_Fu(低沉醇厚男声)Serena(温柔女声)Vivian(明亮女声)Dylan(北京青年男声)Eric(成都男声);\r\n" +
-        "#   也可以写 设计:一句话描述,如 设计:三十多岁的男性说书人,嗓音温厚有磁性\r\n" +
+        "# 音色。qwen3-zh:女声 / 男声(pc_worker\\voices 里的参考音,整本书都照它配,前后一致)\r\n" +
         "# kokoro-zh:zf_ 开头女声、zm_ 开头男声,完整列表见 pc_worker\\README.md\r\n" +
         "voice={2}\r\n" +
-        "# 语速倍率:1.0 正常,1.2 快一些\r\n" +
+        "# 语速倍率(kokoro-zh 用;qwen3-zh 跟随参考音的语速):1.0 正常,1.2 快一些\r\n" +
         "speed={3}\r\n" +
-        "# 朗读语气(只对 qwen3-zh 有效),如:像说书人讲故事一样娓娓道来\r\n" +
+        "# 朗读语气:目前两个引擎都不使用,留空即可\r\n" +
         "instruct={5}\r\n" +
         "# 服务器设了配音令牌(HUABEN_VOICE_WORKER_TOKEN)才需要填\r\n" +
         "token={4}\r\n";
