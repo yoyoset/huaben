@@ -4,6 +4,7 @@ from typing import Iterator
 from fastapi import HTTPException, Request
 
 from .. import repo
+from ..budget import BudgetGuard
 from ..db import connect
 from ..human_errors import explain
 from ..llm import LLM, LLMError, OpenRouterClient
@@ -21,8 +22,9 @@ def get_conn(request: Request) -> Iterator:
 
 def ensure_llm(state) -> LLM:
     """取 LLM;没注入就按配置惰性创建。没配密钥时抛 LLMError(调用方决定怎么告诉用户)。"""
-    if state.llm is None:
-        state.llm = OpenRouterClient(state.settings)
+    if state.llm is None:  # 真实客户端一律套上花费安全阀(测试注入的替身不套)
+        st = state.settings
+        state.llm = BudgetGuard(OpenRouterClient(st), st.db_path, st.spend_limit_usd_24h)
     return state.llm
 
 

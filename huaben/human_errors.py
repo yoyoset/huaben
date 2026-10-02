@@ -18,6 +18,8 @@ _LLM = {
     "network": "连不上模型服务(网络问题)," + AUTO,
     "empty": "模型返回了空内容," + AUTO,
     "bad_response": "模型返回的内容无法识别," + AUTO,
+    "budget": "过去 24 小时的模型花费已达上限,已暂停生成;额度回落后会自动继续。"
+              "如需调整,改服务器 .env 里的 HUABEN_SPEND_LIMIT_USD_24H。",
     "request": "模型拒绝了这次请求(可能是模型名或参数配置有误):请检查 HUABEN_LLM_MODEL,详情见服务日志。",
 }
 
