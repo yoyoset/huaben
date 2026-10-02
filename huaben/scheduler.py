@@ -12,6 +12,7 @@ from dataclasses import dataclass
 
 from . import repo
 from .config import Settings
+from .human_errors import explain
 from .llm import LLM, LLMError
 from .pipeline.chapter import generate_chapter
 from .pipeline.errors import ChapterFailed
@@ -50,12 +51,12 @@ def top_up(conn, llm: LLM, settings: Settings, book_id: int, max_chapters: int |
             try:
                 ensure_active_volume(conn, llm, settings, book_id)
                 generate_chapter(conn, llm, settings, book_id)
-            except (ChapterFailed, LLMError) as e:
-                res.error = f"{type(e).__name__}: {e}"[:300]
-                break
-            except Exception as e:  # noqa: BLE001 —— 程序缺陷也必须让用户看见,不能静默停更
-                log.exception("书 %s 生成时出现未预期的错误", book_id)
-                res.error = f"内部错误 {type(e).__name__}: {e}"[:300]
+            except Exception as e:  # noqa: BLE001 —— 包括程序缺陷:都必须让用户看见,不能静默停更
+                if not isinstance(e, (ChapterFailed, LLMError)):
+                    log.exception("书 %s 生成时出现未预期的错误", book_id)
+                # 技术细节进 pipeline_runs/日志;界面上的 gen_error 只放人话
+                repo.log_run(conn, book_id, "error", ok=False, note=f"{type(e).__name__}: {e}"[:300])
+                res.error = explain(e)
                 break
             res.generated += 1
         if tts is not None:  # 文本失败时也给已有章补音频;配音失败不影响文本缓冲

@@ -15,11 +15,33 @@ from .config import Settings
 
 
 class LLMError(Exception):
-    """调用失败(网络/HTTP/响应格式)。"""
+    """调用失败。kind 是给"人话错误"用的分类,不必解析消息文本:
+    no_key / auth / quota / rate_limit / server / network / request / bad_response / empty
+    """
+
+    def __init__(self, message: str, kind: str = "bad_response", status: int | None = None):
+        super().__init__(message)
+        self.kind = kind
+        self.status = status
+
+
+def _http_kind(status: int) -> str:
+    if status in (401, 403):
+        return "auth"
+    if status == 402:
+        return "quota"
+    if status == 429:
+        return "rate_limit"
+    if status == 408 or status >= 500:
+        return "server"
+    return "request"  # 其它 4xx:请求本身有问题(模型名错、参数不被接受)
 
 
 class LLMEmptyError(LLMError):
     """200 但正文为空(典型:思考吃光 max_tokens)。"""
+
+    def __init__(self, message: str):
+        super().__init__(message, kind="empty")
 
 
 @dataclass
@@ -84,7 +106,7 @@ class OpenRouterClient:
     def __init__(self, settings: Settings, *, transport: httpx.BaseTransport | None = None,
                  retries: int = 2, sleep: Callable[[float], None] = time.sleep):
         if not settings.openrouter_api_key:
-            raise LLMError("HUABEN_OPENROUTER_API_KEY 未配置")
+            raise LLMError("HUABEN_OPENROUTER_API_KEY 未配置", kind="no_key")
         self._s = settings
         self._retries = retries
         self._sleep = sleep
@@ -108,13 +130,13 @@ class OpenRouterClient:
             try:
                 r = self._http.post("/chat/completions", json=payload)
             except httpx.TransportError as e:  # 超时/连接失败:可重试
-                last = LLMError(f"network error: {type(e).__name__}: {e}")
+                last = LLMError(f"network error: {type(e).__name__}: {e}", kind="network")
                 continue
             if r.status_code in _RETRY_STATUS:
-                last = LLMError(f"HTTP {r.status_code}: {r.text[:200]}")
+                last = LLMError(f"HTTP {r.status_code}: {r.text[:200]}", _http_kind(r.status_code), r.status_code)
                 continue
             if r.status_code >= 400:  # 4xx(鉴权/参数)重试无意义,直接抛
-                raise LLMError(f"HTTP {r.status_code}: {r.text[:300]}")
+                raise LLMError(f"HTTP {r.status_code}: {r.text[:300]}", _http_kind(r.status_code), r.status_code)
             try:
                 data = r.json()
             except ValueError as e:

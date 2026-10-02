@@ -19,7 +19,7 @@ from .parsing import ParseError, parse_ledger, parse_outline, unplanned_contradi
 def _fail(conn, book_id: int, chapter_id: int, idx: int, step: str, reason: str) -> ChapterFailed:
     repo.update_chapter(conn, chapter_id, status="failed")
     repo.log_run(conn, book_id, "check", chapter_idx=idx, ok=False, note=f"{step}: {reason}"[:300])
-    return ChapterFailed(f"chapter {idx} failed at {step}: {reason}")
+    return ChapterFailed(f"chapter {idx} failed at {step}: {reason}", step=step, idx=idx)
 
 
 def _record(conn, llm: LLM, book_id: int, idx: int, messages) -> dict | None:
@@ -38,7 +38,7 @@ def generate_chapter(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
     repo.discard_unaccepted(conn, book_id)
     ctx = load_context(conn, book_id, settings.recent_chapters_in_prompt)
     if ctx.volume is None:
-        raise NoActiveVolume(f"book {book_id} has no active volume")
+        raise NoActiveVolume(f"book {book_id} has no active volume", step="volume")
     idx = ctx.next_idx
 
     # 1. 章纲(解析失败直接重试一次:格式问题多为偶发)

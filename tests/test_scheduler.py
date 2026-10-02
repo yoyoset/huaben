@@ -49,10 +49,14 @@ def test_reader_progress_triggers_refill(conn):
 
 def test_failure_stops_loop_and_is_visible(conn):
     bid = serializing_book(conn)
-    llm = FakeLLM([PLAN] + chapter_replies(1) + [LLMError("HTTP 503")] * 3)
+    llm = FakeLLM([PLAN] + chapter_replies(1) + [LLMError("HTTP 503: upstream", kind="server", status=503)] * 3)
     res = top_up(conn, llm, S, bid)
-    assert res.generated == 1 and "503" in res.error
-    assert "503" in repo.get_book(conn, bid)["gen_error"]  # 界面可见,不是静默失败
+    assert res.generated == 1 and "模型服务暂时不可用" in res.error
+    shown = repo.get_book(conn, bid)["gen_error"]
+    assert "模型服务暂时不可用" in shown and "自动重试" in shown  # 界面可见、是人话、说明了用户要不要做什么
+    assert "503" not in shown and "HTTP" not in shown                # 技术细节不上界面
+    tech = conn.execute("SELECT note FROM pipeline_runs WHERE step='error'").fetchone()[0]
+    assert "HTTP 503" in tech                                         # 而是留在 pipeline_runs
 
 
 def test_success_clears_previous_error(conn):

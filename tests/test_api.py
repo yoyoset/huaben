@@ -64,7 +64,7 @@ def test_finalize_failure_is_502_and_retryable(tmp_path):
     bid = open_book(c)
     c.post(f"/api/books/{bid}/opening", json={"message": "古代恐怖"})
     r = c.post(f"/api/books/{bid}/finalize")
-    assert r.status_code == 502 and "重试" in r.json()["detail"]
+    assert r.status_code == 502 and "再试一次" in r.json()["detail"] and "自动重试" not in r.json()["detail"]
     assert c.get(f"/api/books/{bid}").json()["status"] == "drafting"
 
 

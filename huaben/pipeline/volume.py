@@ -25,7 +25,7 @@ def _ask(conn, llm: LLM, book_id: int, step: str, messages, parse):
         except ParseError as e:
             last = str(e)
             repo.log_run(conn, book_id, step, ok=False, note=f"parse: {e}"[:300])
-    raise ChapterFailed(f"{step} 两次输出都无法解析: {last}")
+    raise ChapterFailed(f"{step} 两次输出都无法解析: {last}", step=step)
 
 
 def plan_volume(conn, llm: LLM, settings: Settings, book_id: int) -> dict:

@@ -3,6 +3,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from .. import repo
+from ..human_errors import explain
 from ..llm import LLMError
 from ..opening.service import OpeningError, finalize_book, opening_turn
 from ..pipeline.errors import ChapterFailed
@@ -31,7 +32,7 @@ def say(book_id: int, body: Say, conn=Depends(get_conn), llm=Depends(get_llm)):
     except OpeningError as e:
         raise HTTPException(400, str(e)) from e
     except LLMError as e:
-        raise HTTPException(502, f"模型暂时不可用:{e}") from e
+        raise HTTPException(502, explain(e, auto_retry=False)) from e
 
 
 @router.post("/finalize")
@@ -42,6 +43,6 @@ def finalize(book_id: int, request: Request, tasks: BackgroundTasks, conn=Depend
     except OpeningError as e:
         raise HTTPException(400, str(e)) from e
     except (LLMError, ChapterFailed) as e:
-        raise HTTPException(502, f"开书没成功,可以重试:{e}") from e
+        raise HTTPException(502, f"开书没成功。{explain(e, auto_retry=False)}") from e
     tasks.add_task(topup_in_background, request.app.state, book_id)  # 开书即开始预生成
     return book_view(conn, book)

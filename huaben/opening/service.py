@@ -64,7 +64,7 @@ def _extract_bible(conn, llm: LLM, book_id: int, messages: list[dict]) -> None:
             last = str(e)
             repo.log_run(conn, book_id, "finalize", ok=False, note=f"parse: {e}"[:300])
     else:
-        raise ChapterFailed(f"定稿故事圣经两次都无法解析: {last}")
+        raise ChapterFailed(f"定稿故事圣经两次都无法解析: {last}", step="finalize")
     core = {str(n).strip() for n in bible["core_characters"]}
     with tx(conn):  # 圣经 + 书信息 + 账本人物同一事务
         repo.update_book(conn, book_id, title=bible["title"], genre=bible["genre"],

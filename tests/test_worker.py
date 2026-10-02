@@ -95,9 +95,11 @@ def test_unexpected_exception_is_visible_and_backed_off(tmp_path):
     state, bid, s = make_state(tmp_path, [RuntimeError("意外")])
     w = Worker(state, 60, Backoff(60, 600, clk))
     res = w.tick()  # 不抛
-    assert "内部错误" in res[bid].error
+    assert "程序内部出错" in res[bid].error
     conn = connect(s.db_path)
-    assert "内部错误" in repo.get_book(conn, bid)["gen_error"]
+    assert "程序内部出错" in repo.get_book(conn, bid)["gen_error"]
+    tech = conn.execute("SELECT note FROM pipeline_runs WHERE step='error'").fetchone()[0]
+    assert "RuntimeError" in tech  # 技术细节在 pipeline_runs,不在界面上
     assert w.tick() == {}  # 已退避
 
 

@@ -69,6 +69,7 @@ def fill_audio(conn, tts: TTS, settings: Settings, book_id: int, sleep=time.slee
         try:
             ensure_chapter_audio(conn, tts, settings, ch, sleep)
         except TTSError as e:
-            return done, f"第{ch['idx']}章配音失败: {e}"[:300]
+            # 技术细节已由 ensure_chapter_audio 记进 pipeline_runs;这里返回给界面的人话
+            return done, f"第 {ch['idx']} 章配音失败,文字可以照常阅读;稍后会自动重试。"
         done += 1
     return done, ""

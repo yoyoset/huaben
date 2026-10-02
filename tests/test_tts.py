@@ -105,5 +105,5 @@ def test_fill_audio_backfills_and_stops_on_failure(conn, tmp_path):
     assert (done, err) == (2, "")
     make_chapter(conn, 3)
     done, err = fill_audio(conn, FakeTTS(always_fail=True), s, bid, NOSLEEP)
-    assert done == 0 and "第3章" in err
+    assert done == 0 and "第 3 章配音失败" in err and "照常阅读" in err
     assert [c["idx"] for c in repo.chapters_missing_audio(conn, bid)] == [3]

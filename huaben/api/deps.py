@@ -5,6 +5,7 @@ from fastapi import HTTPException, Request
 
 from .. import repo
 from ..db import connect
+from ..human_errors import explain
 from ..llm import LLM, LLMError, OpenRouterClient
 from ..tts.base import TTS
 
@@ -29,7 +30,7 @@ def get_llm(request: Request) -> LLM:
     try:
         return ensure_llm(request.app.state)
     except LLMError as e:  # 没配密钥:明确告诉用户缺什么,而不是 500
-        raise HTTPException(503, f"LLM 未就绪:{e}") from e
+        raise HTTPException(503, explain(e, auto_retry=False)) from e
 
 
 def get_tts(request: Request) -> TTS | None:
