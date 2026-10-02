@@ -21,6 +21,11 @@ async function call(method, path, body) {
   return res.json();
 }
 
+function rangeQuery(from, to) {
+  const q = [from ? `from=${from}` : '', to ? `to=${to}` : ''].filter(Boolean).join('&');
+  return q ? `?${q}` : '';
+}
+
 export const api = {
   profiles: () => call('GET', '/api/profiles'),
   createProfile: (name) => call('POST', '/api/profiles', { name }),
@@ -30,7 +35,10 @@ export const api = {
   openingHistory: (id) => call('GET', `/api/books/${id}/opening`),
   say: (id, message) => call('POST', `/api/books/${id}/opening`, { message }),
   finalize: (id) => call('POST', `/api/books/${id}/finalize`),
-  chapters: (id) => call('GET', `/api/books/${id}/chapters`),
+  // from/to 可省:几千章的书只取需要的一段(整本目录每次都取会卡,服务端还要逐章查音频文件)
+  chapters: (id, from, to) => call('GET', `/api/books/${id}/chapters${rangeQuery(from, to)}`),
+  /** 当前章与前后各一章:算上一章/下一章、这章有没有音频只需要这些。 */
+  around: (id, idx) => call('GET', `/api/books/${id}/chapters${rangeQuery(Math.max(1, idx - 1), idx + 1)}`),
   chapter: (id, idx) => call('GET', `/api/books/${id}/chapters/${idx}`),
   foreshadows: (id) => call('GET', `/api/books/${id}/foreshadows`),
   stats: (id) => call('GET', `/api/books/${id}/stats`),

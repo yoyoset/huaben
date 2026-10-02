@@ -78,7 +78,7 @@ function playFromPlayer(idx) {
 async function step(dir) {
   if (st.bookId == null) return;
   let chapters;
-  try { chapters = await api.chapters(st.bookId); } catch (e) { return status(e.message); }
+  try { chapters = await api.around(st.bookId, st.idx); } catch (e) { return status(e.message); }
   const target = dir > 0 ? nextChapter(chapters, st.idx) : prevChapter(chapters, st.idx);
   if (target?.has_audio) await playFromPlayer(target.idx);
   else status(dir > 0 ? '下一章还在准备' : '已经是第一章');
@@ -99,7 +99,7 @@ function waitForNext(tries = 0) {
   if (tries >= 30) return status('下一章迟迟没好,稍后手动点 ⏭');
   st.waitTimer = setTimeout(async () => {
     try {
-      const next = nextChapter(await api.chapters(st.bookId), st.idx);
+      const next = nextChapter(await api.around(st.bookId, st.idx), st.idx);
       if (next?.has_audio) return playFromPlayer(next.idx);
     } catch { /* 网络抖动:继续等 */ }
     waitForNext(tries + 1);
@@ -128,7 +128,7 @@ audio.addEventListener('ended', async () => {
   if (st.bookId != null) clearPos(st.bookId);
   const opt = SLEEP_OPTIONS[st.sleepIdx];
   let next = null;
-  try { next = nextChapter(await api.chapters(st.bookId), st.idx); } catch { /* 取不到当作没有 */ }
+  try { next = nextChapter(await api.around(st.bookId, st.idx), st.idx); } catch { /* 取不到当作没有 */ }
   const action = afterEnded({ stopAtChapterEnd: opt.endOfChapter, next });
   if (action === 'next') await playFromPlayer(next.idx);
   else if (action === 'wait') waitForNext();

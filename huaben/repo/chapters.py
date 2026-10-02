@@ -58,10 +58,18 @@ def accepted_chapters(conn, book_id: int, volume_id: int | None = None) -> list[
     return [dict(r) for r in conn.execute(f"SELECT * FROM chapters c WHERE {where} ORDER BY c.idx", args)]
 
 
-def chapter_index(conn, book_id: int, volume_id: int | None = None) -> list[dict]:
+def chapter_index(conn, book_id: int, volume_id: int | None = None,
+                  idx_from: int | None = None, idx_to: int | None = None) -> list[dict]:
     """定稿章的目录(不含正文):id、序号、标题、摘要、所属卷、音频登记(has_audio;audio_path = edge 版,hq_path = 电脑版)。一条查询。
     注意 has_audio 只表示"数据库里登记了";文件是否真的在,由调用方用 tts.service.audio_file_ok 核对。"""
     where, args = _accepted_where(book_id, volume_id)
+    # 只取一段:几千章的书,阅读页/播放器每次只需要当前章前后几章,目录页一次一页
+    if idx_from is not None:
+        where += " AND c.idx >= ?"
+        args.append(idx_from)
+    if idx_to is not None:
+        where += " AND c.idx <= ?"
+        args.append(idx_to)
     rows = conn.execute(
         "SELECT c.id, c.idx, c.title, c.summary, c.volume_id, "
         "(a.chapter_id IS NOT NULL OR h.chapter_id IS NOT NULL) AS has_audio, a.path AS audio_path, h.path AS hq_path "

@@ -1,8 +1,8 @@
-// 阅读:最近读到的章(或指定章)、目录、上/下章、"听这一章"。
+// 阅读:最近读到的章(或指定章)、上/下章、"听这一章";目录是单独一页(views/toc.js)。
 // 等待态(要看的章还在写 / 下一章还在写 / 语音还在准备)自动轮询刷新,不用读者手动刷新。
 import { api } from '../api.js';
 import { fill, h, mount, setTopTitle } from '../dom.js';
-import { bookHome, chapterAvailability, chapterMark, nextChapter, paragraphs, prevChapter } from '../logic.js';
+import { bookHome, chapterAvailability, nextChapter, paragraphs, prevChapter } from '../logic.js';
 import { play } from '../player.js';
 import { poll } from '../poll.js';
 import { prefsToolbar } from '../reading_prefs.js';
@@ -20,19 +20,21 @@ export async function readerView(bookId, idxParam) {
   mount(box);
   try {
     // 配音状态取不到不影响阅读(只是少一条提示)
-    const [book, chapters, voice] = await Promise.all([api.book(bookId), api.chapters(bookId), api.voiceStatus().catch(() => null)]);
+    const [book, chapters, voice] = await Promise.all([api.book(bookId), api.around(bookId, idxParam ?? 1), api.voiceStatus().catch(() => null)]);
     setTopTitle(book.title);
     // 开书阶段的书不会自己开始写:不要在这里空等"第一章",直接回到开书对话
     if (book.status === 'drafting') { location.replace(bookHome(book)); return; }
     // 没指定章:接着上次打开的那章(last_opened;0 表示还没读过 → 第 1 章)
     const idx = idxParam ?? Math.max(1, book.last_opened);
     // 先按目录判断这章在不在,而不是请求了再看 404:深链/书签可能指向还没写好的章,要等而不是报错
-    const state = chapterAvailability(chapters, idx, book.generating);
-    if (state !== 'ready') return notYet(box, book, bookId, idxParam, idx, state, chapters);
+    // 没指定章时续读位置要等拿到 book 才知道:补取一次它前后的章
+    const near = idxParam == null && idx !== 1 ? await api.around(bookId, idx) : chapters;
+    const state = chapterAvailability(near, idx, book.generating, book.ready_chapters);
+    if (state !== 'ready') return notYet(box, book, bookId, idxParam, idx, state);
     const ch = await api.chapter(bookId, idx);
     api.openChapter(bookId, idx).catch(() => {});
-    const prev = prevChapter(chapters, idx);
-    const next = nextChapter(chapters, idx);
+    const prev = prevChapter(near, idx);
+    const next = nextChapter(near, idx);
     const note = h('p', { class: 'muted' }); // 底部一行提示位,供 listen 回显
     const audioHint = h('span', { class: 'muted' }, ch.audio_url ? '' : '语音还在准备');
     const nextBtn = h('button', { class: 'primary', disabled: !next, onclick: () => go(bookId, next.idx) },
@@ -41,7 +43,8 @@ export async function readerView(bookId, idxParam) {
       errorBanner(book),
       voiceNoteEl(book, voice),
       h('div', { class: 'row', style: 'justify-content:space-between' },
-        h('a', { class: 'btn', href: `#/stats/${bookId}`, 'aria-label': '本书运行统计' }, '📊 统计'), prefsToolbar()),
+        h('div', { class: 'row' }, tocLink(bookId, book), h('a', { class: 'btn', href: `#/stats/${bookId}`, 'aria-label': '本书运行统计' }, '📊 统计')),
+        prefsToolbar()),
       h('h1', { class: 'chapter-title' }, `第${idx}章 ${ch.title}`),
       h('div', { class: 'row' },
         h('button', { class: 'primary', onclick: () => listen(bookId, idx, book.title, note) }, '🎧 听这一章'),
@@ -49,7 +52,7 @@ export async function readerView(bookId, idxParam) {
       h('div', { class: 'chapter-body' }, paragraphs(ch.body).map((p) => h('p', {}, p))),
       h('div', { class: 'chapter-nav' },
         h('button', { disabled: !prev, onclick: () => go(bookId, prev.idx) }, '← 上一章'), nextBtn),
-      toc(bookId, chapters, idx, Math.max(book.read_pos, idx)),
+      tocLink(bookId, book),
       note,
       h('button', { onclick: () => window.scrollTo({ top: 0, behavior: 'smooth' }) }, '↑ 回到顶部'),
     );
@@ -62,7 +65,7 @@ export async function readerView(bookId, idxParam) {
 /** 下一章/本章语音还没好:轮询目录,好了就就地更新按钮和提示,不重绘正文(不打断阅读位置)。 */
 function watchPending(bookId, idx, nextBtn, audioHint, needNext, needAudio) {
   poll(async () => {
-    const chapters = await api.chapters(bookId);
+    const chapters = await api.around(bookId, idx);
     const next = nextChapter(chapters, idx);
     if (needNext && next) {
       needNext = false;
@@ -78,18 +81,7 @@ function watchPending(bookId, idx, nextBtn, audioHint, needNext, needAudio) {
   }, { onGiveUp: () => { if (needNext) nextBtn.textContent = '下一章还在写(稍后再来看看)'; } });
 }
 
-/** 目录:当前章高亮、已读(≤ 最远进度)变淡;展开时自动把当前章滚到视野里。 */
-function toc(bookId, chapters, current, readPos) {
-  const label = { current: ' ← 正在读', read: '', unread: '' };
-  const items = chapters.map((c) => {
-    const mark = chapterMark(c.idx, current, readPos);
-    return h('a', { href: `#/read/${bookId}/${c.idx}`, class: mark, 'aria-current': mark === 'current' ? 'page' : false },
-      `第${c.idx}章 ${c.title}`, c.has_audio ? ' 🎧' : '', label[mark]);
-  });
-  const box = h('details', { class: 'toc' }, h('summary', {}, `目录(共 ${chapters.length} 章,已读 ${readPos} 章)`), items);
-  box.addEventListener('toggle', () => box.open && box.querySelector('.current')?.scrollIntoView({ block: 'center' }));
-  return box;
-}
+const tocLink = (bookId, book) => h('a', { class: 'btn', href: `#/toc/${bookId}` }, `📖 目录(${book.ready_chapters} 章)`);
 
 async function listen(bookId, idx, bookTitle, note) {
   try {
@@ -104,8 +96,8 @@ async function listen(bookId, idx, bookTitle, note) {
  * 要看的章还不能看。只有"正在写"的那一章值得自动等;"还早"的章读者不往下读就不会写到,空等只会白白轮询。
  * 重绘时沿用原来的 idxParam:没指定章号的入口(书架点进来)写好后仍走"接着上次读"的逻辑。
  */
-function notYet(box, book, bookId, idxParam, idx, state, chapters) {
-  const latest = chapters.reduce((m, c) => Math.max(m, c.idx), 0);
+function notYet(box, book, bookId, idxParam, idx, state) {
+  const latest = book.ready_chapters;
   const label = idx === 1 ? '第一章' : `第${idx}章`;
   const text = {
     // 后台已报错时不说"通常一两分钟"——那会让读者以为只要再等等
@@ -123,7 +115,7 @@ function notYet(box, book, bookId, idxParam, idx, state, chapters) {
   fill(box, h('h2', {}, book.title), errorBanner(book), hint, h('div', { class: 'row' }, links));
   if (state !== 'writing') return;
   stopPoll = poll(async () => {
-    if (!(await api.chapters(bookId)).some((c) => c.idx === idx)) return false;
+    if (!(await api.around(bookId, idx)).some((c) => c.idx === idx)) return false;
     readerView(bookId, idxParam);
     return true;
   }, { onGiveUp: () => { hint.textContent = '等得有点久了,后台可能遇到了问题。可以稍后点"立即刷新"再看。'; } });

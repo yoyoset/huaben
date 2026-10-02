@@ -9,6 +9,7 @@ import { openingView } from './views/opening.js';
 import { readerView } from './views/reader.js';
 import { shelfView } from './views/shelf.js';
 import { statsView } from './views/stats.js';
+import { tocView } from './views/toc.js';
 import { settingsView } from './views/settings.js';
 import { whoView } from './views/who.js';
 
@@ -16,6 +17,7 @@ const routes = [
   [/^#\/opening\/(\d+)$/, (m) => openingView(+m[1])],
   [/^#\/read\/(\d+)(?:\/(\d+))?$/, (m) => readerView(+m[1], m[2] ? +m[2] : undefined)],
   [/^#\/stats\/(\d+)$/, (m) => statsView(+m[1])],
+  [/^#\/toc\/(\d+)(?:\/(\d+))?$/, (m) => tocView(+m[1], m[2] ? +m[2] : undefined)],
   [/^#\/who$/, () => whoView()],
   [/^#\/settings$/, () => settingsView()],
   // 书架是"某个人的书架":还没选人就先去选

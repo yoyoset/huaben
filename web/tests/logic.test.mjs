@@ -130,3 +130,23 @@ test('voiceNote:电脑离线提醒开机并提供 edge,在线告知进度,其余
   const on = voiceNote(2, { mode: 'pc', worker_online: true });
   assert.ok(!on.offerFallback && /正在配音.*2 章/.test(on.text));
 });
+
+test('目录分页:当前章所在页、越界夹紧、最后一页不满', async () => {
+  const { tocPageOf, tocPage } = await import('../js/logic.js');
+  assert.equal(tocPageOf(1, 100), 1);
+  assert.equal(tocPageOf(100, 100), 1);
+  assert.equal(tocPageOf(101, 100), 2);
+  assert.equal(tocPageOf(0, 100), 1);
+  assert.deepEqual(tocPage(2, 100, 250), { page: 2, pages: 3, from: 101, to: 200 });
+  assert.deepEqual(tocPage(3, 100, 250), { page: 3, pages: 3, from: 201, to: 250 });
+  assert.deepEqual(tocPage(9, 100, 250), { page: 3, pages: 3, from: 201, to: 250 });  // 越界夹到最后一页
+  assert.deepEqual(tocPage(1, 100, 0), { page: 1, pages: 1, from: 1, to: 1 });       // 还没有章
+  assert.equal(tocPage(1, 100, 50000).pages, 500);
+});
+
+test('chapterAvailability:只取了前后几章时,用调用方给的全书最新章号判断', async () => {
+  const { chapterAvailability: av } = await import('../js/logic.js');
+  const window = [{ idx: 499 }, { idx: 500 }];
+  assert.equal(av(window, 501, true, 500), 'writing');
+  assert.equal(av([], 300, true, 500), 'missing');  // 取的就是它前后:不在里面 = 确实没有;不会因为这一小段是空的就误判成"第一章在写"
+});

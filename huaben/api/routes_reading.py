@@ -1,5 +1,5 @@
 """阅读与收听:章节列表 / 正文 / 音频流 / 读到哪。只暴露已定稿的章,章纲等内部工单不外露。"""
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
@@ -24,11 +24,14 @@ def _accepted(conn, book_id: int, idx: int) -> dict:
 
 
 @router.get("/chapters")
-def chapters(book_id: int, request: Request, conn=Depends(get_conn)):
+def chapters(book_id: int, request: Request, from_: int | None = Query(None, alias="from", ge=1),
+             to: int | None = Query(None, ge=1), conn=Depends(get_conn)):
+    """from/to(含两端):只取这一段。不带 = 全部。每章都要查一次音频文件在不在,几千章全取既慢又重,
+    所以阅读页/播放器只取当前章前后,目录页按页取(2026-10-02 用户:章节多了目录会卡死)。"""
     book_or_404(conn, book_id)
     settings = request.app.state.settings
     return [{"idx": c["idx"], "title": c["title"], "has_audio": best_playable(settings, index_paths(c)) is not None}
-            for c in repo.chapter_index(conn, book_id)]
+            for c in repo.chapter_index(conn, book_id, idx_from=from_, idx_to=to)]
 
 
 @router.get("/chapters/{idx}")

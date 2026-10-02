@@ -105,10 +105,10 @@ export const STEP_LABELS = {
  *  - 'missing' 章号不合法(< 1 或非整数)
  * 章号是连续的(只有定稿章占号),所以"比最新一章小却不在列表里"不会出现,归入 missing 兜底。
  */
-export function chapterAvailability(chapters, idx, generating) {
+export function chapterAvailability(chapters, idx, generating, latest = chapters.reduce((m, c) => Math.max(m, c.idx), 0)) {
+  // latest:全书最新一章。只取了当前章前后几章时,必须由调用方给(book.ready_chapters),不能从这一小段里算
   if (!Number.isInteger(idx) || idx < 1) return 'missing';
   if (chapters.some((c) => c.idx === idx)) return 'ready';
-  const latest = chapters.reduce((m, c) => Math.max(m, c.idx), 0);
   if (idx <= latest) return 'missing';
   return idx === latest + 1 && generating ? 'writing' : 'later';
 }
@@ -168,4 +168,16 @@ export function voiceNote(pending, voice) {
   if (voice.worker_online) return { text: `🎧 电脑正在配音,这本书还有 ${pending} 章没配好`, offerFallback: false };
   return { text: `🎧 有 ${pending} 章在等电脑配音:请打开电脑上的配音程序。急着听可以先用 edge-tts 配(电脑开机后会换成高质量版)`,
     offerFallback: true };
+}
+
+/** 目录分页(纯函数)。第几页(从 1 起)装着第 idx 章。 */
+export function tocPageOf(idx, size) {
+  return Math.max(1, Math.ceil(Math.max(1, idx) / size));
+}
+
+/** 第 page 页的章号范围与总页数;page 越界时夹到合法范围。total = 已写好的章数(章号连续,从 1 起)。 */
+export function tocPage(page, size, total) {
+  const pages = Math.max(1, Math.ceil(total / size));
+  const p = Math.min(Math.max(1, page | 0), pages);
+  return { page: p, pages, from: (p - 1) * size + 1, to: Math.min(p * size, Math.max(total, 1)) };
 }
