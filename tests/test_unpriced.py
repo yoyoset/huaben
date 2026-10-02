@@ -53,3 +53,16 @@ def test_health_and_stats_expose_unreliable_spend(tmp_path):
     spend = c.get("/api/health").json()["spend_24h"]
     assert spend["reliable"] is False and spend["unpriced_calls"] == 1
     assert book_stats(conn, bid)["unpriced_calls"] == 1
+
+
+def test_default_only_reminds_never_blocks(tmp_path):
+    """2026-10-02 用户定:花费"提醒就好,不要限制那么死"——默认超过提醒线也照常调用模型。"""
+    s = settings(tmp_path)
+    assert s.spend_limit_usd_24h == 0 and s.spend_remind_usd_24h == 2.0
+    conn = connect(s.db_path)
+    bid = repo.create_book(conn, "书")
+    repo.log_run(conn, bid, "write", tokens_in=1, tokens_out=1, cost_usd=2.5)
+    guard = BudgetGuard(FakeLLM(["照常写"]), s.db_path, s.spend_limit_usd_24h)
+    assert guard.chat([{"role": "user", "content": "x"}]).text == "照常写"
+    body = TestClient(create_app(s)).get("/api/spend").json()
+    assert body["over_remind"] is True and body["spent_usd"] == 2.5

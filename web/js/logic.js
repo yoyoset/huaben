@@ -147,3 +147,12 @@ export function playFailure(err) {
 export function bookHome(book) {
   return book.status === 'drafting' ? `#/opening/${book.id}` : `#/read/${book.id}`;
 }
+
+/** 书架上的花费提醒(用户定:只提醒、不拦)。没什么可提醒时返回 null。 */
+export function spendNote(s) {
+  if (!s) return null;
+  const parts = [];
+  if (s.over_remind) parts.push(`过去 24 小时已花 ${fmtUSD(s.spent_usd)},超过提醒线 ${fmtUSD(s.remind_usd)}(只是提醒,生成照常)`);
+  if (!s.reliable) parts.push(`有 ${s.unpriced_calls} 次调用上游没报费用,实际花费可能更高`);
+  return parts.length ? `💰 ${parts.join(';')}` : null;
+}

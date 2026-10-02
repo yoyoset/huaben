@@ -32,5 +32,6 @@ export const api = {
   chapter: (id, idx) => call('GET', `/api/books/${id}/chapters/${idx}`),
   foreshadows: (id) => call('GET', `/api/books/${id}/foreshadows`),
   stats: (id) => call('GET', `/api/books/${id}/stats`),
+  spend: () => call('GET', '/api/spend'),
   openChapter: (id, chapter) => call('PUT', `/api/books/${id}/progress`, { chapter }),
 };

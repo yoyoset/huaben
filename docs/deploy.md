@@ -7,7 +7,8 @@
 
 1. **宿主机端口**:`docker-compose.yml` 默认映射 `8210`。13 上 8100 已被 SillyTavern 占用,先 `ss -ltn` 确认 8210 空闲,不空闲就在 `.env` 里设 `HUABEN_HOST_PORT`。
 2. **OpenRouter 密钥**:写进服务器上的 `/opt/huaben/.env`(`HUABEN_OPENROUTER_API_KEY=...`),不要进 git、不要进镜像。
-3. **花费上限**:`HUABEN_SPEND_LIMIT_USD_24H` 默认 2 美元/24 小时(全部书合计,只为拦住失控);按实际用量调整。
+3. **花费**:默认**只提醒不拦**(2026-10-02 用户定)——过去 24 小时全部书合计超过 `HUABEN_SPEND_REMIND_USD_24H`(默认 2 美元)
+   就在书架上提醒;需要硬上限时设 `HUABEN_SPEND_LIMIT_USD_24H`(默认 0 = 不设)。
    当前花费见 `/api/health` 的 `spend_24h`;其中 `reliable: false` 表示有调用上游没报费用(换了非 OpenRouter 接口或免费模型),
    这时金额偏低、上限可能拦不住,需自行监控。
 4. 参照 13 上 vpsmon / opencode-usage 的 compose 惯例核对一遍(本项目按 CLAUDE.md 里记录的惯例写成,**没有登录 13 看过实际文件**,可能有出入)。

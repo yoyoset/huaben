@@ -51,3 +51,12 @@ class BudgetGuard:
             log.warning("上游没有返回本次调用的费用(usage.cost):花费上限与统计里的金额将不可信。"
                         "若换了非 OpenRouter 的接口,请自行监控花费")
         return res
+
+
+def spend_status(spent: float, remind_usd: float, limit_usd: float, unpriced_calls: int) -> dict:
+    """给界面/运维看的花费状态。over_remind:超过提醒线(只提醒,不拦);reliable=False:有调用上游没报费用,金额偏低。"""
+    return {
+        "spent_usd": round(spent, 6), "remind_usd": remind_usd, "limit_usd": limit_usd,
+        "over_remind": remind_usd > 0 and spent >= remind_usd,
+        "unpriced_calls": unpriced_calls, "reliable": unpriced_calls == 0,
+    }

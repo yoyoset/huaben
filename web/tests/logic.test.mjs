@@ -109,3 +109,12 @@ test('chapterAvailability:深链到任意章号时区分已写好/正在写/还�
   assert.equal(av(three, 1.5, true), 'missing');
   assert.equal(av([{ idx: 1 }, { idx: 3 }], 2, true), 'missing');
 });
+
+test('spendNote:超过提醒线或金额不可信时才提醒', async () => {
+  const { spendNote } = await import('../js/logic.js');
+  const base = { spent_usd: 0.5, remind_usd: 2, over_remind: false, unpriced_calls: 0, reliable: true };
+  assert.equal(spendNote(base), null);
+  assert.equal(spendNote(null), null);
+  assert.match(spendNote({ ...base, spent_usd: 2.5, over_remind: true }), /\$2\.50.*\$2\.00.*只是提醒/);
+  assert.match(spendNote({ ...base, unpriced_calls: 3, reliable: false }), /3 次调用上游没报费用/);
+});

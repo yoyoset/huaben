@@ -1,7 +1,7 @@
 // 书架。有书在后台生成时自动轮询刷新列表(进度、错误提示随之更新),全部备好后停止。
 import { api } from '../api.js';
 import { fill, h, mount, setTopTitle } from '../dom.js';
-import { bookHome } from '../logic.js';
+import { bookHome, spendNote } from '../logic.js';
 import { poll } from '../poll.js';
 
 const STATUS = { drafting: '开书中', serializing: '连载中' };
@@ -20,9 +20,11 @@ function card(b) {
     b.audio_error ? h('div', { class: 'note' }, `🎧 ${b.audio_error}`) : null);
 }
 
-function render(box, books) {
+function render(box, books, spend) {
+  const note = spendNote(spend);
   fill(box,
     h('div', { class: 'row' }, h('h2', {}, '书架'), h('button', { class: 'primary', onclick: newBook }, '＋ 开一本新书')),
+    note ? h('div', { class: 'note' }, note) : null,
     books.length ? books.map(card) : h('p', { class: 'muted' }, '还没有书。点上面的按钮,聊几句就能开始连载。'));
 }
 
@@ -31,12 +33,13 @@ export async function shelfView() {
   const box = h('div', {}, h('p', { class: 'muted' }, '加载中…'));
   mount(box);
   try {
-    const books = await api.books();
-    render(box, books);
+    // 花费提醒取不到不影响书架(只是提醒)
+    const [books, spend] = await Promise.all([api.books(), api.spend().catch(() => null)]);
+    render(box, books, spend);
     if (books.some((b) => b.generating)) {
       poll(async () => {
         const latest = await api.books();
-        render(box, latest);
+        render(box, latest, spend);
         return !latest.some((b) => b.generating);
       });
     }

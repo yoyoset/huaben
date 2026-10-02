@@ -26,9 +26,10 @@ class Settings(BaseSettings):
     chapter_max_tokens: int = Field(8000, ge=256, le=200_000)  # 3000 字约 4~6k token,留足余量
     chapter_words: int = Field(2500, ge=1, le=20_000)          # 单章目标字数
     max_write_attempts: int = Field(3, ge=1, le=10)            # 正文被打回/截断/解析失败时最多写几稿
-    # 花费安全阀:滚动 24 小时、全部书合计;0 = 不设上限。默认值按 flash 模型单章约 1~2 美分估算,
-    # 约等于一天写 100+ 章——正常使用碰不到,只拦失控。见 huaben/budget.py
-    spend_limit_usd_24h: float = Field(2.0, ge=0)
+    # 花费:滚动 24 小时、全部书合计。2026-10-02 用户定:"提醒就好,不要限制那么死"——
+    # 默认只提醒(书架上显示),不拦;硬上限保留为可选项(0 = 关)。见 huaben/budget.py
+    spend_remind_usd_24h: float = Field(2.0, ge=0)   # 超过即在书架提醒;0 = 不提醒
+    spend_limit_usd_24h: float = Field(0.0, ge=0)    # 硬上限:超过即停止调用模型;0 = 不设(默认)
 
     # 连载
     buffer_chapters: int = Field(3, ge=1, le=50)               # 比读者进度多备几章
