@@ -1,8 +1,8 @@
 // 只缓存"应用壳"(页面/脚本/样式/图标),让 PWA 可安装、打开快。
 // 刻意不缓存 /api/*(含音频):内容随连载变化,缓存会让读者看到过期状态。
-const VERSION = 'huaben-shell-v2';
+const VERSION = 'huaben-shell-v3';
 const SHELL = ['/', '/css/app.css', '/js/main.js', '/js/api.js', '/js/dom.js', '/js/logic.js', '/js/player.js',
-  '/js/poll.js',
+  '/js/poll.js', '/js/reading_prefs.js',
   '/js/views/shelf.js', '/js/views/opening.js', '/js/views/reader.js', '/manifest.webmanifest', '/icons/icon-192.png'];
 
 self.addEventListener('install', (e) => {

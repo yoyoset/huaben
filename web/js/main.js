@@ -2,6 +2,7 @@
 import { h, mount } from './dom.js';
 import './player.js';
 import { cancelAllPolls } from './poll.js';
+import { applyPrefs } from './reading_prefs.js';
 import { openingView } from './views/opening.js';
 import { readerView } from './views/reader.js';
 import { shelfView } from './views/shelf.js';
@@ -22,6 +23,7 @@ function route() {
   mount(h('div', { class: 'banner' }, '找不到这个页面'));
 }
 
+applyPrefs(); // 字号/行距在第一次渲染前就生效,避免跳动
 window.addEventListener('hashchange', route);
 route();
 

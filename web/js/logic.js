@@ -56,3 +56,25 @@ export function pollDelay(attempt, maxAttempts = 40) {
   if (attempt >= maxAttempts) return null;
   return POLL_STEPS[Math.min(attempt, POLL_STEPS.length - 1)];
 }
+
+/** 阅读字号(px):每次 ±1,夹在 [14, 28]。 */
+export const FONT_MIN = 14;
+export const FONT_MAX = 28;
+
+export function stepFont(size, dir) {
+  const n = Number.isFinite(size) ? size : 18;
+  return Math.min(FONT_MAX, Math.max(FONT_MIN, Math.round(n) + Math.sign(dir)));
+}
+
+/** 行距档位循环(未知值回到第一档)。 */
+export const LEADINGS = [1.95, 2.2, 1.6, 1.8];
+
+export function nextLeading(current) {
+  return LEADINGS[(LEADINGS.indexOf(current) + 1) % LEADINGS.length];
+}
+
+/** 目录里每章的状态:当前章 / 已读(≤ 最远进度)/ 未读。 */
+export function chapterMark(idx, current, readPos) {
+  if (idx === current) return 'current';
+  return idx <= readPos ? 'read' : 'unread';
+}

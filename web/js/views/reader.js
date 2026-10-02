@@ -2,9 +2,10 @@
 // 等待态(第一章还没写好 / 下一章还在写 / 语音还在准备)自动轮询刷新,不用读者手动刷新。
 import { api } from '../api.js';
 import { fill, h, mount, setTopTitle } from '../dom.js';
-import { nextChapter, paragraphs, prevChapter } from '../logic.js';
+import { chapterMark, nextChapter, paragraphs, prevChapter } from '../logic.js';
 import { play } from '../player.js';
 import { poll } from '../poll.js';
+import { prefsToolbar } from '../reading_prefs.js';
 
 const go = (bookId, idx) => { location.hash = `#/read/${bookId}/${idx}`; };
 const errorBanner = (book) => (book.gen_error ? h('div', { class: 'banner' }, `后台生成遇到问题:${book.gen_error}`) : null);
@@ -28,6 +29,7 @@ export async function readerView(bookId, idxParam) {
       next ? '下一章 →' : '下一章还在写');
     fill(box,
       errorBanner(book),
+      prefsToolbar(),
       h('h1', { class: 'chapter-title' }, `第${idx}章 ${ch.title}`),
       h('div', { class: 'row' },
         h('button', { class: 'primary', onclick: () => listen(bookId, idx, book.title, note) }, '🎧 听这一章'),
@@ -35,9 +37,9 @@ export async function readerView(bookId, idxParam) {
       h('div', { class: 'chapter-body' }, paragraphs(ch.body).map((p) => h('p', {}, p))),
       h('div', { class: 'chapter-nav' },
         h('button', { disabled: !prev, onclick: () => go(bookId, prev.idx) }, '← 上一章'), nextBtn),
-      h('details', { class: 'toc' }, h('summary', {}, `目录(共 ${chapters.length} 章)`),
-        chapters.map((c) => h('a', { href: `#/read/${bookId}/${c.idx}` }, `第${c.idx}章 ${c.title}`, c.has_audio ? ' 🎧' : ''))),
+      toc(bookId, chapters, idx, Math.max(book.read_pos, idx)),
       note,
+      h('button', { onclick: () => window.scrollTo({ top: 0, behavior: 'smooth' }) }, '↑ 回到顶部'),
     );
     if (!next || !ch.audio_url) watchPending(bookId, idx, nextBtn, audioHint, !next, !ch.audio_url);
   } catch (e) {
@@ -62,6 +64,19 @@ function watchPending(bookId, idx, nextBtn, audioHint, needNext, needAudio) {
     }
     return !needNext && !needAudio;
   }, { onGiveUp: () => { if (needNext) nextBtn.textContent = '下一章还在写(稍后再来看看)'; } });
+}
+
+/** 目录:当前章高亮、已读(≤ 最远进度)变淡;展开时自动把当前章滚到视野里。 */
+function toc(bookId, chapters, current, readPos) {
+  const label = { current: ' ← 正在读', read: '', unread: '' };
+  const items = chapters.map((c) => {
+    const mark = chapterMark(c.idx, current, readPos);
+    return h('a', { href: `#/read/${bookId}/${c.idx}`, class: mark, 'aria-current': mark === 'current' ? 'page' : false },
+      `第${c.idx}章 ${c.title}`, c.has_audio ? ' 🎧' : '', label[mark]);
+  });
+  const box = h('details', { class: 'toc' }, h('summary', {}, `目录(共 ${chapters.length} 章,已读 ${readPos} 章)`), items);
+  box.addEventListener('toggle', () => box.open && box.querySelector('.current')?.scrollIntoView({ block: 'center' }));
+  return box;
 }
 
 async function listen(bookId, idx, bookTitle, note) {

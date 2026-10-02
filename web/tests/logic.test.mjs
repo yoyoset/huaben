@@ -49,3 +49,14 @@ test('pollDelay 先密后疏、封顶 60 秒、超过次数放弃', async () => 
   assert.equal(pollDelay(40), null);
   assert.equal(pollDelay(3, 3), null);
 });
+
+test('字号 ±1 且夹在范围内;行距档位循环;目录状态', async () => {
+  const { stepFont, FONT_MIN, FONT_MAX, nextLeading, LEADINGS, chapterMark } = await import('../js/logic.js');
+  assert.equal(stepFont(18, +1), 19);
+  assert.equal(stepFont(FONT_MIN, -1), FONT_MIN);
+  assert.equal(stepFont(FONT_MAX, +1), FONT_MAX);
+  assert.equal(stepFont(undefined, +1), 19); // 存储里是坏值时回到默认 18 再调
+  assert.equal(nextLeading(LEADINGS[LEADINGS.length - 1]), LEADINGS[0]);
+  assert.equal(nextLeading(9), LEADINGS[0]);
+  assert.deepEqual([1, 2, 3, 4].map((i) => chapterMark(i, 2, 3)), ['read', 'current', 'read', 'unread']);
+});

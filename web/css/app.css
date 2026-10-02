@@ -45,11 +45,15 @@ textarea, input[type=text] {
 .bubble.user { align-self: flex-end; background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 
 .chapter-title { font-size: 22px; margin: 20px 0 4px; }
-.chapter-body { font-size: 18px; line-height: 1.95; letter-spacing: .3px; }
+.chapter-body { font-size: var(--read-size, 18px); line-height: var(--read-leading, 1.95); letter-spacing: .3px; }
+.reading-tools { justify-content: flex-end; margin-top: 4px; }
+.reading-tools button { padding: 4px 12px; font-size: 14px; }
 .chapter-body p { margin: 0 0 1em; text-indent: 2em; }
 .chapter-nav { display: flex; justify-content: space-between; gap: 8px; margin: 24px 0; }
 details.toc { margin: 12px 0; }
 details.toc a { display: block; padding: 6px 0; color: var(--text); text-decoration: none; border-bottom: 1px solid var(--line); }
+details.toc a.read { color: var(--muted); }
+details.toc a.current { color: var(--accent); font-weight: 600; }
 
 .player { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--line);
   padding: 8px 16px calc(8px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 6px; }
