@@ -12,14 +12,36 @@
 
 依赖装在单独的 .venv-qwen:要 transformers 5.15.x,与 Kokoro 用的 4.x 冲突。见 requirements-qwen.txt。
 """
+import logging
 from pathlib import Path
 
 from .kokoro_zh import encode_mp3, segments  # 切段与编码两个引擎通用
 
+log = logging.getLogger("huaben_voice")
 BASE_REPO = "Qwen/Qwen3-TTS-12Hz-1.7B-Base"
 VOICES_DIR = Path(__file__).resolve().parent.parent / "voices"
 MAX_SEG_CHARS = 200          # 太长的一次生成容易语气漂移、偶发吞字;按句拼到 200 字以内
 PARAGRAPH_PAUSE_S = 0.5
+
+# 防"停不下来":2026-10-03 正式配音第一章,一段不到 200 字的正文生成了 161 秒音频(正常 40 秒左右)——
+# 模型没有收尾、一直生成到默认上限 2048 个 token(12 token/秒 ≈ 170 秒),这一段就是长时间的乱音/重复。
+CHARS_PER_S = 5.0            # 实测克隆音色语速:约 350 字 → 64~68 秒
+RUNAWAY_FACTOR = 2.5         # 超过预计时长 2.5 倍算失控
+TOKENS_PER_S = 12            # 模型名里的 12Hz:编解码器每秒 12 个 token
+RETRIES = 2
+
+
+def expected_s(text: str) -> float:
+    return max(len(text) / CHARS_PER_S, 1.0)
+
+
+def token_cap(text: str) -> int:
+    """这一段最多允许生成多少 token:预计时长的 RUNAWAY_FACTOR 倍,至少 6 秒。纯函数。"""
+    return int(max(expected_s(text) * RUNAWAY_FACTOR, 6.0) * TOKENS_PER_S)
+
+
+def runaway(text: str, seconds: float) -> bool:
+    return seconds > expected_s(text) * RUNAWAY_FACTOR * 0.95  # 顶到上限附近也算:那多半是被截断的失控
 
 
 def reference(voice: str, voices_dir: Path = VOICES_DIR) -> tuple[Path, str]:
@@ -41,10 +63,22 @@ class Qwen3Zh:
         self.ref_audio, self.ref_text = reference(voice)
         self.model = FasterQwen3TTS.from_pretrained(BASE_REPO)
 
-    def _say(self, seg: str):
-        wavs, sr = self.model.generate_voice_clone(text=seg, language="Chinese",
-                                                   ref_audio=str(self.ref_audio), ref_text=self.ref_text)
+    def _once(self, seg: str):
+        wavs, sr = self.model.generate_voice_clone(text=seg, language="Chinese", ref_audio=str(self.ref_audio),
+                                                   ref_text=self.ref_text, max_new_tokens=token_cap(seg))
         return self._np.concatenate([self._np.asarray(w, dtype="float32").reshape(-1) for w in wavs]), sr
+
+    def _say(self, seg: str):
+        """失控就重来(采样有随机性,重来通常就正常了),最多 RETRIES 次,留最短的一次。"""
+        best = None
+        for _ in range(RETRIES + 1):
+            audio, sr = self._once(seg)
+            if best is None or len(audio) < len(best[0]):
+                best = (audio, sr)
+            if not runaway(seg, len(audio) / sr):
+                break
+            log.warning("这一段生成失控(%.0f 秒,预计 %.0f 秒),重来:%s…", len(audio) / sr, expected_s(seg), seg[:20])
+        return best
 
     def synthesize(self, text: str) -> bytes:
         np, chunks, sr = self._np, [], 24000

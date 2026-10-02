@@ -90,3 +90,12 @@ def test_qwen3_engine_clones_a_named_reference_voice(tmp_path):
     assert wav.is_file() and text
     with pytest.raises(ValueError, match="现有"):
         reference("不存在", tmp_path)
+
+
+def test_runaway_generation_is_capped_and_detected():
+    """正式配音实测:一段不到 200 字生成了 161 秒(顶到默认 2048 token 上限)。上限按字数给,超长判失控重来。"""
+    from huaben_voice.qwen3_zh import runaway, token_cap
+    seg = "字" * 200                      # 预计 40 秒
+    assert token_cap(seg) == 1200         # 40 秒 × 2.5 × 12 token/秒,远低于默认 2048
+    assert token_cap("好。") == 72        # 很短的段至少给 6 秒
+    assert not runaway(seg, 45) and runaway(seg, 161) and runaway(seg, 99)  # 99 秒 ≈ 顶到上限
