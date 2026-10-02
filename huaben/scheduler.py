@@ -1,7 +1,7 @@
 """预生成缓冲:让每本连载中的书始终比读者进度多备 N 章,听/读时不用等。
 
 只做"补货"这一件事:`top_up` 对单本书循环 [保证有卷 → 生成一章],直到缓冲够数或失败。
-失败不无限重试:记到 books.gen_error 让界面可见(绝不"后台失败但用户以为成功"),本轮就此停手,
+失败不无限重试:文字失败记 books.gen_error、配音失败记 books.audio_error,让界面可见(绝不"后台失败但用户以为成功"),本轮就此停手,
 文本补货之后顺带给缺音频的章配音(tts 可选);
 由外层(API 后台循环)按自己的节奏下次再来。
 并发:同一本书同一时刻只允许一个补货在跑(进程内锁;v0 单进程部署,多进程需换成库级租约)。
@@ -40,20 +40,22 @@ class TopUpResult:
 
 
 def top_up(conn, llm: LLM, settings: Settings, book_id: int, max_chapters: int | None = None,
-           tts: TTS | None = None) -> TopUpResult:
+           tts: TTS | None = None, text: bool = True) -> TopUpResult:
+    """text=False:本轮只配音不写文字(文字在退避中);tts=None:本轮不配音(配音在退避中)。
+    只更新本轮真正尝试过的那一类错误,另一类保持原样——两类错误各自可见、互不覆盖。"""
     lock = _lock_for(book_id)
     if not lock.acquire(blocking=False):
         return TopUpResult(skipped=True)
     res = TopUpResult()
     try:
         with log_context(book=book_id):
-            return _fill(conn, llm, settings, book_id, max_chapters, tts, res)
+            return _fill(conn, llm, settings, book_id, max_chapters if text else 0, tts, res, text)
     finally:
         lock.release()
 
 
 def _fill(conn, llm: LLM, settings: Settings, book_id: int, max_chapters: int | None, tts: TTS | None,
-          res: TopUpResult) -> TopUpResult:
+          res: TopUpResult, text: bool) -> TopUpResult:
     while repo.buffered_ahead(conn, book_id) < settings.buffer_chapters:
         if max_chapters is not None and res.generated >= max_chapters:
             break
@@ -68,9 +70,11 @@ def _fill(conn, llm: LLM, settings: Settings, book_id: int, max_chapters: int | 
             res.error = explain(e)
             break
         res.generated += 1
+    if text:
+        repo.update_book(conn, book_id, gen_error=res.error)
     if tts is not None:  # 文本失败时也给已有章补音频;配音失败不影响文本缓冲
         _, res.audio_error = fill_audio(conn, tts, settings, book_id)
-    repo.update_book(conn, book_id, gen_error=res.error or res.audio_error)
+        repo.update_book(conn, book_id, audio_error=res.audio_error)
     if res.generated or res.error or res.audio_error:
         log.info("top_up generated=%d error=%s audio_error=%s", res.generated, bool(res.error), bool(res.audio_error))
     return res

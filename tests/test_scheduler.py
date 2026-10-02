@@ -111,4 +111,5 @@ def test_tts_failure_does_not_block_text_but_is_visible(conn, tmp_path):
     bid = serializing_book(conn)
     res = top_up(conn, FakeLLM([PLAN] + chapter_replies(2)), s, bid, tts=FakeTTS(always_fail=True))
     assert res.generated == 2 and "配音失败" in res.audio_error
-    assert "配音失败" in repo.get_book(conn, bid)["gen_error"]
+    b = repo.get_book(conn, bid)
+    assert "配音失败" in b["audio_error"] and b["gen_error"] == ""  # 两类错误分开存,文字没问题就不报文字错误

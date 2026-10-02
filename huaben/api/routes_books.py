@@ -24,7 +24,8 @@ def book_view(conn, b: dict, buffer_target: int) -> dict:
         "ready_chapters": repo.count_accepted(conn, b["id"]),
         "buffered_ahead": buffered,
         "generating": b["status"] == "serializing" and buffered < buffer_target,
-        "gen_error": b["gen_error"],  # 非空 = 后台生成遇到问题,界面应提示
+        "gen_error": b["gen_error"],      # 非空 = 后台写文字遇到问题,界面应提示
+        "audio_error": b["audio_error"],  # 非空 = 配音遇到问题(文字照常可读)
     }
 
 

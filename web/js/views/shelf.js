@@ -15,7 +15,8 @@ function card(b) {
     h('div', { class: 'muted' }, b.genre || '', progress),
     // gen_error 非空 = 后台生成遇到问题:必须让用户看见,不能让 TA 以为一切正常
     // 书架会定时刷新,这里不用 role=alert,否则每次刷新读屏都会重新播报
-    b.gen_error ? h('div', { class: 'banner' }, `后台生成遇到问题:${b.gen_error}`) : null);
+    b.gen_error ? h('div', { class: 'banner' }, `后台生成遇到问题:${b.gen_error}`) : null,
+    b.audio_error ? h('div', { class: 'note' }, `🎧 ${b.audio_error}`) : null);
 }
 
 function render(box, books) {

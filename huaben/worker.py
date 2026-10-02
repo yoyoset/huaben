@@ -26,6 +26,10 @@ class Backoff:
         self._fails: dict[int, int] = {}
         self._next_ok: dict[int, float] = {}
 
+    def fresh(self) -> "Backoff":
+        """同样参数的一份独立退避(文字与配音各用一份,互不拖累)。"""
+        return Backoff(self._base, self._cap, self._clock)
+
     def ready(self, key: int) -> bool:
         return self._clock() >= self._next_ok.get(key, 0.0)
 
@@ -42,6 +46,8 @@ class Backoff:
 class Worker:
     def __init__(self, state, interval_s: float, backoff: Backoff):
         self._state, self._interval, self._backoff = state, interval_s, backoff
+        # 配音单独退避:配音服务挂了不能让文字缓冲跟着停(读者可以先读)
+        self._audio_backoff = backoff.fresh()
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self.last_tick_at: str | None = None  # 供 /api/health 判断后台是否还在转
@@ -64,22 +70,34 @@ class Worker:
         conn = connect(self._state.settings.db_path, check_same_thread=False)
         try:
             for b in repo.list_books(conn):
-                if b["status"] != "serializing" or not self._backoff.ready(b["id"]):
+                if b["status"] != "serializing":
                     continue
-                try:
-                    res = top_up(conn, llm, self._state.settings, b["id"], tts=self._state.tts)
-                except Exception:  # noqa: BLE001 —— 单本书的意外不能影响其它书和线程存活
-                    log.exception("书 %s 补货异常", b["id"])
-                    self._backoff.record(b["id"], ok=False)
-                    continue
-                if not res.skipped:
-                    self._backoff.record(b["id"], ok=not (res.error or res.audio_error))
-                results[b["id"]] = res
+                res = self._tick_book(conn, llm, b["id"])
+                if res is not None:
+                    results[b["id"]] = res
         except Exception:  # noqa: BLE001
             log.exception("后台巡检异常")
         finally:
             conn.close()
         return results
+
+    def _tick_book(self, conn, llm, book_id: int) -> TopUpResult | None:
+        text_ok = self._backoff.ready(book_id)
+        tts = self._state.tts if self._state.tts and self._audio_backoff.ready(book_id) else None
+        if not text_ok and tts is None:
+            return None  # 两类都在退避中
+        try:
+            res = top_up(conn, llm, self._state.settings, book_id, tts=tts, text=text_ok)
+        except Exception:  # noqa: BLE001 —— 单本书的意外不能影响其它书和线程存活
+            log.exception("书 %s 补货异常", book_id)
+            self._backoff.record(book_id, ok=False)
+            return None
+        if not res.skipped:
+            if text_ok:
+                self._backoff.record(book_id, ok=not res.error)
+            if tts is not None:
+                self._audio_backoff.record(book_id, ok=not res.audio_error)
+        return res
 
     def _run(self) -> None:
         while not self._stop.is_set():  # 先巡检再等待:启动即恢复

@@ -21,4 +21,6 @@ MIGRATIONS: list[str] = [
     "ALTER TABLE books ADD COLUMN last_opened INTEGER NOT NULL DEFAULT 0;",
     # 5: 人物人设(身份/性格/说话方式)。中途登场的配角不在开书圣经的人物卡里,没有人设就会反复出场时漂移
     "ALTER TABLE ledger_characters ADD COLUMN profile TEXT NOT NULL DEFAULT '';",
+    # 6: 配音错误单独存。此前与文字错误共用 gen_error:一轮只配音不写文字时会把文字错误清掉,反之亦然
+    "ALTER TABLE books ADD COLUMN audio_error TEXT NOT NULL DEFAULT '';",
 ]

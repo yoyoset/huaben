@@ -31,6 +31,7 @@ textarea, input[type=text] {
 }
 main:focus { outline: none; } /* 程序化聚焦正文区不画框;键盘焦点仍由各控件自己的 :focus-visible 显示 */
 button:focus-visible, a:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.note { font-size: 13px; color: var(--muted); border-left: 3px solid var(--line); padding: 4px 10px; margin: 6px 0; }
 .banner.net { position: sticky; top: 0; z-index: 10; margin: 0; border-radius: 0; text-align: center; }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .muted { color: var(--muted); font-size: 14px; }

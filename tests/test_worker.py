@@ -123,3 +123,34 @@ def test_thread_recovers_after_restart_and_stops_cleanly(tmp_path):
         assert n >= 1
     # 退出 with 后线程已停,不应残留
     assert not [t for t in __import__("threading").enumerate() if t.name == "huaben-worker" and t.is_alive()]
+
+
+def test_audio_failure_does_not_hold_back_text(tmp_path):
+    """审查实测:配音一直失败时,整本书被退避,读者往前读后文字缓冲不再补。现在两类各自退避。"""
+    from huaben.tts.fake import FakeTTS
+    clk = Clock()
+    state, bid, s = make_state(tmp_path, [PLAN] + CHAPTER + CHAPTER, tts_retries=0)
+    state.tts = FakeTTS(always_fail=True)
+    w = Worker(state, 60, Backoff(60, 600, clk))
+    r1 = w.tick()[bid]
+    assert r1.generated == 1 and r1.audio_error
+    conn = connect(s.db_path)
+    repo.update_book(conn, bid, read_pos=1)          # 读者读完第 1 章
+    r2 = w.tick()[bid]                                # 配音仍在退避,但文字照常补
+    assert r2.generated == 1 and r2.audio_error == ""  # 本轮没尝试配音,不报也不清配音错误
+    b = repo.get_book(conn, bid)
+    assert b["gen_error"] == "" and "配音失败" in b["audio_error"]  # 配音错误仍可见
+
+
+def test_audio_only_round_keeps_text_error_visible(tmp_path):
+    """文字在退避、配音照常巡检的那一轮:只做配音,不能把文字错误清掉(否则读者以为好了)。"""
+    from huaben.tts.fake import FakeTTS
+    clk = Clock()
+    state, bid, s = make_state(tmp_path, [LLMError("down", kind="server")], tts_retries=0)
+    state.tts = FakeTTS()
+    w = Worker(state, 60, Backoff(60, 600, clk))
+    assert w.tick()[bid].error                 # 文字失败 → 文字退避
+    r2 = w.tick()[bid]                          # 本轮只配音(没有章可配)
+    assert r2.generated == 0 and r2.error == ""
+    conn = connect(s.db_path)
+    assert "暂时不可用" in repo.get_book(conn, bid)["gen_error"]  # 文字错误仍在
