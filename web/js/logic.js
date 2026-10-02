@@ -96,3 +96,8 @@ export const STEP_LABELS = {
   outline: '章纲', write: '正文', ledger: '入账', check: '核对打回', tts: '配音', error: '生成失败',
   volume_plan: '卷规划', volume_seal: '封卷', opening: '开书对话', finalize: '开书定稿',
 };
+
+/** 一本书该去哪个页面:开书阶段去开书对话,连载中去阅读。书架、阅读页、开书页共用,避免各自判断不一致。 */
+export function bookHome(book) {
+  return book.status === 'drafting' ? `#/opening/${book.id}` : `#/read/${book.id}`;
+}

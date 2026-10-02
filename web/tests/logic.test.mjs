@@ -71,3 +71,9 @@ test('统计页格式化:金额/时长/百分比', async () => {
   assert.equal(fmtPct(0.5), '50%');
   assert.equal(fmtPct(undefined), '0%');
 });
+
+test('bookHome:开书阶段去对话,连载中去阅读', async () => {
+  const { bookHome } = await import('../js/logic.js');
+  assert.equal(bookHome({ id: 3, status: 'drafting' }), '#/opening/3');
+  assert.equal(bookHome({ id: 3, status: 'serializing' }), '#/read/3');
+});

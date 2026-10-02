@@ -2,7 +2,7 @@
 // 等待态(第一章还没写好 / 下一章还在写 / 语音还在准备)自动轮询刷新,不用读者手动刷新。
 import { api } from '../api.js';
 import { fill, h, mount, setTopTitle } from '../dom.js';
-import { chapterMark, nextChapter, paragraphs, prevChapter } from '../logic.js';
+import { bookHome, chapterMark, nextChapter, paragraphs, prevChapter } from '../logic.js';
 import { play } from '../player.js';
 import { poll } from '../poll.js';
 import { prefsToolbar } from '../reading_prefs.js';
@@ -20,6 +20,8 @@ export async function readerView(bookId, idxParam) {
   try {
     const [book, chapters] = await Promise.all([api.book(bookId), api.chapters(bookId)]);
     setTopTitle(book.title);
+    // 开书阶段的书不会自己开始写:不要在这里空等"第一章",直接回到开书对话
+    if (book.status === 'drafting') { location.replace(bookHome(book)); return; }
     if (!chapters.length) return waiting(box, book, bookId);
     // 没指定章:接着上次打开的那章(last_opened;0 表示还没读过 → 第 1 章)
     const idx = idxParam ?? Math.max(1, book.last_opened);

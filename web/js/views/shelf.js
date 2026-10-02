@@ -1,12 +1,13 @@
 // 书架。有书在后台生成时自动轮询刷新列表(进度、错误提示随之更新),全部备好后停止。
 import { api } from '../api.js';
 import { fill, h, mount, setTopTitle } from '../dom.js';
+import { bookHome } from '../logic.js';
 import { poll } from '../poll.js';
 
 const STATUS = { drafting: '开书中', serializing: '连载中' };
 
 function card(b) {
-  const href = b.status === 'drafting' ? `#/opening/${b.id}` : `#/read/${b.id}`;
+  const href = bookHome(b);
   const progress = b.status === 'serializing'
     ? ` · 已写 ${b.ready_chapters} 章 · 读到第 ${b.read_pos} 章 · 备好 ${b.buffered_ahead} 章${b.generating ? ' · 正在写…' : ''}`
     : '';

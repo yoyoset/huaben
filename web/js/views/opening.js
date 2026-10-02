@@ -1,6 +1,7 @@
 // 开书对话:聊几句 → 点"开书"。样章直接粘贴进对话框(≥200 字会被原文保存作为文风样本)。
 import { api } from '../api.js';
 import { h, mount, setTopTitle } from '../dom.js';
+import { bookHome } from '../logic.js';
 
 const GREETING = '想看什么样的故事?可以说说题材、喜欢的作品,最好直接贴一段你最喜欢的文字——我会照着它的味道写。';
 
@@ -22,6 +23,9 @@ export async function openingView(bookId) {
   const busy = (on) => { send.disabled = finish.disabled = on; };
 
   try {
+    const book = await api.book(bookId);
+    // 已经开书的书:开书对话不再接受消息,直接去阅读(否则用户发一句只会收到"已经开书"的报错)
+    if (book.status !== 'drafting') { location.replace(bookHome(book)); return; }
     const hist = await api.openingHistory(bookId);
     if (!hist.length) bubble('assistant', GREETING);
     hist.forEach((m) => { bubble(m.role, m.content); if (m.role === 'user') userCount++; });
