@@ -1,6 +1,7 @@
 // 入口:hash 路由 + service worker 注册。
 import { h, mount } from './dom.js';
 import './player.js';
+import { cancelAllPolls } from './poll.js';
 import { openingView } from './views/opening.js';
 import { readerView } from './views/reader.js';
 import { shelfView } from './views/shelf.js';
@@ -12,6 +13,7 @@ const routes = [
 ];
 
 function route() {
+  cancelAllPolls(); // 上一个页面的等待轮询随页面一起结束
   const hash = location.hash || '#/';
   for (const [re, view] of routes) {
     const m = hash.match(re);

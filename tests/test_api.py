@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from huaben.api.app import create_app
 from huaben.config import Settings
+from huaben.llm import LLMError
 from huaben.llm_fake import FakeLLM
 from huaben.tts.fake import FakeTTS
 
@@ -141,3 +142,16 @@ def test_missing_llm_key_gives_503_not_500(tmp_path):
     bid = c.post("/api/books", json={}).json()["id"]
     r = c.post(f"/api/books/{bid}/opening", json={"message": "hi"})
     assert r.status_code == 503 and "API_KEY" in r.json()["detail"]
+
+
+def test_generating_flag_tracks_buffer(tmp_path):
+    c, llm = make_client(tmp_path, [GUIDE, BIBLE, PLAN, OUTLINE, "一", LEDGER])  # buffer_chapters=1
+    bid = open_book(c)
+    assert c.get(f"/api/books/{bid}").json()["generating"] is False  # 开书中:不在生成
+    c.post(f"/api/books/{bid}/opening", json={"message": "x"})
+    c.post(f"/api/books/{bid}/finalize")
+    assert c.get(f"/api/books/{bid}").json()["generating"] is False  # 缓冲已满(1 章)
+    llm._replies += [LLMError("down", kind="server")] * 3
+    c.put(f"/api/books/{bid}/progress", json={"chapter": 1})       # 读完 → 缓冲空,补货失败
+    assert c.get(f"/api/books/{bid}").json()["generating"] is True  # 前端据此继续自动刷新
+

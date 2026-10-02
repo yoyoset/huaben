@@ -40,3 +40,12 @@ test('paragraphs 去空行并保留顺序', () => {
   assert.deepEqual(paragraphs('甲。\n\n 乙。 \n丙。'), ['甲。', '乙。', '丙。']);
   assert.deepEqual(paragraphs(null), []);
 });
+
+test('pollDelay 先密后疏、封顶 60 秒、超过次数放弃', async () => {
+  const { pollDelay } = await import('../js/logic.js');
+  assert.deepEqual([0, 1, 2, 3].map((a) => pollDelay(a)), [5, 10, 15, 20]);
+  assert.equal(pollDelay(20), 60);
+  assert.equal(pollDelay(39), 60);
+  assert.equal(pollDelay(40), null);
+  assert.equal(pollDelay(3, 3), null);
+});

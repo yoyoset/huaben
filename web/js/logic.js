@@ -45,3 +45,14 @@ export function nextRate(current) {
 export function paragraphs(text) {
   return String(text ?? '').split(/\n+/).map((s) => s.trim()).filter(Boolean);
 }
+
+/**
+ * 等待态轮询的间隔(秒):先密后疏,封顶 60 秒;超过 maxAttempts 次返回 null(放弃,让用户手动刷新)。
+ * 一章生成通常 1~2 分钟,前几次密一点让读者尽快看到;长时间没结果说明后台在退避,没必要一直打。
+ */
+export const POLL_STEPS = [5, 10, 15, 20, 30, 45, 60];
+
+export function pollDelay(attempt, maxAttempts = 40) {
+  if (attempt >= maxAttempts) return null;
+  return POLL_STEPS[Math.min(attempt, POLL_STEPS.length - 1)];
+}
