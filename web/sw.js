@@ -18,7 +18,8 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.pathname.startsWith('/api/')) return; // 交给网络
-  // 壳资源:网络优先,断网回退缓存(改了前端代码刷新就能生效)
+  // 壳资源:网络优先,断网回退缓存。注意 fetch() 也走浏览器 HTTP 缓存——"刷新就能生效"靠的是服务端给壳文件加了
+  // Cache-Control: no-cache(见 huaben/api/static.py),不是这里
   e.respondWith(fetch(e.request).then((r) => {
     const copy = r.clone();
     caches.open(VERSION).then((c) => c.put(e.request, copy));
