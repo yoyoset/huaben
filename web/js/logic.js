@@ -131,6 +131,18 @@ export function resumeAt(saved, idx, duration) {
   return Math.max(0, t - RESUME_BACKUP_S);
 }
 
+/**
+ * audio.play() 被拒的原因分类:
+ *  - 'blocked'     NotAllowedError:浏览器的自动播放策略不让播(锁屏/后台自动接下一章时最常见,iOS 尤甚)→ 请读者点 ▶
+ *  - 'interrupted' AbortError:还没开始播就又换了章(连点下一章)→ 正常现象,不提示
+ *  - 'error'       其它:当作真正的错误显示
+ */
+export function playFailure(err) {
+  if (err?.name === 'NotAllowedError') return 'blocked';
+  if (err?.name === 'AbortError') return 'interrupted';
+  return 'error';
+}
+
 /** 一本书该去哪个页面:开书阶段去开书对话,连载中去阅读。书架、阅读页、开书页共用,避免各自判断不一致。 */
 export function bookHome(book) {
   return book.status === 'drafting' ? `#/opening/${book.id}` : `#/read/${book.id}`;

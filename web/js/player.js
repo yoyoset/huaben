@@ -4,14 +4,15 @@
 //  - 一章播完按 logic.afterEnded 决定:接下一章 / 停(睡眠定时)/ 等(后台还在生成)。
 import { api } from './api.js';
 import { clearPos, loadPos, savePos } from './listen_pos.js';
-import { afterEnded, fmtSeconds, nextChapter, nextRate, nextSleepOption, prevChapter, resumeAt, SLEEP_OPTIONS } from './logic.js';
+import { afterEnded, fmtSeconds, nextChapter, nextRate, nextSleepOption, playFailure, prevChapter, resumeAt,
+  SLEEP_OPTIONS } from './logic.js';
 
 const audio = document.getElementById('audio');
 const bar = document.getElementById('player');
 const $ = (id) => document.getElementById(id);
 
 const st = { bookId: null, bookTitle: '', idx: null, title: '', sleepIdx: 0, sleepTimer: null, waitTimer: null,
-  resume: null, lastSaved: 0 };  // resume:本机记下的上次位置,元数据到了再决定要不要跳过去
+  resume: null, lastSaved: 0, reported: null };  // resume:本机记下的上次位置,元数据到了再决定要不要跳过去
 const listeners = new Set();
 export const onChange = (fn) => listeners.add(fn);
 const emit = () => listeners.forEach((fn) => fn({ ...st, playing: !audio.paused }));
@@ -57,19 +58,40 @@ export async function play(bookId, idx, bookTitle) {
   $('player-title').textContent = `第${idx}章 ${ch.title}`;
   status('');
   updateMediaSession();
-  await audio.play();
-  api.openChapter(bookId, idx).catch(() => {}); // 进度上报失败不影响播放
+  try {
+    await audio.play();
+  } catch (e) {
+    const kind = playFailure(e);
+    if (kind === 'error') throw e;
+    // 被拦:章已换好(src、标题、锁屏信息都是新章),读者点 ▶ 就从这里播;进度等真正开始播放时再上报
+    if (kind === 'blocked') status(`点 ▶ 继续播放第${idx}章`);
+  }
   emit();
   return true;
 }
 
+/** 播放器自己发起的换章(下一章/上一章/自动续播):没有调用方接错误,所以在这里显示。 */
+function playFromPlayer(idx) {
+  return play(st.bookId, idx).catch((e) => status(e.message));
+}
+
 async function step(dir) {
   if (st.bookId == null) return;
-  const chapters = await api.chapters(st.bookId);
+  let chapters;
+  try { chapters = await api.chapters(st.bookId); } catch (e) { return status(e.message); }
   const target = dir > 0 ? nextChapter(chapters, st.idx) : prevChapter(chapters, st.idx);
-  if (target?.has_audio) await play(st.bookId, target.idx);
+  if (target?.has_audio) await playFromPlayer(target.idx);
   else status(dir > 0 ? '下一章还在准备' : '已经是第一章');
 }
+
+// 进度在"真正开始出声"时上报,而不是 play() 一调用就报:自动续播被浏览器拦下时,读者其实没听到这一章。
+// 每章只报一次(暂停后继续不重复报)。上报失败不影响播放。
+audio.addEventListener('playing', () => {
+  const key = `${st.bookId}:${st.idx}`;
+  if (st.bookId == null || st.reported === key) return;
+  st.reported = key;
+  api.openChapter(st.bookId, st.idx).catch(() => {});
+});
 
 /** 下一章还没好:每 20 秒看一次,最多等 10 分钟,好了自动接着播。 */
 function waitForNext(tries = 0) {
@@ -78,7 +100,7 @@ function waitForNext(tries = 0) {
   st.waitTimer = setTimeout(async () => {
     try {
       const next = nextChapter(await api.chapters(st.bookId), st.idx);
-      if (next?.has_audio) return play(st.bookId, next.idx);
+      if (next?.has_audio) return playFromPlayer(next.idx);
     } catch { /* 网络抖动:继续等 */ }
     waitForNext(tries + 1);
   }, 20000);
@@ -88,7 +110,9 @@ function waitForNext(tries = 0) {
 audio.addEventListener('loadedmetadata', () => {
   const t = resumeAt(st.resume, st.idx, audio.duration);
   st.resume = null;
-  if (t > 0) { audio.currentTime = t; status(`接着上次的位置(${fmtSeconds(t)})`); }
+  if (t <= 0) return;
+  audio.currentTime = t;
+  if (!audio.paused) status(`接着上次的位置(${fmtSeconds(t)})`); // 被拦下时保留"点 ▶ 继续"的提示
 });
 function rememberPos(force = false) {
   if (st.bookId == null || !audio.currentTime) return;
@@ -106,7 +130,7 @@ audio.addEventListener('ended', async () => {
   let next = null;
   try { next = nextChapter(await api.chapters(st.bookId), st.idx); } catch { /* 取不到当作没有 */ }
   const action = afterEnded({ stopAtChapterEnd: opt.endOfChapter, next });
-  if (action === 'next') await play(st.bookId, next.idx);
+  if (action === 'next') await playFromPlayer(next.idx);
   else if (action === 'wait') waitForNext();
   else { status('睡眠定时:已停止'); setSleep(0); }
   emit();

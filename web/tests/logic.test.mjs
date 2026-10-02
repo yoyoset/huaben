@@ -89,6 +89,14 @@ test('resumeAt:同一章接着播并回退几秒;换章/刚开头/快听完从�
   assert.equal(resumeAt({ idx: 3, t: 'x' }, 3, 600), 0);    // 本机存储被改坏
 });
 
+test('playFailure:自动播放被拦/被新请求打断/其它错误', async () => {
+  const { playFailure } = await import('../js/logic.js');
+  assert.equal(playFailure(new DOMException('x', 'NotAllowedError')), 'blocked');
+  assert.equal(playFailure(new DOMException('x', 'AbortError')), 'interrupted');
+  assert.equal(playFailure(new Error('连不上服务')), 'error');
+  assert.equal(playFailure(undefined), 'error');
+});
+
 test('chapterAvailability:深链到任意章号时区分已写好/正在写/还早/不合法', async () => {
   const { chapterAvailability: av } = await import('../js/logic.js');
   const three = [{ idx: 1 }, { idx: 2 }, { idx: 3 }];
