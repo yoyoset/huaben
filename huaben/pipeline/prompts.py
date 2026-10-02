@@ -18,9 +18,10 @@ OUTLINE_SCHEMA = """{
 
 LEDGER_SCHEMA = """{
   "summary": "本章摘要,2~3 句,保留关键事件与因果",
-  "characters": [{"name": "角色名", "profile": "首次登场时必填:身份、性格、说话方式,一句话;已有人设不变可省略",
-                  "alive": true, "location": "", "abilities": "", "relations": "",
-                  "knows": ["该人物此刻知道的关键信息"], "core": false}],
+  "characters": [{"name": "角色名(必填)。除 name 外只写本章有变化的字段,没变化的整个省略、不要写空值;alive 只在本章死亡时写",
+                  "profile": "仅首次登场时写:身份、性格、说话方式,一句话",
+                  "alive": false, "location": "新的所在地", "abilities": "新的能力状况",
+                  "relations": "新的关系", "knows": ["该人物此刻知道的关键信息(写全量)"]}],
   "foreshadows_new": [{"content": "本章新埋的伏笔", "payoff_plan": "打算何时、以何种方式回收"}],
   "foreshadows_update": [{"id": 伏笔编号(整数), "status": "progressing 或 resolved"}],
   "facts": ["本章新确立的世界事实"],
