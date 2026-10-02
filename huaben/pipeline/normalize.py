@@ -1,0 +1,144 @@
+"""把编辑步骤的 JSON 规整成下游可以放心使用的形状。纯函数。
+
+原则:**常见的无害变形就地规整**(字符串当成单元素、"否"当成 false、数字串当成编号),
+**真正无法理解的内容抛 ParseError**(由流水线当作一次失败的尝试)。
+下游(入账、prompt 组装)因此只会见到确定类型,不会在半路抛 TypeError/ValueError 变成静默失败。
+"""
+from .jsonout import ParseError
+
+_TRUE = {"true", "yes", "y", "1", "是", "存活", "活", "活着", "对"}
+_FALSE = {"false", "no", "n", "0", "否", "死亡", "死", "已死", "已死亡", "不是", "错"}
+FORESHADOW_STATUSES = ("progressing", "resolved")
+
+
+def to_bool(v, field: str) -> bool:
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, (int, float)) and v in (0, 1):
+        return bool(v)
+    if isinstance(v, str) and v.strip().lower() in _TRUE:
+        return True
+    if isinstance(v, str) and v.strip().lower() in _FALSE:
+        return False
+    raise ParseError(f"{field}: 无法理解的布尔值 {v!r}")
+
+
+def to_text(v, field: str) -> str:
+    if v is None:
+        return ""
+    if isinstance(v, (str, int, float)) and not isinstance(v, bool):
+        return str(v).strip()
+    raise ParseError(f"{field}: 期望文本,得到 {type(v).__name__}")
+
+
+def to_text_list(v, field: str) -> list[str]:
+    if v is None:
+        return []
+    if isinstance(v, str):
+        v = [v]
+    if not isinstance(v, list):
+        raise ParseError(f"{field}: 期望列表,得到 {type(v).__name__}")
+    out = [to_text(x, field) for x in v]
+    return list(dict.fromkeys(x for x in out if x))  # 去空、去重、保序
+
+
+def to_int(v, field: str) -> int:
+    if isinstance(v, bool):
+        raise ParseError(f"{field}: 期望整数,得到布尔")
+    if isinstance(v, int):
+        return v
+    if isinstance(v, str) and v.strip().lstrip("#").isdigit():
+        return int(v.strip().lstrip("#"))
+    raise ParseError(f"{field}: 期望整数,得到 {v!r}")
+
+
+def _list(d: dict, key: str) -> list:
+    v = d.get(key)
+    if v is None:
+        return []
+    if not isinstance(v, list):
+        raise ParseError(f"{key}: 期望列表,得到 {type(v).__name__}")
+    return v
+
+
+def normalize_character(c) -> dict:
+    """只保留模型实际给出的字段(没给的交给 merge_character 沿用旧值)。"""
+    if not isinstance(c, dict):
+        raise ParseError(f"characters: 条目不是对象 {c!r}")
+    name = to_text(c.get("name"), "characters.name")
+    if not name:
+        raise ParseError("characters: 条目缺少人名")
+    out: dict = {"name": name}
+    for k in ("location", "abilities", "relations"):
+        if k in c:
+            out[k] = to_text(c[k], f"characters.{k}")
+    for k in ("alive", "core"):
+        if k in c:
+            out[k] = to_bool(c[k], f"characters.{k}")
+    if "knows" in c:
+        out["knows"] = to_text_list(c["knows"], "characters.knows")
+    return out
+
+
+def normalize_foreshadow_new(f) -> dict:
+    if isinstance(f, str):
+        f = {"content": f}
+    if not isinstance(f, dict):
+        raise ParseError(f"foreshadows_new: 条目无法理解 {f!r}")
+    content = to_text(f.get("content"), "foreshadows_new.content")
+    if not content:
+        raise ParseError("foreshadows_new: 伏笔内容为空")
+    return {"content": content, "payoff_plan": to_text(f.get("payoff_plan"), "foreshadows_new.payoff_plan")}
+
+
+def normalize_foreshadow_update(u) -> dict:
+    if not isinstance(u, dict):
+        raise ParseError(f"foreshadows_update: 条目不是对象 {u!r}")
+    status = to_text(u.get("status"), "foreshadows_update.status").lower()
+    if status not in FORESHADOW_STATUSES:
+        raise ParseError(f"foreshadows_update: 未知状态 {status!r}")
+    return {"id": to_int(u.get("id"), "foreshadows_update.id"), "status": status}
+
+
+def normalize_contradiction(c) -> dict:
+    if isinstance(c, str):
+        c = {"what": c}
+    if not isinstance(c, dict):
+        raise ParseError(f"contradictions: 条目无法理解 {c!r}")
+    planned = c.get("planned", False)
+    return {"what": to_text(c.get("what"), "contradictions.what") or "(未说明的冲突)",
+            # planned 无法理解时按 False:宁可误报重写,也不放过硬伤
+            "planned": planned if isinstance(planned, bool) else _safe_bool(planned)}
+
+
+def _safe_bool(v) -> bool:
+    try:
+        return to_bool(v, "planned")
+    except ParseError:
+        return False
+
+
+def normalize_ledger(d: dict) -> dict:
+    summary = to_text(d.get("summary"), "summary")
+    if not summary:
+        raise ParseError("summary 为空")
+    return {
+        "summary": summary,
+        "characters": [normalize_character(c) for c in _list(d, "characters")],
+        "foreshadows_new": [normalize_foreshadow_new(f) for f in _list(d, "foreshadows_new")],
+        "foreshadows_update": [normalize_foreshadow_update(u) for u in _list(d, "foreshadows_update")],
+        "facts": to_text_list(_list(d, "facts"), "facts"),
+        "contradictions": [normalize_contradiction(c) for c in _list(d, "contradictions")],
+    }
+
+
+def normalize_outline(d: dict) -> dict:
+    title, outline = to_text(d.get("title"), "title"), to_text(d.get("outline"), "outline")
+    if not title or not outline:
+        raise ParseError("章纲缺少标题或内容")
+    return {
+        "title": title, "outline": outline, "hook": to_text(d.get("hook"), "hook"),
+        "characters": to_text_list(d.get("characters"), "characters"),
+        "foreshadows": [to_int(x, "foreshadows") for x in _list(d, "foreshadows")],
+        "planned_reversals": to_text_list(d.get("planned_reversals"), "planned_reversals"),
+    }

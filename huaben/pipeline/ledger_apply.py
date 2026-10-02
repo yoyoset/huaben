@@ -21,23 +21,19 @@ def apply_ledger(conn, book_id: int, chapter_id: int, idx: int, ledger: dict) ->
     open_ids = {f["id"] for f in repo.list_foreshadows(conn, book_id)}
     with tx(conn):
         for entry in ledger["characters"]:
-            name = entry["name"].strip()
+            name = entry["name"]  # 已由 normalize 规整:去空白、非空
             m = merge_character(known.get(name), entry)
             repo.upsert_character(conn, book_id, name, updated_ch=idx, commit=False, **m)
         for f in ledger["foreshadows_new"]:
-            repo.add_foreshadow(conn, book_id, idx, f["content"], f.get("payoff_plan", ""), commit=False)
+            repo.add_foreshadow(conn, book_id, idx, f["content"], f["payoff_plan"], commit=False)
         for u in ledger["foreshadows_update"]:
-            fid = u.get("id")
+            fid, status = u["id"], u["status"]
             if fid not in open_ids:
                 warnings.append(f"foreshadow #{fid} not found, skipped")
-                continue
-            status = u.get("status")
-            if status not in ("progressing", "resolved"):
-                warnings.append(f"foreshadow #{fid} bad status {status!r}, skipped")
                 continue
             repo.update_foreshadow(conn, fid, status=status,
                                    resolved_ch=idx if status == "resolved" else None, commit=False)
         for fact in ledger["facts"]:
-            repo.add_fact(conn, book_id, str(fact), idx, commit=False)
+            repo.add_fact(conn, book_id, fact, idx, commit=False)
         repo.update_chapter(conn, chapter_id, summary=ledger["summary"], status="accepted", commit=False)
     return warnings

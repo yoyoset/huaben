@@ -89,10 +89,16 @@ def test_tick_without_api_key_is_quiet(tmp_path):
     assert Worker(state, 60, Backoff(60, 600)).tick() == {}
 
 
-def test_unexpected_exception_does_not_kill_tick(tmp_path):
-    state, bid, _ = make_state(tmp_path, [RuntimeError("意外")])
-    res = Worker(state, 60, Backoff(60, 600)).tick()  # 不抛
-    assert res == {}
+def test_unexpected_exception_is_visible_and_backed_off(tmp_path):
+    """程序缺陷(非 LLM/流水线错误)也要写进 gen_error 并退避,不能静默停更。"""
+    clk = Clock()
+    state, bid, s = make_state(tmp_path, [RuntimeError("意外")])
+    w = Worker(state, 60, Backoff(60, 600, clk))
+    res = w.tick()  # 不抛
+    assert "内部错误" in res[bid].error
+    conn = connect(s.db_path)
+    assert "内部错误" in repo.get_book(conn, bid)["gen_error"]
+    assert w.tick() == {}  # 已退避
 
 
 def test_thread_recovers_after_restart_and_stops_cleanly(tmp_path):

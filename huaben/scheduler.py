@@ -6,6 +6,7 @@
 由外层(API 后台循环)按自己的节奏下次再来。
 并发:同一本书同一时刻只允许一个补货在跑(进程内锁;v0 单进程部署,多进程需换成库级租约)。
 """
+import logging
 import threading
 from dataclasses import dataclass
 
@@ -18,6 +19,7 @@ from .pipeline.volume import ensure_active_volume
 from .tts.base import TTS
 from .tts.service import fill_audio
 
+log = logging.getLogger("huaben.scheduler")
 _locks: dict[int, threading.Lock] = {}
 _locks_guard = threading.Lock()
 
@@ -50,6 +52,10 @@ def top_up(conn, llm: LLM, settings: Settings, book_id: int, max_chapters: int |
                 generate_chapter(conn, llm, settings, book_id)
             except (ChapterFailed, LLMError) as e:
                 res.error = f"{type(e).__name__}: {e}"[:300]
+                break
+            except Exception as e:  # noqa: BLE001 —— 程序缺陷也必须让用户看见,不能静默停更
+                log.exception("书 %s 生成时出现未预期的错误", book_id)
+                res.error = f"内部错误 {type(e).__name__}: {e}"[:300]
                 break
             res.generated += 1
         if tts is not None:  # 文本失败时也给已有章补音频;配音失败不影响文本缓冲

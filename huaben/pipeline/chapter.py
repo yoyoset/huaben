@@ -21,6 +21,17 @@ def _fail(conn, book_id: int, chapter_id: int, idx: int, step: str, reason: str)
     return ChapterFailed(f"chapter {idx} failed at {step}: {reason}")
 
 
+def _record(conn, llm: LLM, book_id: int, idx: int, messages) -> dict | None:
+    """编辑·入账。输出格式问题多为偶发,先只重试入账这一步(同一稿正文),两次都不行才返回 None。"""
+    for _ in range(2):
+        rec = call_step(conn, llm, book_id, idx, "ledger", messages, json_mode=True, temperature=0.2)
+        try:
+            return parse_ledger(rec.text)
+        except ParseError as e:
+            repo.log_run(conn, book_id, "check", chapter_idx=idx, ok=False, note=f"ledger parse: {e}"[:300])
+    return None
+
+
 def generate_chapter(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
     """生成并定稿下一章,返回定稿后的章记录。失败抛 ChapterFailed。"""
     repo.discard_unaccepted(conn, book_id)
@@ -56,13 +67,9 @@ def generate_chapter(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
             repo.log_run(conn, book_id, "check", chapter_idx=idx, ok=False, note="truncated")
             continue
         repo.update_chapter(conn, chapter_id, body=draft.text.strip(), status="written")
-        rec = call_step(conn, llm, book_id, idx, "ledger", prompts.ledger_messages(ctx, outline, draft.text),
-                    json_mode=True, temperature=0.2)
-        try:
-            ledger = parse_ledger(rec.text)
-        except ParseError as e:
-            repo.log_run(conn, book_id, "check", chapter_idx=idx, ok=False, note=f"ledger parse: {e}"[:300])
-            feedback = []  # 解析失败不是正文的错,不带反馈,直接再来一稿
+        ledger = _record(conn, llm, book_id, idx, prompts.ledger_messages(ctx, outline, draft.text))
+        if ledger is None:
+            feedback = []  # 入账两次都解析失败:不是正文的错,不带反馈,再来一稿
             continue
         bad = unplanned_contradictions(ledger)
         if bad:
