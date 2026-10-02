@@ -5,7 +5,7 @@ from huaben import repo
 from huaben.config import Settings
 from huaben.llm_fake import FakeLLM
 from huaben.pipeline.chapter import generate_chapter
-from huaben.pipeline.draft_check import clean_draft, content_length, draft_problems
+from huaben.pipeline.draft_check import clean_draft, content_length, draft_problems, looks_like_refusal
 
 GOOD = "\n".join(f"第{i}段。沈照提灯走过后山,井边的敲击声一下又一下,像有人在下面数着他的步子。" for i in range(40))
 
@@ -34,6 +34,22 @@ def test_too_short():
 def test_refusal_detected():
     text = "抱歉,我无法继续创作这个情节。" + GOOD
     assert any("不是小说正文" in p for p in draft_problems(text, 100))
+
+
+def test_refusal_variants_still_caught():
+    for head in ("  很抱歉,这个请求我不能完成。", "I'm sorry, but I can't write that.",
+                 "以下是说明:作为一个AI语言模型,我需要提醒你……", "作为人工智能,我不能生成这类内容。"):
+        assert looks_like_refusal(head + GOOD), head
+
+
+def test_dialogue_with_apology_or_refusal_is_a_normal_chapter():
+    """实测曾误伤:前 300 字里的人物台词含"抱歉/我不能提供",整章被判"不是小说正文"。"""
+    for head in ("“抱歉,我来晚了。”沈照推门而入,雨水顺着斗笠往下淌。\n",
+                 "老掌柜摇头:“我不能提供这种药,官府查得紧。”\n",
+                 "他抱歉地笑了笑,没有接话。\n",
+                 "「作为一个AI,我只听主人的。」铁傀儡说。\n"):  # 故事里的 AI 角色说话
+        assert not looks_like_refusal(head + GOOD), head
+        assert draft_problems(head + GOOD, 1000) == [], head
 
 
 def test_missing_punctuation_in_tail_detected():

@@ -13,12 +13,22 @@ REPEAT_LIMIT = 3            # 同一段落出现 ≥3 次视为生成退化
 _PUNCT = re.compile(r"[,。!?;:、“”‘’…—「」『』(),!?]")
 _HEADING = re.compile(r"^\s*(#+\s*|第\s*[0-9一二三四五六七八九十百千零〇]+\s*章|标题\s*[::]|《[^》]{1,30}》\s*$)")
 _TRAILER = re.compile(r"^\s*[((【\[]?\s*(本章完|全章完|完|未完待续|待续)\s*[))】\]]?\s*$")
-_REFUSAL = re.compile(r"抱歉|对不起,我|我无法|我不能(为你|帮你|提供|创作|继续)|作为(一个)?\s*(AI|人工智能|语言模型)"
-                      r"|I'?m sorry|I cannot|I can't|as an AI", re.I)
+# 模型拒绝写作时,拒绝语就是回复的开头;"作为 AI/语言模型"的自我声明则在对白之外出现。
+# 不能在开头一段里随处找"抱歉/我不能提供"——那是常见的人物台词(实测误伤:"“抱歉,我来晚了。”沈照推门而入")。
+_REFUSAL_START = re.compile(r"(很)?抱歉|对不起|我无法|我不能|作为(一个)?\s*(AI|人工智能|语言模型)"
+                            r"|I'?m sorry|Sorry|I cannot|I can't|As an AI", re.I)
+_SELF_AS_AI = re.compile(r"作为(一个)?\s*(AI|人工智能|语言模型)|as an AI( language model)?", re.I)
+_QUOTED = re.compile(r"“[^”]*”|「[^」]*」|『[^』]*』|\"[^\"]*\"")
 
 
 def content_length(text: str) -> int:
     return len(re.sub(r"\s", "", text))
+
+
+def looks_like_refusal(text: str) -> bool:
+    """开头就是拒绝语,或开头一段的**对白之外**出现"作为 AI"的自我声明。"""
+    head = text.lstrip()[:300]
+    return bool(_REFUSAL_START.match(head) or _SELF_AS_AI.search(_QUOTED.sub("", head)))
 
 
 def clean_draft(text: str) -> str:
@@ -39,7 +49,7 @@ def draft_problems(text: str, target_words: int) -> list[str]:
     n = content_length(text)
     if n < target_words * MIN_LENGTH_RATIO:
         problems.append(f"篇幅不足:只有约 {n} 字,目标约 {target_words} 字,请写成完整的一章")
-    if _REFUSAL.search(text[:300]):
+    if looks_like_refusal(text):
         problems.append("上一稿不是小说正文(像是拒绝或说明),请直接写这一章的故事")
     tail = re.sub(r"\s", "", text)[-TAIL_WINDOW:]
     if len(tail) >= 200 and len(_PUNCT.findall(tail)) < len(tail) * MIN_PUNCT_DENSITY:
