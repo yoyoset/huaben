@@ -32,6 +32,7 @@ def test_openrouter_only_fields_are_not_sent_elsewhere():
     assert is_openrouter("https://openrouter.ai/api/v1") and not is_openrouter("https://opencode.ai/zen/v1")
     p = build_payload("m", [], max_tokens=10, temperature=0, openrouter=False)
     assert "reasoning" not in p and "usage" not in p and p["frequency_penalty"] == 0 and p["presence_penalty"] == 0
+    assert p["reasoning_effort"] == "none"  # 实测:OpenCode 不发这个就把输出全烧在思考上,正文为空
     assert build_payload("m", [], max_tokens=10, temperature=0)["reasoning"] == {"effort": "none"}
 
 
@@ -87,3 +88,20 @@ def test_openrouter_requests_avoid_fp4_hosts_and_record_who_served():
     from huaben.llm import parse_response
     res = parse_response({**OK, "provider": "DeepInfra"}, 5)
     assert res.provider == "DeepInfra"
+
+
+def test_requests_identify_themselves_for_opencode_go():
+    """OpenCode Go 不带 x-opencode-session 直接拒(MissingSessionID),并要求用自己的 UA;同一客户端会话号稳定。"""
+    import httpx
+    from huaben.llm import OpenRouterClient
+    seen = []
+
+    def handler(req):
+        seen.append(req.headers)
+        return httpx.Response(200, json={"choices": [{"message": {"content": "好"}, "finish_reason": "stop"}]})
+    st = Settings(openrouter_api_key="k", openrouter_base_url="https://opencode.ai/zen/go/v1", _env_file=None)
+    c = OpenRouterClient(st, transport=httpx.MockTransport(handler))
+    c.chat([{"role": "user", "content": "x"}])
+    c.chat([{"role": "user", "content": "y"}])
+    assert seen[0]["user-agent"].startswith("huaben/")
+    assert seen[0]["x-opencode-session"] and seen[0]["x-opencode-session"] == seen[1]["x-opencode-session"]

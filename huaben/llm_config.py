@@ -12,6 +12,9 @@ PRESETS = {
     "openrouter": {"label": "OpenRouter", "base_url": "https://openrouter.ai/api/v1",
                    "model": "deepseek/deepseek-v4.1-flash"},
     "opencode": {"label": "OpenCode Zen", "base_url": "https://opencode.ai/zen/v1", "model": "deepseek-v4.1-flash"},
+    # Go 是订阅制(用户 2026-10-02 订了),端点与 Zen 不同;要求每个请求带 x-opencode-session、用自己的 UA(见 llm.py)
+    "opencode_go": {"label": "OpenCode Go(订阅)", "base_url": "https://opencode.ai/zen/go/v1",
+                    "model": "deepseek-v4.1-flash"},
 }
 KEYS = {"base_url": "openrouter_base_url", "api_key": "openrouter_api_key", "model": "llm_model"}
 

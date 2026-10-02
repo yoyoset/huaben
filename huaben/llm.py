@@ -2,15 +2,17 @@
 
 默认值来自前身踩坑(docs/lessons-from-sillytavern.md):
 - 长文生成 frequency/presence penalty 必须为 0(否则后半段标点消失)
-- 显式发 reasoning.effort = "none"(思考模型会把 max_tokens 烧在思考上,正文为空)
+- 显式关思考(思考模型会把 max_tokens 烧在思考上,正文为空):OpenRouter 发 reasoning.effort,别家发 reasoning_effort
 - 正文为空 / 被截断要显式报错,不能让上层以为成功
 """
 import time
+import uuid
 from dataclasses import dataclass
 from typing import Callable, Protocol
 
 import httpx
 
+from . import __version__
 from .config import Settings
 from .llm_config import is_openrouter
 
@@ -82,6 +84,10 @@ def build_payload(model: str, messages: list[dict], *, max_tokens: int, temperat
         # 2026-10-02 实测同一真实章节 prompt,Decart(fp4)388 秒、DeepInfra(fp8)30 秒;生产第 1 章后半段
         # 整段无标点并转成繁体。贵的部分每章不到 0.1 美分。
         payload["provider"] = {"quantizations": ["fp8", "fp16", "bf16", "fp32"], "sort": "throughput"}
+    else:
+        # 别家用 OpenAI 标准字段关思考。2026-10-02 实测 OpenCode 的 deepseek-v4.1-flash:不发时 400 个输出 token
+        # 全烧在思考上、正文为空;发 reasoning_effort="none" 后思考 0 token、正文正常;发 OpenRouter 的 reasoning 字段被 400 拒绝。
+        payload["reasoning_effort"] = "none"
     if json_mode:
         payload["response_format"] = {"type": "json_object"}
     return payload
@@ -117,7 +123,11 @@ class OpenRouterClient:
         self._sleep = sleep
         self._http = httpx.Client(
             base_url=settings.openrouter_base_url,
-            headers={"Authorization": f"Bearer {settings.openrouter_api_key}"},
+            # OpenCode Go 拒收不带 x-opencode-session 的请求(2026-10-02 实测 MissingSessionID),并要求客户端用自己的 UA
+            # 如实自报,不用通用 HTTP 库名。会话号每个客户端一个:服务商按它做路由与提示词缓存。对其它服务商无害。
+            headers={"Authorization": f"Bearer {settings.openrouter_api_key}",
+                     "User-Agent": f"huaben/{__version__} (personal serial-novel app)",
+                     "x-opencode-session": uuid.uuid4().hex},
             timeout=settings.llm_timeout_s,
             transport=transport,
         )
