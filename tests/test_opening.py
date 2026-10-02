@@ -111,3 +111,22 @@ def test_finalize_bad_bible_fails_cleanly(conn, book):
     with pytest.raises(ChapterFailed):
         finalize_book(conn, FakeLLM(["不是json", '{"title":"x"}']), S, book)
     assert repo.get_bible(conn, book)["world"] == "" and repo.get_book(conn, book)["status"] == "drafting"
+
+
+def test_retry_after_more_conversation_reextracts_bible(conn, book):
+    """开书失败(卷规划失败)后用户又补充了设定:重试时必须按完整对话重新整理圣经,旧人物不残留。"""
+    repo.add_message(conn, book, "user", "古代恐怖")
+    with pytest.raises(ChapterFailed):
+        finalize_book(conn, FakeLLM([BIBLE, "坏", "坏"]), S, book)
+    repo.add_message(conn, book, "user", "主角换成女的,叫阿蘅")
+    new_bible = json.dumps({
+        "title": "夜行录", "genre": "古代恐怖", "synopsis": "女夜巡人的故事。", "world": "灵气枯竭的王朝",
+        "characters": [{"name": "阿蘅", "role": "主角", "traits": "冷"}], "core_characters": ["阿蘅"],
+        "style_fingerprint": "短句", "taboos": [],
+    }, ensure_ascii=False)
+    llm = FakeLLM([new_bible, PLAN])
+    out = finalize_book(conn, llm, S, book)
+    assert "主角换成女的" in llm.calls[0][-1]["content"]           # 新补充的话进了整理
+    assert out["synopsis"] == "女夜巡人的故事。"
+    assert [c["name"] for c in repo.list_characters(conn, book)] == ["阿蘅"]  # 旧圣经的人物没有残留
+    assert repo.get_bible(conn, book)["extracted_msgs"] == 2

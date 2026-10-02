@@ -32,7 +32,7 @@ def update_book(conn, book_id: int, *, commit: bool = True, **fields) -> None:
 
 
 _BIBLE_JSON = {"characters", "style_samples", "taboos"}
-_BIBLE_TEXT = {"world", "style_fingerprint", "canon"}
+_BIBLE_SCALAR = {"world", "style_fingerprint", "canon", "extracted_msgs"}
 
 
 def get_bible(conn, book_id: int) -> dict | None:
@@ -44,7 +44,7 @@ def get_bible(conn, book_id: int) -> dict | None:
 
 
 def save_bible(conn, book_id: int, *, commit: bool = True, **fields) -> None:
-    bad = set(fields) - _BIBLE_JSON - _BIBLE_TEXT
+    bad = set(fields) - _BIBLE_JSON - _BIBLE_SCALAR
     if bad:
         raise ValueError(f"unknown bible fields: {bad}")
     if not fields:

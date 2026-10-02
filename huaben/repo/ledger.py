@@ -15,6 +15,13 @@ def upsert_character(conn, book_id: int, name: str, *, alive=True, location="", 
         conn.commit()
 
 
+def clear_characters(conn, book_id: int, commit: bool = True) -> None:
+    """只用于开书阶段重新整理圣经(此时还没有任何章节引用这些人物)。"""
+    conn.execute("DELETE FROM ledger_characters WHERE book_id=?", (book_id,))
+    if commit:
+        conn.commit()
+
+
 def list_characters(conn, book_id: int) -> list[dict]:
     out = []
     for r in conn.execute("SELECT * FROM ledger_characters WHERE book_id=? ORDER BY core DESC, name", (book_id,)):

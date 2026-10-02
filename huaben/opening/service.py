@@ -71,7 +71,8 @@ def _extract_bible(conn, llm: LLM, book_id: int, messages: list[dict]) -> None:
                          synopsis=bible["synopsis"], commit=False)
         repo.save_bible(conn, book_id, world=bible["world"], style_fingerprint=bible["style_fingerprint"],
                         characters=bible["characters"], taboos=[str(t) for t in bible["taboos"]],
-                        style_samples=style_samples_from(messages), commit=False)
+                        style_samples=style_samples_from(messages), extracted_msgs=len(messages), commit=False)
+        repo.clear_characters(conn, book_id, commit=False)  # 重新整理时,旧圣经里的人物不能残留在账本
         for c in bible["characters"]:
             name = str(c["name"]).strip()
             repo.upsert_character(conn, book_id, name, core=name in core, commit=False)  # 角色定位留在圣经里
@@ -86,7 +87,9 @@ def finalize_book(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
     messages = repo.list_messages(conn, book_id)
     if not any(m["role"] == "user" for m in messages):
         raise OpeningError("还没有开书对话,先聊几句")
-    if not (repo.get_bible(conn, book_id) or {}).get("world"):  # 圣经已存在则跳过(重试场景)
+    bible = repo.get_bible(conn, book_id) or {}
+    # 重试时:圣经已按全部对话整理过就跳过(不重复花钱);用户之后又补充过对话则重新整理
+    if not bible.get("world") or bible.get("extracted_msgs", 0) < len(messages):
         _extract_bible(conn, llm, book_id, messages)
     ensure_active_volume(conn, llm, settings, book_id)
     repo.update_book(conn, book_id, status="serializing", gen_error="")
