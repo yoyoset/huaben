@@ -6,10 +6,12 @@ import { applyPrefs } from './reading_prefs.js';
 import { openingView } from './views/opening.js';
 import { readerView } from './views/reader.js';
 import { shelfView } from './views/shelf.js';
+import { statsView } from './views/stats.js';
 
 const routes = [
   [/^#\/opening\/(\d+)$/, (m) => openingView(+m[1])],
   [/^#\/read\/(\d+)(?:\/(\d+))?$/, (m) => readerView(+m[1], m[2] ? +m[2] : undefined)],
+  [/^#\/stats\/(\d+)$/, (m) => statsView(+m[1])],
   [/^#?\/?$/, () => shelfView()],
 ];
 

@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 
-from .. import repo
+from .. import repo, stats
 from .deps import book_or_404, get_conn
 
 router = APIRouter(prefix="/api/books", tags=["books"])
@@ -46,6 +46,6 @@ def get_book(book_id: int, request: Request, conn=Depends(get_conn)):
 
 @router.get("/{book_id}/stats")
 def book_stats(book_id: int, conn=Depends(get_conn)):
-    """可观测:单章平均成本/耗时/token(v0 验收要记录)。"""
+    """可观测:单章平均成本/耗时、重写率、配音覆盖、失败分布(口径见 huaben/stats.py)。"""
     book_or_404(conn, book_id)
-    return repo.cost_summary(conn, book_id)
+    return stats.book_stats(conn, book_id)

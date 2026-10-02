@@ -30,5 +30,6 @@ export const api = {
   finalize: (id) => call('POST', `/api/books/${id}/finalize`),
   chapters: (id) => call('GET', `/api/books/${id}/chapters`),
   chapter: (id, idx) => call('GET', `/api/books/${id}/chapters/${idx}`),
+  stats: (id) => call('GET', `/api/books/${id}/stats`),
   openChapter: (id, chapter) => call('PUT', `/api/books/${id}/progress`, { chapter }),
 };

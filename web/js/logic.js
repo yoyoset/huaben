@@ -78,3 +78,21 @@ export function chapterMark(idx, current, readPos) {
   if (idx === current) return 'current';
   return idx <= readPos ? 'read' : 'unread';
 }
+
+/** 金额:小额保留 4 位(单章成本通常是零点几美分),大额 2 位。 */
+export function fmtUSD(x) {
+  const n = Number(x) || 0;
+  return `$${n.toFixed(n !== 0 && Math.abs(n) < 0.1 ? 4 : 2)}`;
+}
+
+export function fmtSeconds(s) {
+  const n = Math.round(Number(s) || 0);
+  return n < 60 ? `${n} 秒` : `${Math.floor(n / 60)} 分 ${n % 60} 秒`;
+}
+
+export const fmtPct = (r) => `${Math.round((Number(r) || 0) * 100)}%`;
+
+export const STEP_LABELS = {
+  outline: '章纲', write: '正文', ledger: '入账', check: '核对打回', tts: '配音', error: '生成失败',
+  volume_plan: '卷规划', volume_seal: '封卷', opening: '开书对话', finalize: '开书定稿',
+};

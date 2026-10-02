@@ -24,3 +24,30 @@ def cost_summary(conn, book_id: int) -> dict:
         "tokens_in": r["tin"], "tokens_out": r["tout"],
         "avg_cost_usd": (r["cost"] / n) if n else 0.0, "avg_ms": (r["ms"] / n) if n else 0,
     }
+
+
+def run_totals(conn, book_id: int) -> dict:
+    """按"章级 / 卷级 / 开书"三类汇总费用、耗时、token。卷级与开书步骤没有章序号(chapter_idx 为空)。"""
+    rows = conn.execute(
+        "SELECT CASE WHEN chapter_idx IS NOT NULL THEN 'chapter' "
+        "            WHEN step IN ('opening','finalize') THEN 'opening' ELSE 'volume' END AS kind, "
+        "COALESCE(SUM(cost_usd),0) AS cost, COALESCE(SUM(duration_ms),0) AS ms, "
+        "COALESCE(SUM(tokens_in),0) AS tin, COALESCE(SUM(tokens_out),0) AS tout "
+        "FROM pipeline_runs WHERE book_id=? GROUP BY kind", (book_id,)).fetchall()
+    empty = {"cost_usd": 0.0, "ms": 0, "tokens_in": 0, "tokens_out": 0}
+    out = {k: dict(empty) for k in ("chapter", "volume", "opening")}
+    for r in rows:
+        out[r["kind"]] = {"cost_usd": r["cost"], "ms": r["ms"], "tokens_in": r["tin"], "tokens_out": r["tout"]}
+    return out
+
+
+def failure_counts(conn, book_id: int) -> dict[str, int]:
+    return {r["step"]: r["n"] for r in conn.execute(
+        "SELECT step, COUNT(*) AS n FROM pipeline_runs WHERE book_id=? AND ok=0 GROUP BY step ORDER BY n DESC",
+        (book_id,))}
+
+
+def recent_failures(conn, book_id: int, limit: int = 5) -> list[dict]:
+    return [dict(r) for r in conn.execute(
+        "SELECT step, chapter_idx, note, created_at FROM pipeline_runs WHERE book_id=? AND ok=0 "
+        "ORDER BY id DESC LIMIT ?", (book_id, limit))]

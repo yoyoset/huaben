@@ -60,3 +60,14 @@ test('字号 ±1 且夹在范围内;行距档位循环;目录状态', async () =
   assert.equal(nextLeading(9), LEADINGS[0]);
   assert.deepEqual([1, 2, 3, 4].map((i) => chapterMark(i, 2, 3)), ['read', 'current', 'read', 'unread']);
 });
+
+test('统计页格式化:金额/时长/百分比', async () => {
+  const { fmtUSD, fmtSeconds, fmtPct } = await import('../js/logic.js');
+  assert.equal(fmtUSD(0.017), '$0.0170');
+  assert.equal(fmtUSD(1.5), '$1.50');
+  assert.equal(fmtUSD(0), '$0.00');
+  assert.equal(fmtSeconds(15.4), '15 秒');
+  assert.equal(fmtSeconds(80), '1 分 20 秒');
+  assert.equal(fmtPct(0.5), '50%');
+  assert.equal(fmtPct(undefined), '0%');
+});

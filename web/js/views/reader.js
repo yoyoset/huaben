@@ -29,7 +29,8 @@ export async function readerView(bookId, idxParam) {
       next ? '下一章 →' : '下一章还在写');
     fill(box,
       errorBanner(book),
-      prefsToolbar(),
+      h('div', { class: 'row', style: 'justify-content:space-between' },
+        h('a', { class: 'btn', href: `#/stats/${bookId}`, 'aria-label': '本书运行统计' }, '📊 统计'), prefsToolbar()),
       h('h1', { class: 'chapter-title' }, `第${idx}章 ${ch.title}`),
       h('div', { class: 'row' },
         h('button', { class: 'primary', onclick: () => listen(bookId, idx, book.title, note) }, '🎧 听这一章'),
