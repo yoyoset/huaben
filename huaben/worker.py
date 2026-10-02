@@ -46,6 +46,7 @@ class Worker:
         self._thread: threading.Thread | None = None
         self.last_tick_at: str | None = None  # 供 /api/health 判断后台是否还在转
         self.ticks = 0
+        self._llm_missing = False  # 没配密钥只在状态变化时记一次日志,不每分钟刷屏
 
     def tick(self) -> dict[int, TopUpResult]:
         """巡检一遍。任何异常都只记日志,绝不让后台线程死掉。"""
@@ -53,8 +54,13 @@ class Worker:
         try:
             llm = ensure_llm(self._state)
         except LLMError as e:
-            log.warning("后台补货跳过:%s", e)
+            if not self._llm_missing:
+                log.warning("后台补货暂停:%s(配置好后会自动恢复)", e)
+            self._llm_missing = True
             return results
+        if self._llm_missing:
+            log.info("LLM 已可用,后台补货恢复")
+            self._llm_missing = False
         conn = connect(self._state.settings.db_path, check_same_thread=False)
         try:
             for b in repo.list_books(conn):

@@ -1,24 +1,36 @@
 """单章流水线编排:编辑·章纲 → 作者·正文 → 编辑·入账与核对(冲突则打回重写)。
 
-原则:任何一步失败都要显式失败(抛 ChapterFailed + pipeline_runs 留痕),
+原则:任何一步失败都要显式失败(抛 ChapterFailed + pipeline_runs 留痕 + 日志),
 绝不能让"后台没写出来、读者以为有"。入账只发生在核对通过之后,且是原子的。
 """
+import logging
+
 from .. import repo
 from ..config import Settings
-from ..context import load_context
+from ..context import StoryContext, load_context
 from ..db import dumps
 from ..llm import LLM
+from ..logs import log_context
 from . import prompts
 from .draft_check import clean_draft, draft_problems
 from .errors import ChapterFailed, NoActiveVolume
-from .llm_step import call_step
 from .ledger_apply import apply_ledger
+from .llm_step import call_step
 from .parsing import ParseError, parse_ledger, parse_outline, unplanned_contradictions
+
+log = logging.getLogger("huaben.chapter")
+
+
+def _reject(conn, book_id: int, idx: int, note: str) -> None:
+    """一次没通过的检查:进 pipeline_runs(统计/对账用)并打一行日志(排查用)。"""
+    repo.log_run(conn, book_id, "check", chapter_idx=idx, ok=False, note=note[:300])
+    log.warning("check=reject %s", note[:200])
 
 
 def _fail(conn, book_id: int, chapter_id: int, idx: int, step: str, reason: str) -> ChapterFailed:
     repo.update_chapter(conn, chapter_id, status="failed")
-    repo.log_run(conn, book_id, "check", chapter_idx=idx, ok=False, note=f"{step}: {reason}"[:300])
+    _reject(conn, book_id, idx, f"{step}: {reason}")
+    log.error("chapter=failed step=%s reason=%s", step, reason)
     return ChapterFailed(f"chapter {idx} failed at {step}: {reason}", step=step, idx=idx)
 
 
@@ -29,7 +41,7 @@ def _record(conn, llm: LLM, book_id: int, idx: int, messages) -> dict | None:
         try:
             return parse_ledger(rec.text)
         except ParseError as e:
-            repo.log_run(conn, book_id, "check", chapter_idx=idx, ok=False, note=f"ledger parse: {e}"[:300])
+            _reject(conn, book_id, idx, f"ledger parse: {e}")
     return None
 
 
@@ -48,11 +60,15 @@ def generate_chapter(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
     ctx = load_context(conn, book_id, settings.recent_chapters_in_prompt)
     if ctx.volume is None:
         raise NoActiveVolume(f"book {book_id} has no active volume", step="volume")
-    idx = ctx.next_idx
+    with log_context(chapter=ctx.next_idx):
+        chapter_id, outline = _outline(conn, llm, book_id, ctx)
+        return _draft_until_accepted(conn, llm, settings, book_id, ctx, chapter_id, outline)
 
-    # 1. 章纲(解析失败直接重试一次:格式问题多为偶发)
-    outline = None
-    for attempt in range(2):
+
+def _outline(conn, llm: LLM, book_id: int, ctx: StoryContext) -> tuple[int, dict]:
+    """编辑·章纲。解析失败直接重试一次(格式问题多为偶发);两次都不行则本章失败。"""
+    idx, outline, res = ctx.next_idx, None, None
+    for _ in range(2):
         res = call_step(conn, llm, book_id, idx, "outline", prompts.outline_messages(ctx), json_mode=True, temperature=0.7)
         try:
             outline = parse_outline(res.text)
@@ -64,22 +80,26 @@ def generate_chapter(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
                                      title=outline["title"] if outline else "")
     if outline is None:
         raise _fail(conn, book_id, chapter_id, idx, "outline", "章纲两次都无法解析")
+    return chapter_id, outline
 
-    # 2+3. 正文 → 入账核对;冲突/截断/解析失败则带反馈重写
-    feedback: list[str] = []
+
+def _draft_until_accepted(conn, llm: LLM, settings: Settings, book_id: int, ctx: StoryContext,
+                          chapter_id: int, outline: dict) -> dict:
+    """作者·正文 → 机械底线 → 编辑·入账核对;不过则带反馈重写,最多 max_write_attempts 稿。"""
+    idx, feedback = ctx.next_idx, []
     for attempt in range(1, settings.max_write_attempts + 1):
         repo.update_chapter(conn, chapter_id, attempts=attempt)
         draft = call_step(conn, llm, book_id, idx, "write",
-                      prompts.write_messages(ctx, outline, settings.chapter_words, feedback),
-                      json_mode=False, max_tokens=settings.chapter_max_tokens)
+                          prompts.write_messages(ctx, outline, settings.chapter_words, feedback),
+                          json_mode=False, max_tokens=settings.chapter_max_tokens)
         if draft.truncated:
             feedback = ["上一稿被截断,没有写完;请控制篇幅,完整写到结尾钩子。"]
-            repo.log_run(conn, book_id, "check", chapter_idx=idx, ok=False, note="truncated")
+            _reject(conn, book_id, idx, "truncated")
             continue
         body = clean_draft(draft.text)
         problems = draft_problems(body, settings.chapter_words)
         if problems:  # 机械底线不过:不花入账的钱,直接带理由重写
-            repo.log_run(conn, book_id, "check", chapter_idx=idx, ok=False, note="draft: " + "; ".join(problems)[:250])
+            _reject(conn, book_id, idx, "draft: " + "; ".join(problems))
             feedback = problems
             continue
         repo.update_chapter(conn, chapter_id, body=body, status="written")
@@ -89,12 +109,12 @@ def generate_chapter(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
             continue
         bad = unplanned_contradictions(ledger)
         if bad:
-            repo.log_run(conn, book_id, "check", chapter_idx=idx, ok=False, note="contradiction: " + "; ".join(bad)[:250])
+            _reject(conn, book_id, idx, "contradiction: " + "; ".join(bad))
             feedback = bad
             continue
         for w in apply_ledger(conn, book_id, chapter_id, idx, ledger) + _thread_follow_through(ctx, outline, ledger):
             repo.log_run(conn, book_id, "ledger", chapter_idx=idx, note=w)
         repo.log_run(conn, book_id, "check", chapter_idx=idx, note=f"accepted at attempt {attempt}")
+        log.info("chapter=accepted attempt=%d title=%s chars=%d", attempt, outline["title"], len(body))
         return repo.get_chapter(conn, book_id, idx)
     raise _fail(conn, book_id, chapter_id, idx, "write", f"{settings.max_write_attempts} 稿均未通过核对")
-

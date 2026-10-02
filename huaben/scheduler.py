@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from . import repo
 from .config import Settings
 from .human_errors import explain
+from .logs import log_context
 from .llm import LLM, LLMError
 from .pipeline.chapter import generate_chapter
 from .pipeline.errors import ChapterFailed
@@ -45,26 +46,34 @@ def top_up(conn, llm: LLM, settings: Settings, book_id: int, max_chapters: int |
         return TopUpResult(skipped=True)
     res = TopUpResult()
     try:
-        while repo.buffered_ahead(conn, book_id) < settings.buffer_chapters:
-            if max_chapters is not None and res.generated >= max_chapters:
-                break
-            try:
-                ensure_active_volume(conn, llm, settings, book_id)
-                generate_chapter(conn, llm, settings, book_id)
-            except Exception as e:  # noqa: BLE001 —— 包括程序缺陷:都必须让用户看见,不能静默停更
-                if not isinstance(e, (ChapterFailed, LLMError)):
-                    log.exception("书 %s 生成时出现未预期的错误", book_id)
-                # 技术细节进 pipeline_runs/日志;界面上的 gen_error 只放人话
-                repo.log_run(conn, book_id, "error", ok=False, note=f"{type(e).__name__}: {e}"[:300])
-                res.error = explain(e)
-                break
-            res.generated += 1
-        if tts is not None:  # 文本失败时也给已有章补音频;配音失败不影响文本缓冲
-            _, res.audio_error = fill_audio(conn, tts, settings, book_id)
-        repo.update_book(conn, book_id, gen_error=res.error or res.audio_error)
-        return res
+        with log_context(book=book_id):
+            return _fill(conn, llm, settings, book_id, max_chapters, tts, res)
     finally:
         lock.release()
+
+
+def _fill(conn, llm: LLM, settings: Settings, book_id: int, max_chapters: int | None, tts: TTS | None,
+          res: TopUpResult) -> TopUpResult:
+    while repo.buffered_ahead(conn, book_id) < settings.buffer_chapters:
+        if max_chapters is not None and res.generated >= max_chapters:
+            break
+        try:
+            ensure_active_volume(conn, llm, settings, book_id)
+            generate_chapter(conn, llm, settings, book_id)
+        except Exception as e:  # noqa: BLE001 —— 包括程序缺陷:都必须让用户看见,不能静默停更
+            if not isinstance(e, (ChapterFailed, LLMError)):
+                log.exception("生成时出现未预期的错误")
+            # 技术细节进 pipeline_runs/日志;界面上的 gen_error 只放人话
+            repo.log_run(conn, book_id, "error", ok=False, note=f"{type(e).__name__}: {e}"[:300])
+            res.error = explain(e)
+            break
+        res.generated += 1
+    if tts is not None:  # 文本失败时也给已有章补音频;配音失败不影响文本缓冲
+        _, res.audio_error = fill_audio(conn, tts, settings, book_id)
+    repo.update_book(conn, book_id, gen_error=res.error or res.audio_error)
+    if res.generated or res.error or res.audio_error:
+        log.info("top_up generated=%d error=%s audio_error=%s", res.generated, bool(res.error), bool(res.audio_error))
+    return res
 
 
 def top_up_all(conn, llm: LLM, settings: Settings, tts: TTS | None = None) -> dict[int, TopUpResult]:

@@ -1,8 +1,11 @@
-"""一次 LLM 调用 + 记 pipeline_runs(耗时/token/费用)。失败也记,然后原样抛出。"""
+"""一次 LLM 调用 + 记 pipeline_runs(耗时/token/费用)+ 一行日志。失败也记,然后原样抛出。"""
+import logging
 import time
 
 from .. import repo
 from ..llm import LLM, LLMError, LLMResult
+
+log = logging.getLogger("huaben.llm")
 
 
 def call_step(conn, llm: LLM, book_id: int, idx: int | None, step: str, messages, *,
@@ -11,9 +14,13 @@ def call_step(conn, llm: LLM, book_id: int, idx: int | None, step: str, messages
     try:
         res = llm.chat(messages, max_tokens=max_tokens, temperature=temperature, json_mode=json_mode)
     except LLMError as e:
-        repo.log_run(conn, book_id, step, chapter_idx=idx, ok=False, note=str(e)[:300],
-                     duration_ms=int((time.monotonic() - t0) * 1000))
+        ms = int((time.monotonic() - t0) * 1000)
+        repo.log_run(conn, book_id, step, chapter_idx=idx, ok=False, note=str(e)[:300], duration_ms=ms)
+        log.warning("step=%s ok=false kind=%s ms=%d err=%s", step, e.kind, ms, str(e)[:200])
         raise
-    repo.log_run(conn, book_id, step, chapter_idx=idx, duration_ms=res.duration_ms or int((time.monotonic() - t0) * 1000),
+    ms = res.duration_ms or int((time.monotonic() - t0) * 1000)
+    repo.log_run(conn, book_id, step, chapter_idx=idx, duration_ms=ms,
                  tokens_in=res.tokens_in, tokens_out=res.tokens_out, cost_usd=res.cost_usd)
+    log.info("step=%s ok=true ms=%d tokens_in=%d tokens_out=%d cost=%.5f%s", step, ms, res.tokens_in,
+             res.tokens_out, res.cost_usd, " truncated=true" if res.truncated else "")
     return res

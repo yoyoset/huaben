@@ -1,5 +1,4 @@
 """启动入口:python -m huaben"""
-import logging
 import sys
 
 import uvicorn
@@ -7,11 +6,12 @@ from pydantic import ValidationError
 
 from .api.app import create_app
 from .config import describe_config_error, get_settings
+from .logs import configure_logging
 from .tts.edge import EdgeTTS
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    configure_logging()
     try:
         settings = get_settings()
     except ValidationError as e:  # 配错了:说清楚哪一项、为什么,然后以非 0 退出(不打一屏堆栈)
