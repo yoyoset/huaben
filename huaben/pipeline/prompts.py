@@ -5,6 +5,7 @@
 - 示例里只用占位词("角色名"),不放任何专名 —— 示例文本也是 prompt,会被当成指令串进正文。
 """
 from ..context import StoryContext
+from ..craft import from_book, render_craft
 from ..foreshadow_scale import planting_rule
 from ..render import due_foreshadow_ids, handoff_text, recent_text, render_bible, render_memory, render_style_samples
 
@@ -24,7 +25,7 @@ LEDGER_SCHEMA = """{
                   "alive": false, "location": "新的所在地", "abilities": "新的能力状况",
                   "relations": "新的关系", "knows": ["该人物此刻知道的关键信息(写全量)"]}],
   "foreshadows_new": [{"content": "本章新埋的伏笔", "payoff_plan": "打算何时、以何种方式回收",
-                       "scale": "short / medium / long 三选一:short 短线 3~5 章内收(眼前的约定、小谜);medium 中线本卷内收;long 长线跨卷、只给线索(身世、主线大谜)"}],
+                       "scale": "short / medium / long / epic 四选一:short 短线 3~5 章内收(眼前的约定、小谜);medium 中线本卷内收;long 长线跨几卷(身世、主线谜团);epic 超长线全书级,终局才揭开"}],
   "foreshadows_update": [{"id": 伏笔编号(整数), "status": "progressing 或 resolved"}],
   "facts": ["本章新确立的世界事实"],
   "contradictions": [{"what": "与账本哪一条冲突、怎么冲突", "planned": 是否属于章纲 planned_reversals 里的有意反转(true/false)}]
@@ -53,7 +54,7 @@ def pacing_rule(ctx: StoryContext) -> str:
 
 def outline_messages(ctx: StoryContext) -> list[dict]:
     user = (
-        f"{render_bible(ctx.bible)}\n\n{render_memory(ctx)}\n\n"
+        f"{render_bible(ctx.bible)}\n\n{render_craft(from_book(ctx.book))}\n\n{render_memory(ctx)}\n\n"
         f"【最近原文(用于衔接)】\n{recent_text(ctx)}\n\n"
         f"请为第 {ctx.next_idx} 章写章纲工单。要求:紧扣本卷目标与节拍;伏笔该推进的推进、该收的收;"
         f"结尾留钩子;不得与账本冲突(除非明确写进 planned_reversals)。\n{pacing_rule(ctx)}\n"
@@ -99,6 +100,7 @@ def write_messages(ctx: StoryContext, outline: dict, words: int, feedback: list[
         render_memory(ctx, scope=outline_scope(outline), focus_ids=outline.get("foreshadows", [])),
         handoff_text(ctx),
         work_order(ctx.next_idx, outline, ctx.foreshadows),
+        render_craft(from_book(ctx.book)),  # 写法放在工单后、硬性要求前:离输出位置近,关思考的模型才不会丢
     ]
     if feedback:
         parts.append("【上一稿被编辑打回,以下问题必须修正】\n" + "\n".join(f"- {f}" for f in feedback))
@@ -106,7 +108,7 @@ def write_messages(ctx: StoryContext, outline: dict, words: int, feedback: list[
         f"现在写第 {ctx.next_idx} 章正文,约 {words} 字。硬性要求:\n"
         "1. 只输出正文,不要标题、不要解释、不要状态栏、不要任何前后缀;\n"
         + _consistency_rule(outline) +
-        "3. 保持风格指纹与样章的语感;全文使用完整的中文标点;\n"
+        "3. 按【写法设定】写,保持风格指纹与样章的语感;全文使用完整的中文标点;\n"
         "4. 结尾落在工单指定的钩子上。"
     )
     return [{"role": "system", "content": system}, {"role": "user", "content": "\n\n".join(parts)}]

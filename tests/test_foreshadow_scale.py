@@ -67,3 +67,13 @@ def test_editor_is_told_which_threads_are_due(conn):
     assert f"#{short} [短线·该收了]" in memory and f"#{fresh} [短线]" in memory and "[长线·只推进不揭底]" in memory
     user = outline_messages(ctx)[1]["content"]
     assert f"本章至少实打实地回收一条(给出答案,不是再加一层谜):#{short}。" in user
+
+
+def test_epic_threads_are_book_level_and_never_count_as_debt():
+    """超长线(尾田式):全书级,只回响不点破;不算进"短中线欠账"。"""
+    from huaben.foreshadow_scale import tag
+    assert normalize_scale("超长线") == normalize_scale("全书级") == "epic"
+    assert due_state(f(1, "epic"), 300, 0, 281) == "hold"
+    assert tag(f(1, "epic"), "hold") == "[超长线·偶尔轻轻回响,绝不点破]"
+    epics = [f(1, "epic", i) for i in range(OPEN_LIMIT + 5)]
+    assert "不要再埋" not in planting_rule(epics, [])

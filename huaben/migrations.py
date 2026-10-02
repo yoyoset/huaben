@@ -46,4 +46,7 @@ UPDATE books SET profile_id = (SELECT id FROM profiles WHERE name = '我') WHERE
     # 10: 电脑版音频是哪个音色配的(引擎:音色)。2026-10-02 用户嫌 Kokoro 音色差、换成 Qwen3-TTS:
     #     没有这一列,已经配过的章永远不会换新音色。旧记录为空 = 未知音色
     "ALTER TABLE audio ADD COLUMN voice TEXT NOT NULL DEFAULT '';",
+    # 11: 每本书的写法设定(叙事结构/文笔/伏笔布局/节奏/补充要求,JSON)。2026-10-03 用户:开书时要给模板选,
+    #     不然叙事方式、伏笔长度这些基础的东西读者想不到去提。旧书为空 = 默认,见 craft.py
+    "ALTER TABLE books ADD COLUMN craft TEXT NOT NULL DEFAULT '';",
 ]

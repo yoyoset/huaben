@@ -3,6 +3,7 @@ import { api } from '../api.js';
 import { h, mount, setTopTitle } from '../dom.js';
 import { bookHome } from '../logic.js';
 import { poll } from '../poll.js';
+import { craftPanel } from './craft.js';
 
 const GREETING = '想看什么样的故事?可以说说题材、喜欢的作品,最好直接贴一段你最喜欢的文字——我会照着它的味道写。';
 
@@ -69,7 +70,12 @@ export async function openingView(bookId) {
   const hint = h('p', { class: 'muted' },
     '先用「发送」聊几句:题材、喜欢的作品、不想看的东西,或直接粘贴一段你喜欢的文字。'
     + '聊够了点「聊好了,开书」:整理成故事设定并开始写第一章,约 1 分钟后自动进入阅读。');
-  mount(h('div', {}, chat, err, input, h('div', { class: 'row', style: 'margin-top:8px' }, send, finish), hint));
+  // 写法模板:聊天时读者多半想不到叙事结构、伏笔长短这些,这里摆出来让人选;不改就用默认,开书后也能改
+  const craft = h('details', { class: 'craft-box' }, h('summary', {}, '写法设定(可选:叙事结构、文笔、伏笔布局、节奏)'));
+  craft.addEventListener('toggle', async () => {
+    if (craft.open && craft.children.length === 1) craft.append(await craftPanel(bookId));
+  });
+  mount(h('div', {}, chat, err, input, h('div', { class: 'row', style: 'margin-top:8px' }, send, finish), hint, craft));
 }
 
 /** 已有一次开书在进行(比如开书中途离开又回来):轮询书的状态,开好了直接去阅读。 */

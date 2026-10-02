@@ -1,5 +1,6 @@
 """卷级编辑步骤的指令:卷规划、封卷。约束同 prompts.py:关键要求放末尾,示例不放专名。"""
 from ..context import StoryContext
+from ..craft import from_book, render_craft
 from ..render import render_bible, render_foreshadow, render_memory
 
 PLAN_SCHEMA = """{
@@ -39,9 +40,11 @@ def foreshadow_backlog(ctx: StoryContext, carried_ids=()) -> str:
 
 def plan_messages(ctx: StoryContext, idx: int, carried_ids=()) -> list[dict]:
     user = (
-        f"{render_bible(ctx.bible)}\n\n{render_memory(ctx)}\n\n{foreshadow_backlog(ctx, carried_ids)}\n\n"
+        f"{render_bible(ctx.bible)}\n\n{render_craft(from_book(ctx.book))}\n\n{render_memory(ctx)}\n\n"
+        f"{foreshadow_backlog(ctx, carried_ids)}\n\n"
         f"请规划第 {idx} 卷。要求:有清晰的卷内目标和起承转合;未回收的伏笔要有计划地收,"
-        f"同时埋下新的;与已有人物现状和世界事实自洽;符合雷点与风格设定;节奏紧凑,每个节拍都能撑起爽点或悬念。\n"
+        f"同时埋下新的;与已有人物现状和世界事实自洽;符合雷点与风格设定;节奏紧凑,每个节拍都能撑起爽点或悬念;"
+        f"叙事结构与伏笔布局按【写法设定】安排(例如多线交织就规划好各条线在哪些节拍汇合)。\n"
         f"只输出如下结构的 JSON:\n{PLAN_SCHEMA}"
     )
     return [{"role": "system", "content": _SYSTEM}, {"role": "user", "content": user}]

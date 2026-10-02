@@ -8,7 +8,7 @@ from ..db import connect
 from ..llm import LLM
 from ..tts.base import TTS
 from ..worker import Backoff, Worker
-from . import (routes_books, routes_opening, routes_profiles, routes_reading, routes_settings, routes_system,
+from . import (routes_books, routes_craft, routes_opening, routes_profiles, routes_reading, routes_settings, routes_system,
                routes_voice)
 from .static import RevalidatingStaticFiles
 
@@ -41,6 +41,7 @@ def create_app(settings: Settings | None = None, llm: LLM | None = None, tts: TT
     app.include_router(routes_system.router)
     app.include_router(routes_voice.router)
     app.include_router(routes_settings.router)
+    app.include_router(routes_craft.router)
 
     if st.web_dir.is_dir():  # 必须最后挂载:/ 兜底静态文件,不能盖住上面的 /api 路由
         app.mount("/", RevalidatingStaticFiles(directory=st.web_dir, html=True), name="web")

@@ -84,3 +84,12 @@ button:focus-visible, a:focus-visible, textarea:focus-visible { outline: 2px sol
 .player-info small { color: var(--muted); }
 .player-ctrl { display: flex; gap: 8px; justify-content: space-between; }
 .player-ctrl button { flex: 1; padding: 8px 0; }
+
+.craft fieldset { border: 1px solid var(--line); border-radius: 10px; margin: 0 0 12px; padding: 8px 12px; }
+.craft legend { color: var(--muted); padding: 0 6px; }
+.craft-choice { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; cursor: pointer; }
+.craft-choice input { margin-top: 4px; }
+.craft-choice span { display: flex; flex-direction: column; }
+.craft textarea { width: 100%; box-sizing: border-box; }
+.craft-box { margin-top: 16px; }
+.craft-box summary { cursor: pointer; color: var(--accent); }
