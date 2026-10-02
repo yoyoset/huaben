@@ -1,7 +1,7 @@
 # 部署(10.1.1.13,Docker Compose)
 
-状态:**文件已备好,尚未部署,Dockerfile 尚未真正构建过**(开发机没有 docker;只做了静态自检,见 `tests/test_deploy_files.py`)。
-首次部署时按下面步骤走,遇到的实际问题请回写到本文末尾"首次部署记录"。
+状态:**2026-10-02 已首次部署到 13**(`/opt/huaben`,端口 8210,容器 healthy)。从开发机更新:`bash scripts/deploy.sh`
+(只替换代码,不碰服务器上的 `data/` 与 `.env`)。详见文末"首次部署记录"。
 
 ## 前置(需要用户确认/提供)
 
@@ -36,7 +36,8 @@ curl -s http://127.0.0.1:${HUABEN_HOST_PORT:-8210}/api/health   # {"ok":true}
 ```
 
 - 用 SQLite 在线备份 API,服务运行中也是一致快照;备份后立刻 `integrity_check`,坏了会删掉并报错。
-- **不备份音频**:音频由正文重新合成即可,体积大且无不可替代性。恢复流程:停容器 → 用备份文件替换 `data/huaben.db` → 起容器 → 后台会自动给缺音频的章补配音。
+- **不备份音频**:音频由正文重新合成即可,体积大且无不可替代性。恢复流程:停容器 → 用备份文件替换 `data/huaben.db` → 起容器 →
+  电脑上的配音程序开着时会自动重配缺音频(或文件丢失)的章;没开时书页会提醒。
 - 恢复演练还没做过(待首次部署后做一次,确认流程真的走得通)。
 
 ## 已知取舍 / 风险
@@ -60,3 +61,15 @@ curl -s http://127.0.0.1:${HUABEN_HOST_PORT:-8210}/api/health   # {"ok":true}
 - 可选 `HUABEN_VOICE_WORKER_TOKEN`:设了之后配音程序必须带 `Authorization: Bearer <token>`。
 - 电脑多久没来取任务算离线:`HUABEN_VOICE_WORKER_ONLINE_S`(默认 600 秒)。离线时书页提醒开机,并可"先用 edge-tts 配"。
 - 想回到服务器自动用 edge-tts 配:`HUABEN_TTS_MODE=edge`。
+
+## 首次部署记录(2026-10-02)
+
+- 13:Docker 23.0.6、Compose v2.17.3;8210 空闲;compose 写法与 vpsmon 一致(`build: .`、`restart: unless-stopped`、`./data` 卷、`TZ`)。
+- `scripts/deploy.sh` 第一次跑:**解包报错退出**——tar 保留了开发机(Windows)的用户号 197609,服务器上 chown 失败。
+  改为打包时 `--owner=0 --group=0`、解包 `--no-same-owner` 后通过。
+- 镜像首次构建约 40 秒(pip 装依赖 37 秒);实际装上的版本:fastapi 0.142.2、uvicorn 0.54.0、httpx 0.28.1、pydantic 2.13.5、
+  pydantic-settings 2.15.0、edge-tts 7.2.8(锁定版本留到开书+配音整条链路在服务器上跑通后再做)。
+- 启动后 `/api/health`:`ok`、数据库版本 7、后台线程在跑、`llm.configured=false`(`.env` 由模板生成,**密钥待用户填写**)。
+- 首次 curl 探活在容器刚起时得到 `Connection reset`,脚本的重试循环 2 秒后通过——这是预期的启动窗口,不是故障。
+- 从开发机经局域网访问 `http://10.1.1.13:8210/`:页面 200、`Cache-Control: no-cache`;`/api/voice/status` 正常。
+- 尚未做:每日备份的 cron(要改服务器的计划任务,待用户确认)、恢复演练。
