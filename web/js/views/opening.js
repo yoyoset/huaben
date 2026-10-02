@@ -11,7 +11,8 @@ export async function openingView(bookId) {
   const chat = h('div', { class: 'chat' });
   const input = h('textarea', { rows: 4, 'aria-label': '你的回复', placeholder: '说说你想看的故事…(可以直接粘贴样章)' });
   const send = h('button', { class: 'primary' }, '发送');
-  const finish = h('button', {}, '开书');
+  const FINISH = '聊好了,开书';
+  const finish = h('button', {}, FINISH);
   const err = h('div', { class: 'banner', role: 'alert', hidden: true });
   let userCount = 0;
 
@@ -59,12 +60,16 @@ export async function openingView(bookId) {
     } catch (e) {
       if (e.status === 409) return waitForOpening(bookId, finish); // 之前那次开书还在进行:等它,不算失败
       showErr(e.message); // 后端文案已写明"可以重试"
-      finish.textContent = '开书';
+      finish.textContent = FINISH;
       busy(false);
     }
   };
 
-  mount(h('div', {}, chat, err, input, h('div', { class: 'row', style: 'margin-top:8px' }, send, finish)));
+  // 两个按钮是两步,用户第一次看会困惑(2026-10-02 用户问"发送和开书不一样吗"):在按钮下说清楚
+  const hint = h('p', { class: 'muted' },
+    '先用「发送」聊几句:题材、喜欢的作品、不想看的东西,或直接粘贴一段你喜欢的文字。'
+    + '聊够了点「聊好了,开书」:整理成故事设定并开始写第一章,约 1 分钟后自动进入阅读。');
+  mount(h('div', {}, chat, err, input, h('div', { class: 'row', style: 'margin-top:8px' }, send, finish), hint));
 }
 
 /** 已有一次开书在进行(比如开书中途离开又回来):轮询书的状态,开好了直接去阅读。 */
@@ -75,5 +80,5 @@ function waitForOpening(bookId, finish) {
     if (book.status === 'drafting') return false;
     location.replace(bookHome(book));
     return true;
-  }, { onGiveUp: () => { finish.textContent = '开书'; finish.disabled = false; } });
+  }, { onGiveUp: () => { finish.textContent = '聊好了,开书'; finish.disabled = false; } });
 }
