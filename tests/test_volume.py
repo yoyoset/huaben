@@ -8,7 +8,7 @@ from huaben.llm_fake import FakeLLM
 from huaben.pipeline.errors import ChapterFailed
 from huaben.pipeline.volume import ensure_active_volume, plan_volume, seal_volume
 
-S = Settings(openrouter_api_key="x", _env_file=None)
+S = Settings(openrouter_api_key="x", chapter_words=1, _env_file=None)
 
 
 def plan_json(**kw):

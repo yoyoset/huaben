@@ -9,6 +9,7 @@ from ..context import load_context
 from ..db import dumps
 from ..llm import LLM
 from . import prompts
+from .draft_check import clean_draft, draft_problems
 from .errors import ChapterFailed, NoActiveVolume
 from .llm_step import call_step
 from .ledger_apply import apply_ledger
@@ -66,8 +67,14 @@ def generate_chapter(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
             feedback = ["上一稿被截断,没有写完;请控制篇幅,完整写到结尾钩子。"]
             repo.log_run(conn, book_id, "check", chapter_idx=idx, ok=False, note="truncated")
             continue
-        repo.update_chapter(conn, chapter_id, body=draft.text.strip(), status="written")
-        ledger = _record(conn, llm, book_id, idx, prompts.ledger_messages(ctx, outline, draft.text))
+        body = clean_draft(draft.text)
+        problems = draft_problems(body, settings.chapter_words)
+        if problems:  # 机械底线不过:不花入账的钱,直接带理由重写
+            repo.log_run(conn, book_id, "check", chapter_idx=idx, ok=False, note="draft: " + "; ".join(problems)[:250])
+            feedback = problems
+            continue
+        repo.update_chapter(conn, chapter_id, body=body, status="written")
+        ledger = _record(conn, llm, book_id, idx, prompts.ledger_messages(ctx, outline, body))
         if ledger is None:
             feedback = []  # 入账两次都解析失败:不是正文的错,不带反馈,再来一稿
             continue

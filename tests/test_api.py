@@ -21,7 +21,7 @@ GUIDE = json.dumps({"reply": "喜欢什么题材?", "ready": False}, ensure_asci
 
 
 def make_client(tmp_path, replies=(), tts=None, **kw):
-    s = Settings(openrouter_api_key="x", data_dir=tmp_path, buffer_chapters=1, _env_file=None, **kw)
+    s = Settings(openrouter_api_key="x", chapter_words=1, data_dir=tmp_path, buffer_chapters=1, _env_file=None, **kw)
     llm = FakeLLM(list(replies))
     return TestClient(create_app(s, llm=llm, tts=tts)), llm
 

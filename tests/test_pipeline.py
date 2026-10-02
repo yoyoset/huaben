@@ -9,7 +9,7 @@ from huaben.llm_fake import FakeLLM
 from huaben.pipeline.chapter import ChapterFailed, NoActiveVolume, generate_chapter
 from huaben.pipeline.ledger_apply import merge_character
 
-S = Settings(openrouter_api_key="x", _env_file=None)
+S = Settings(openrouter_api_key="x", chapter_words=1, _env_file=None)
 
 OUTLINE = json.dumps({"title": "夜巡", "outline": "沈照夜里巡查,发现井边有异响。", "characters": ["沈照"],
                       "foreshadows": [], "planned_reversals": [], "hook": "井里有人在敲"}, ensure_ascii=False)

@@ -52,7 +52,7 @@ def test_backoff_exponential_cap_and_reset():
 
 
 def make_state(tmp_path, replies, **kw):
-    s = Settings(openrouter_api_key="x", data_dir=tmp_path, buffer_chapters=1, worker_enabled=False,
+    s = Settings(openrouter_api_key="x", chapter_words=1, data_dir=tmp_path, buffer_chapters=1, worker_enabled=False,
                  _env_file=None, **kw)
     conn = connect(s.db_path)
     bid = repo.create_book(conn, "书")
@@ -103,7 +103,7 @@ def test_unexpected_exception_is_visible_and_backed_off(tmp_path):
 
 def test_thread_recovers_after_restart_and_stops_cleanly(tmp_path):
     """服务"重启":库里已有连载中的书且缓冲为空,常驻线程启动后自己补齐。"""
-    s = Settings(openrouter_api_key="x", data_dir=tmp_path, buffer_chapters=1, worker_enabled=True,
+    s = Settings(openrouter_api_key="x", chapter_words=1, data_dir=tmp_path, buffer_chapters=1, worker_enabled=True,
                  worker_interval_s=0.05, _env_file=None)
     conn = connect(s.db_path)
     bid = repo.create_book(conn, "书")

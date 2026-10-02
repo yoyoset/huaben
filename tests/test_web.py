@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def client(tmp_path):
-    s = Settings(openrouter_api_key="x", data_dir=tmp_path, worker_enabled=False, _env_file=None)
+    s = Settings(openrouter_api_key="x", chapter_words=1, data_dir=tmp_path, worker_enabled=False, _env_file=None)
     return TestClient(create_app(s))
 
 

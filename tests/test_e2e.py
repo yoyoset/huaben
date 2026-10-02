@@ -14,7 +14,7 @@ N = 35
 @pytest.fixture(scope="module")
 def world(tmp_path_factory):
     from huaben.db import connect
-    s = Settings(openrouter_api_key="x", data_dir=tmp_path_factory.mktemp("e2e"), buffer_chapters=N, _env_file=None)
+    s = Settings(openrouter_api_key="x", chapter_words=1000, data_dir=tmp_path_factory.mktemp("e2e"), buffer_chapters=N, _env_file=None)
     conn = connect(s.db_path)
     bid = repo.create_book(conn, "夜行录")
     repo.update_book(conn, bid, status="serializing", synopsis="开篇梗概")

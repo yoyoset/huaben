@@ -87,7 +87,7 @@ def test_previously_crashing_outputs_now_accepted(conn, raw):
     bid = repo.create_book(conn, "x")
     repo.update_book(conn, bid, status="serializing")
     led = json.dumps(ledger(**raw), ensure_ascii=False)
-    res = top_up(conn, FakeLLM([PLAN, OUTLINE, "正文", led]), Settings(openrouter_api_key="x", buffer_chapters=1,
+    res = top_up(conn, FakeLLM([PLAN, OUTLINE, "正文", led]), Settings(openrouter_api_key="x", chapter_words=1, buffer_chapters=1,
                                                                     _env_file=None), bid)
     assert res.error == "" and res.generated == 1
 
@@ -99,10 +99,10 @@ def test_bad_ledger_retries_ledger_only_then_visible_failure(conn):
     bad = json.dumps(ledger(foreshadows_update=[3]))  # 实测曾抛 AttributeError 且 gen_error 为空
     good = json.dumps(ledger())
     llm = FakeLLM([PLAN, OUTLINE, "正文", bad, good])
-    res = top_up(conn, llm, Settings(openrouter_api_key="x", buffer_chapters=1, _env_file=None), bid)
+    res = top_up(conn, llm, Settings(openrouter_api_key="x", chapter_words=1, buffer_chapters=1, _env_file=None), bid)
     assert res.generated == 1 and repo.get_chapter(conn, bid, 1)["attempts"] == 1  # 同一稿正文入账成功
     bid2 = repo.create_book(conn, "y")
     repo.update_book(conn, bid2, status="serializing")
     llm2 = FakeLLM([PLAN, OUTLINE] + ["正文", bad, bad] * 3)
-    res2 = top_up(conn, llm2, Settings(openrouter_api_key="x", buffer_chapters=1, _env_file=None), bid2)
+    res2 = top_up(conn, llm2, Settings(openrouter_api_key="x", chapter_words=1, buffer_chapters=1, _env_file=None), bid2)
     assert res2.error and repo.get_book(conn, bid2)["gen_error"]

@@ -7,7 +7,7 @@ from huaben.llm import LLMError
 from huaben.llm_fake import FakeLLM
 from huaben.scheduler import _lock_for, top_up, top_up_all
 
-S = Settings(openrouter_api_key="x", buffer_chapters=2, _env_file=None)
+S = Settings(openrouter_api_key="x", chapter_words=1, buffer_chapters=2, _env_file=None)
 
 PLAN = json.dumps({"goal": "g", "beats": ["a"], "plant": [], "resolve": [], "target_chapters": 30}, ensure_ascii=False)
 OUTLINE = json.dumps({"title": "T", "outline": "事", "characters": [], "foreshadows": [],
@@ -94,7 +94,7 @@ def test_top_up_all_only_serializing_and_isolated_failures(conn):
 
 def test_top_up_also_voices_chapters(conn, tmp_path):
     from huaben.tts.fake import FakeTTS
-    s = Settings(openrouter_api_key="x", buffer_chapters=2, data_dir=tmp_path, _env_file=None)
+    s = Settings(openrouter_api_key="x", chapter_words=1, buffer_chapters=2, data_dir=tmp_path, _env_file=None)
     bid = serializing_book(conn)
     res = top_up(conn, FakeLLM([PLAN] + chapter_replies(2)), s, bid, tts=FakeTTS())
     assert res.generated == 2 and res.audio_error == ""
@@ -103,7 +103,7 @@ def test_top_up_also_voices_chapters(conn, tmp_path):
 
 def test_tts_failure_does_not_block_text_but_is_visible(conn, tmp_path):
     from huaben.tts.fake import FakeTTS
-    s = Settings(openrouter_api_key="x", buffer_chapters=2, data_dir=tmp_path, tts_retries=0, _env_file=None)
+    s = Settings(openrouter_api_key="x", chapter_words=1, buffer_chapters=2, data_dir=tmp_path, tts_retries=0, _env_file=None)
     bid = serializing_book(conn)
     res = top_up(conn, FakeLLM([PLAN] + chapter_replies(2)), s, bid, tts=FakeTTS(always_fail=True))
     assert res.generated == 2 and "配音失败" in res.audio_error

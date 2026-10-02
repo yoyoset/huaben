@@ -11,7 +11,7 @@ from huaben.opening.service import (OpeningError, finalize_book, opening_turn, s
 from huaben.pipeline.errors import ChapterFailed
 from huaben.pipeline.parsing import ParseError
 
-S = Settings(openrouter_api_key="x", _env_file=None)
+S = Settings(openrouter_api_key="x", chapter_words=1, _env_file=None)
 
 BIBLE = json.dumps({
     "title": "夜行录", "genre": "古代恐怖", "synopsis": "少年夜巡人的故事。", "world": "灵气枯竭的王朝",

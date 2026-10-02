@@ -12,7 +12,7 @@ NOSLEEP = lambda s: None  # noqa: E731
 
 
 def settings(tmp_path, **kw):
-    return Settings(openrouter_api_key="x", data_dir=tmp_path, _env_file=None, **kw)
+    return Settings(openrouter_api_key="x", chapter_words=1, data_dir=tmp_path, _env_file=None, **kw)
 
 
 def test_is_mp3():
