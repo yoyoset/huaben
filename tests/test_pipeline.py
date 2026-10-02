@@ -121,3 +121,30 @@ def test_merge_character_keeps_old_fields():
     old = {"alive": True, "location": "A", "abilities": "剑", "relations": "", "knows": ["x"], "core": True}
     m = merge_character(old, {"location": "B"})
     assert m["location"] == "B" and m["abilities"] == "剑" and m["core"] is True and m["knows"] == ["x"]
+
+
+def test_resolved_foreshadow_cannot_be_reopened(conn, book):
+    """实测曾出现:已回收的伏笔被入账改回 progressing,resolved_ch 清空、回收记录丢失。"""
+    from huaben.pipeline.ledger_apply import apply_ledger
+    vid = repo.active_volume(conn, book)["id"]
+    fid = repo.add_foreshadow(conn, book, 1, "玉佩")
+    repo.update_foreshadow(conn, fid, status="resolved", resolved_ch=3)
+    cid = repo.create_chapter(conn, book, vid, 4)
+    warns = apply_ledger(conn, book, cid, 4, {"summary": "s", "characters": [], "foreshadows_new": [], "facts": [],
+                                               "foreshadows_update": [{"id": fid, "status": "progressing"}],
+                                               "contradictions": []})
+    f = repo.list_foreshadows(conn, book)[0]
+    assert f["status"] == "resolved" and f["resolved_ch"] == 3
+    assert any("already resolved" in w for w in warns)
+
+
+def test_foreshadow_can_move_forward(conn, book):
+    from huaben.pipeline.ledger_apply import apply_ledger
+    vid = repo.active_volume(conn, book)["id"]
+    fid = repo.add_foreshadow(conn, book, 1, "玉佩")
+    for idx, status in ((2, "progressing"), (3, "progressing"), (4, "resolved")):
+        cid = repo.create_chapter(conn, book, vid, idx)
+        apply_ledger(conn, book, cid, idx, {"summary": "s", "characters": [], "foreshadows_new": [], "facts": [],
+                                            "foreshadows_update": [{"id": fid, "status": status}], "contradictions": []})
+    f = repo.list_foreshadows(conn, book)[0]
+    assert f["status"] == "resolved" and f["resolved_ch"] == 4

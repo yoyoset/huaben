@@ -18,7 +18,8 @@ def apply_ledger(conn, book_id: int, chapter_id: int, idx: int, ledger: dict) ->
     """返回警告列表(例如模型引用了不存在的伏笔编号);警告不阻断入账。"""
     warnings: list[str] = []
     known = {c["name"]: c for c in repo.list_characters(conn, book_id)}
-    open_ids = {f["id"] for f in repo.list_foreshadows(conn, book_id)}
+    # 伏笔状态只能前进(planted → progressing → resolved);已回收的不能被改回去,否则回收记录丢失
+    status_of = {f["id"]: f["status"] for f in repo.list_foreshadows(conn, book_id)}
     with tx(conn):
         for entry in ledger["characters"]:
             name = entry["name"]  # 已由 normalize 规整:去空白、非空
@@ -28,8 +29,11 @@ def apply_ledger(conn, book_id: int, chapter_id: int, idx: int, ledger: dict) ->
             repo.add_foreshadow(conn, book_id, idx, f["content"], f["payoff_plan"], commit=False)
         for u in ledger["foreshadows_update"]:
             fid, status = u["id"], u["status"]
-            if fid not in open_ids:
+            if fid not in status_of:
                 warnings.append(f"foreshadow #{fid} not found, skipped")
+                continue
+            if status_of[fid] == "resolved":
+                warnings.append(f"foreshadow #{fid} already resolved, update to {status!r} ignored")
                 continue
             repo.update_foreshadow(conn, fid, status=status,
                                    resolved_ch=idx if status == "resolved" else None, commit=False)
