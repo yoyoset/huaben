@@ -5,12 +5,14 @@ from pydantic import BaseModel, Field
 from .. import foreshadow_report, repo, stats
 from ..tts.service import audio_file_ok
 from .deps import book_or_404, get_conn
+from .routes_profiles import profile_or_404
 
 router = APIRouter(prefix="/api/books", tags=["books"])
 
 
 class NewBook(BaseModel):
     title: str = Field(default="未命名", max_length=100)
+    profile_id: int | None = None  # 开在谁的书架上;前端总会带上
 
 
 def book_view(conn, b: dict, buffer_target: int) -> dict:
@@ -18,6 +20,7 @@ def book_view(conn, b: dict, buffer_target: int) -> dict:
     buffered = repo.buffered_ahead(conn, b["id"])
     return {
         "id": b["id"], "title": b["title"], "genre": b["genre"], "status": b["status"],
+        "profile_id": b["profile_id"],
         "read_pos": b["read_pos"],        # 读到的最远章
         "last_opened": b["last_opened"],  # 续读位置(最后打开/播放的章)
         "synopsis": b["synopsis"],
@@ -30,14 +33,19 @@ def book_view(conn, b: dict, buffer_target: int) -> dict:
 
 
 @router.get("")
-def list_books(request: Request, conn=Depends(get_conn)):
+def list_books(request: Request, profile: int | None = None, conn=Depends(get_conn)):
+    """profile:只看这个人的书架(前端总会带上);不带则列出全部。读者不存在回 404,前端据此回到"谁在看"。"""
+    if profile is not None:
+        profile_or_404(conn, profile)
     target = request.app.state.settings.buffer_chapters
-    return [book_view(conn, b, target) for b in repo.list_books(conn)]
+    return [book_view(conn, b, target) for b in repo.list_books(conn, profile)]
 
 
 @router.post("", status_code=201)
 def create_book(body: NewBook, request: Request, conn=Depends(get_conn)):
-    book = repo.get_book(conn, repo.create_book(conn, body.title))
+    if body.profile_id is not None:
+        profile_or_404(conn, body.profile_id)
+    book = repo.get_book(conn, repo.create_book(conn, body.title, profile_id=body.profile_id))
     return book_view(conn, book, request.app.state.settings.buffer_chapters)
 
 

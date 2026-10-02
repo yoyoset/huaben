@@ -2,20 +2,22 @@
 // 读写都包 try/catch,不可用时照常显示默认值,只是不记忆。
 import { h } from './dom.js';
 import { LEADINGS, nextLeading, stepFont } from './logic.js';
+import { currentProfile } from './profile.js';
 
-const KEY = 'huaben.reading';
+// 每人一份:同一台平板可能两个人轮流用,字号习惯各不相同
+const key = () => `huaben.reading.${currentProfile()?.id ?? 0}`;
 const DEFAULTS = { fontSize: 18, leading: LEADINGS[0] };
 
 function load() {
   try {
-    return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || '{}') };
+    return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(key()) || '{}') };
   } catch {
     return { ...DEFAULTS };
   }
 }
 
 function save(p) {
-  try { localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* 不可用:不记忆即可 */ }
+  try { localStorage.setItem(key(), JSON.stringify(p)); } catch { /* 不可用:不记忆即可 */ }
 }
 
 export function applyPrefs(p = load()) {

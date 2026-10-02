@@ -3,6 +3,7 @@ import { api } from '../api.js';
 import { fill, h, mount, setTopTitle } from '../dom.js';
 import { bookHome, spendNote } from '../logic.js';
 import { poll } from '../poll.js';
+import { clearProfile, currentProfile } from '../profile.js';
 
 const STATUS = { drafting: '开书中', serializing: '连载中' };
 
@@ -23,7 +24,7 @@ function card(b) {
 function render(box, books, spend) {
   const note = spendNote(spend);
   fill(box,
-    h('div', { class: 'row' }, h('h2', {}, '书架'), h('button', { class: 'primary', onclick: newBook }, '＋ 开一本新书')),
+    h('div', { class: 'row' }, h('h2', {}, `${currentProfile()?.name ?? ''}的书架`), h('button', { class: 'primary', onclick: newBook }, '＋ 开一本新书')),
     note ? h('div', { class: 'note' }, note) : null,
     books.length ? books.map(card) : h('p', { class: 'muted' }, '还没有书。点上面的按钮,聊几句就能开始连载。'));
 }
@@ -34,23 +35,26 @@ export async function shelfView() {
   mount(box);
   try {
     // 花费提醒取不到不影响书架(只是提醒)
-    const [books, spend] = await Promise.all([api.books(), api.spend().catch(() => null)]);
+    const me = currentProfile();
+    const [books, spend] = await Promise.all([api.books(me.id), api.spend().catch(() => null)]);
     render(box, books, spend);
     if (books.some((b) => b.generating)) {
       poll(async () => {
-        const latest = await api.books();
+        const latest = await api.books(me.id);
         render(box, latest, spend);
         return !latest.some((b) => b.generating);
       });
     }
   } catch (e) {
+    // 本机记着的读者在服务器上已不存在(比如恢复了旧库):回去重新选
+    if (e.status === 404) { clearProfile(); location.replace('#/who'); return; }
     fill(box, h('div', { class: 'banner', role: 'alert' }, e.message));
   }
 }
 
 async function newBook() {
   try {
-    const b = await api.createBook('未命名');
+    const b = await api.createBook('未命名', currentProfile().id);
     location.hash = `#/opening/${b.id}`;
   } catch (e) {
     alert(e.message);

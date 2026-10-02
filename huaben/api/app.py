@@ -8,7 +8,7 @@ from ..db import connect
 from ..llm import LLM
 from ..tts.base import TTS
 from ..worker import Backoff, Worker
-from . import routes_books, routes_opening, routes_reading, routes_system
+from . import routes_books, routes_opening, routes_profiles, routes_reading, routes_system
 from .static import RevalidatingStaticFiles
 
 
@@ -32,6 +32,7 @@ def create_app(settings: Settings | None = None, llm: LLM | None = None, tts: TT
     app.state.tts = tts
     app.state.worker = None  # lifespan 启动后才有
     connect(st.db_path).close()  # 启动时建库建表,第一个请求就能用
+    app.include_router(routes_profiles.router)
     app.include_router(routes_books.router)
     app.include_router(routes_opening.router)
     app.include_router(routes_reading.router)

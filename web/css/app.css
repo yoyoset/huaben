@@ -16,6 +16,10 @@ body { font: 16px/1.6 -apple-system, "PingFang SC", "Noto Sans SC", "Microsoft Y
 .topbar { display: flex; align-items: baseline; gap: 12px; padding: max(12px, env(safe-area-inset-top)) 16px 8px; }
 .brand { font-size: 20px; font-weight: 700; color: var(--accent); text-decoration: none; letter-spacing: 2px; }
 #topbar-title { color: var(--muted); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.who { margin-left: auto; color: var(--muted); font-size: 14px; text-decoration: none; white-space: nowrap; }
+.profiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.profile-card { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 16px; text-align: left; }
+.profile-card strong { font-size: 18px; }
 main { max-width: 720px; margin: 0 auto; padding: 8px 16px calc(120px + env(safe-area-inset-bottom)); }
 h2 { margin: 16px 0 8px; font-size: 18px; }
 

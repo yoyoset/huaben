@@ -22,9 +22,11 @@ async function call(method, path, body) {
 }
 
 export const api = {
-  books: () => call('GET', '/api/books'),
+  profiles: () => call('GET', '/api/profiles'),
+  createProfile: (name) => call('POST', '/api/profiles', { name }),
+  books: (profileId) => call('GET', `/api/books?profile=${profileId}`),
   book: (id) => call('GET', `/api/books/${id}`),
-  createBook: (title) => call('POST', '/api/books', { title }),
+  createBook: (title, profileId) => call('POST', '/api/books', { title, profile_id: profileId }),
   openingHistory: (id) => call('GET', `/api/books/${id}/opening`),
   say: (id, message) => call('POST', `/api/books/${id}/opening`, { message }),
   finalize: (id) => call('POST', `/api/books/${id}/finalize`),

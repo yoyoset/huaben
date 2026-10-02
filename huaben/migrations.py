@@ -23,4 +23,14 @@ MIGRATIONS: list[str] = [
     "ALTER TABLE ledger_characters ADD COLUMN profile TEXT NOT NULL DEFAULT '';",
     # 6: 配音错误单独存。此前与文字错误共用 gen_error:一轮只配音不写文字时会把文字错误清掉,反之亦然
     "ALTER TABLE books ADD COLUMN audio_error TEXT NOT NULL DEFAULT '';",
+    # 7: 每人一个书架(2026-10-02 用户要求:"我老婆是她的 profile,我是我的 profile")。profile = 人,不要密码;
+    #    已有的书归到默认的"我",升级不丢书
+    """CREATE TABLE profiles (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+ALTER TABLE books ADD COLUMN profile_id INTEGER REFERENCES profiles(id);
+INSERT INTO profiles(name) SELECT '我' WHERE EXISTS (SELECT 1 FROM books);
+UPDATE books SET profile_id = (SELECT id FROM profiles WHERE name = '我') WHERE profile_id IS NULL;""",
 ]

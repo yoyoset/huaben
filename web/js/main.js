@@ -3,17 +3,21 @@ import { h, mount } from './dom.js';
 import './player.js';
 import { watchNetwork } from './network.js';
 import { cancelAllPolls } from './poll.js';
+import { currentProfile, showProfile } from './profile.js';
 import { applyPrefs } from './reading_prefs.js';
 import { openingView } from './views/opening.js';
 import { readerView } from './views/reader.js';
 import { shelfView } from './views/shelf.js';
 import { statsView } from './views/stats.js';
+import { whoView } from './views/who.js';
 
 const routes = [
   [/^#\/opening\/(\d+)$/, (m) => openingView(+m[1])],
   [/^#\/read\/(\d+)(?:\/(\d+))?$/, (m) => readerView(+m[1], m[2] ? +m[2] : undefined)],
   [/^#\/stats\/(\d+)$/, (m) => statsView(+m[1])],
-  [/^#?\/?$/, () => shelfView()],
+  [/^#\/who$/, () => whoView()],
+  // 书架是"某个人的书架":还没选人就先去选
+  [/^#?\/?$/, () => (currentProfile() ? shelfView() : location.replace('#/who'))],
 ];
 
 function route() {
@@ -27,6 +31,7 @@ function route() {
 }
 
 applyPrefs(); // 字号/行距在第一次渲染前就生效,避免跳动
+showProfile();
 window.addEventListener('hashchange', route);
 watchNetwork(route); // 网络恢复时刷新当前页
 route();

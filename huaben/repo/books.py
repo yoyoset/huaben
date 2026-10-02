@@ -3,8 +3,8 @@ from ..db import dumps, loads
 from ._util import row
 
 
-def create_book(conn, title: str, genre: str = "") -> int:
-    cur = conn.execute("INSERT INTO books(title, genre) VALUES (?, ?)", (title, genre))
+def create_book(conn, title: str, genre: str = "", profile_id: int | None = None) -> int:
+    cur = conn.execute("INSERT INTO books(title, genre, profile_id) VALUES (?, ?, ?)", (title, genre, profile_id))
     conn.execute("INSERT INTO bibles(book_id) VALUES (?)", (cur.lastrowid,))
     conn.commit()
     return cur.lastrowid
@@ -22,8 +22,11 @@ def get_book(conn, book_id: int) -> dict | None:
     return row(conn.execute("SELECT * FROM books WHERE id=?", (book_id,)).fetchone())
 
 
-def list_books(conn) -> list[dict]:
-    return [dict(r) for r in conn.execute("SELECT * FROM books ORDER BY id")]
+def list_books(conn, profile_id: int | None = None) -> list[dict]:
+    """profile_id=None:全部书(后台补货要巡检所有人的书);否则只取这个人的书架。"""
+    if profile_id is None:
+        return [dict(r) for r in conn.execute("SELECT * FROM books ORDER BY id")]
+    return [dict(r) for r in conn.execute("SELECT * FROM books WHERE profile_id=? ORDER BY id", (profile_id,))]
 
 
 def update_book(conn, book_id: int, *, commit: bool = True, **fields) -> None:
