@@ -123,3 +123,29 @@ def test_unfollowed_thread_is_logged(conn):
                                                                  _env_file=None), bid)
     note = conn.execute("SELECT note FROM pipeline_runs WHERE note LIKE '%未见推进%'").fetchone()[0]
     assert f"#{fid}" in note
+
+
+def test_new_character_profile_is_kept_and_rendered(conn):
+    """中途登场的配角:首次入账记下人设,之后入账没给/给空也不丢;出场时人设随现状进 prompt。"""
+    from huaben.pipeline.ledger_apply import merge_character
+    from huaben.pipeline.normalize import normalize_ledger
+    bid = repo.create_book(conn, "x")
+    repo.create_volume(conn, bid, 1, goal="g", status="active")
+    first = normalize_ledger({"summary": "s", "characters": [{"name": "老道", "profile": "后山守井人,话少,爱用反问"}]})
+    repo.upsert_character(conn, bid, "老道", **merge_character(None, first["characters"][0]))
+    later = normalize_ledger({"summary": "s", "characters": [{"name": "老道", "profile": "", "location": "井边"}]})
+    old = repo.list_characters(conn, bid)[0]
+    repo.upsert_character(conn, bid, "老道", **merge_character(old, later["characters"][0]))
+    c = repo.list_characters(conn, bid)[0]
+    assert c["profile"] == "后山守井人,话少,爱用反问" and c["location"] == "井边"
+    w = write_messages(load_context(conn, bid), outline(outline="老道出现"), 2500)[-1]["content"]
+    assert "老道(存活);人设:后山守井人,话少,爱用反问" in w
+
+
+def test_bible_characters_do_not_repeat_profile(conn):
+    bid = repo.create_book(conn, "x")
+    repo.create_volume(conn, bid, 1, goal="g", status="active")
+    repo.save_bible(conn, bid, characters=[{"name": "沈照", "role": "主角", "traits": "腹黑"}])
+    repo.upsert_character(conn, bid, "沈照", core=True, profile="主角 腹黑")
+    w = write_messages(load_context(conn, bid), outline(), 2500)[-1]["content"]
+    assert "沈照(存活)" in w and "人设:主角 腹黑" not in w  # 人物卡里已有,账本只带现状

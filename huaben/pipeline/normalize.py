@@ -69,7 +69,7 @@ def normalize_character(c) -> dict:
     if not name:
         raise ParseError("characters: 条目缺少人名")
     out: dict = {"name": name}
-    for k in ("location", "abilities", "relations"):
+    for k in ("location", "abilities", "relations", "profile"):
         if k in c:
             out[k] = to_text(c[k], f"characters.{k}")
     for k in ("alive", "core"):

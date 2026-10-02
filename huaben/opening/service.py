@@ -78,7 +78,8 @@ def _extract_bible(conn, llm: LLM, book_id: int, messages: list[dict]) -> None:
         repo.clear_characters(conn, book_id, commit=False)  # 重新整理时,旧圣经里的人物不能残留在账本
         for c in bible["characters"]:
             name = str(c["name"]).strip()
-            repo.upsert_character(conn, book_id, name, core=name in core, commit=False)  # 角色定位留在圣经里
+            profile = " ".join(str(c.get(k, "")).strip() for k in ("role", "traits")).strip()
+            repo.upsert_character(conn, book_id, name, core=name in core, profile=profile, commit=False)
 
 
 def finalize_book(conn, llm: LLM, settings: Settings, book_id: int) -> dict:

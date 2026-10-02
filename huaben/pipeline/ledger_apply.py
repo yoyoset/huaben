@@ -2,16 +2,17 @@
 from .. import repo
 from ..db import tx
 
-_CHAR_FIELDS = ("alive", "location", "abilities", "relations", "knows", "core")
+_CHAR_FIELDS = ("alive", "location", "abilities", "relations", "knows", "core", "profile")
 
 
 def merge_character(existing: dict | None, entry: dict) -> dict:
     """模型只返回变化的字段;没返回的字段沿用旧值(否则 core 之类会被悄悄清零)。"""
-    base = {"alive": True, "location": "", "abilities": "", "relations": "", "knows": [], "core": False}
+    base = {"alive": True, "location": "", "abilities": "", "relations": "", "knows": [], "core": False,
+            "profile": ""}
     if existing:
-        base.update({k: existing[k] for k in _CHAR_FIELDS})
-    base.update({k: entry[k] for k in _CHAR_FIELDS if k in entry})
-    return base
+        base.update({k: existing.get(k, base[k]) for k in _CHAR_FIELDS})
+    base.update({k: entry[k] for k in _CHAR_FIELDS if k in entry and not (k == "profile" and not entry[k])})
+    return base  # 空的 profile 不覆盖已有人设(模型常把"没变化"写成空字符串)
 
 
 def apply_ledger(conn, book_id: int, chapter_id: int, idx: int, ledger: dict) -> list[str]:

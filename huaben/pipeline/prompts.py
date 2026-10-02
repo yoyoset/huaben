@@ -18,7 +18,8 @@ OUTLINE_SCHEMA = """{
 
 LEDGER_SCHEMA = """{
   "summary": "本章摘要,2~3 句,保留关键事件与因果",
-  "characters": [{"name": "角色名", "alive": true, "location": "", "abilities": "", "relations": "",
+  "characters": [{"name": "角色名", "profile": "首次登场时必填:身份、性格、说话方式,一句话;已有人设不变可省略",
+                  "alive": true, "location": "", "abilities": "", "relations": "",
                   "knows": ["该人物此刻知道的关键信息"], "core": false}],
   "foreshadows_new": [{"content": "本章新埋的伏笔", "payoff_plan": "打算何时、以何种方式回收"}],
   "foreshadows_update": [{"id": 伏笔编号(整数), "status": "progressing 或 resolved"}],

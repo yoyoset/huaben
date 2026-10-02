@@ -3,13 +3,14 @@ from ..db import dumps, loads
 
 
 def upsert_character(conn, book_id: int, name: str, *, alive=True, location="", abilities="",
-                     relations="", knows=None, core=False, updated_ch=0, commit: bool = True) -> None:
+                     relations="", knows=None, core=False, profile="", updated_ch=0, commit: bool = True) -> None:
     conn.execute(
-        "INSERT INTO ledger_characters(book_id,name,alive,location,abilities,relations,knows,core,updated_ch) "
-        "VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(book_id,name) DO UPDATE SET "
+        "INSERT INTO ledger_characters(book_id,name,alive,location,abilities,relations,knows,core,profile,updated_ch) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(book_id,name) DO UPDATE SET "
         "alive=excluded.alive, location=excluded.location, abilities=excluded.abilities, "
-        "relations=excluded.relations, knows=excluded.knows, core=excluded.core, updated_ch=excluded.updated_ch",
-        (book_id, name, int(alive), location, abilities, relations, dumps(knows or []), int(core), updated_ch),
+        "relations=excluded.relations, knows=excluded.knows, core=excluded.core, profile=excluded.profile, "
+        "updated_ch=excluded.updated_ch",
+        (book_id, name, int(alive), location, abilities, relations, dumps(knows or []), int(core), profile, updated_ch),
     )
     if commit:
         conn.commit()

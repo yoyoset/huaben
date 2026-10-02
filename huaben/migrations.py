@@ -19,4 +19,6 @@ MIGRATIONS: list[str] = [
     # 4: 最后打开的章(续读位置)。read_pos 从此只表示"读到的最远章",只增不减,预生成缓冲以它为准;
     #    翻回前面重读只改 last_opened,不会让缓冲误以为读者退回去了
     "ALTER TABLE books ADD COLUMN last_opened INTEGER NOT NULL DEFAULT 0;",
+    # 5: 人物人设(身份/性格/说话方式)。中途登场的配角不在开书圣经的人物卡里,没有人设就会反复出场时漂移
+    "ALTER TABLE ledger_characters ADD COLUMN profile TEXT NOT NULL DEFAULT '';",
 ]

@@ -6,9 +6,12 @@ def _lines(items: list[str]) -> str:
     return "\n".join(items) if items else "(无)"
 
 
-def render_character(c: dict) -> str:
+def render_character(c: dict, with_profile: bool = True) -> str:
+    """with_profile:圣经人物卡里已有此人时不重复带人设,只带现状。"""
     state = "存活" if c["alive"] else "已死亡"
     parts = [f"- {c['name']}({state})"]
+    if with_profile and c.get("profile"):
+        parts.append(f"人设:{c['profile']}")
     if c["location"]:
         parts.append(f"位置:{c['location']}")
     if c["abilities"]:
@@ -80,7 +83,9 @@ def render_memory(ctx: StoryContext, scope: str = "", focus_ids=()) -> str:
                      + "\n本卷要收的伏笔:" + _resolve_targets(ctx))
     parts.append("【本卷已发生(章摘要)】\n" + _lines(
         [f"第{i}章《{t}》:{s}" if t else f"第{i}章:{s}" for i, t, s in ctx.volume_chapter_summaries]))
-    parts.append("【账本·人物现状(以此为准,不得矛盾)】\n" + _lines([render_character(c) for c in chars]))
+    in_bible = {c.get("name") for c in (ctx.bible or {}).get("characters") or []}
+    parts.append("【账本·人物现状(以此为准,不得矛盾)】\n" + _lines(
+        [render_character(c, with_profile=c["name"] not in in_bible) for c in chars]))
     priority = set(focus_ids) | set(ctx.volume["resolve"] if ctx.volume else [])
     shown, hidden = select_foreshadows(ctx.foreshadows, priority)
     lines = [render_foreshadow(f, ctx.next_idx) for f in shown]
