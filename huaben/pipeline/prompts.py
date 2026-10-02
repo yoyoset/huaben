@@ -85,7 +85,7 @@ def write_messages(ctx: StoryContext, outline: dict, words: int, feedback: list[
         f"{render_bible(ctx.bible)}\n\n{render_style_samples(ctx.bible)}".rstrip()
     )
     parts = [
-        render_memory(ctx, scope=outline_scope(outline)),
+        render_memory(ctx, scope=outline_scope(outline), focus_ids=outline.get("foreshadows", [])),
         f"【最近原文(衔接文风与情绪)】\n{recent_text(ctx)}",
         work_order(ctx.next_idx, outline),
     ]
@@ -104,7 +104,7 @@ def write_messages(ctx: StoryContext, outline: dict, words: int, feedback: list[
 def ledger_messages(ctx: StoryContext, outline: dict, body: str) -> list[dict]:
     user = (
         # 检索范围 = 章纲 + 正文:作者自己带进来的人(章纲没提)也必须拿账本状态核对,否则死人复活查不出
-        f"{render_memory(ctx, scope=outline_scope(outline) + ' ' + body)}\n\n"
+        f"{render_memory(ctx, scope=outline_scope(outline) + ' ' + body, focus_ids=outline.get('foreshadows', []))}\n\n"
         f"【本章章纲】\n{outline['outline']}\n本章有意为之的反转:{outline.get('planned_reversals') or '无'}\n\n"
         f"【第 {ctx.next_idx} 章正文】\n{body}\n\n"
         "请完成入账与核对:提取摘要;更新出场人物的现状(生死/位置/能力/关系/知情);登记新伏笔与伏笔进展;"

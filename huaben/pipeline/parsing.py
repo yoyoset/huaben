@@ -2,8 +2,10 @@
 
 结构不对则抛 ParseError,由流水线当作一次失败的尝试处理,不会带着残缺数据入账。
 """
+import re
+
 from .jsonout import ParseError, extract_json, need  # noqa: F401  (对外统一从这里取)
-from .normalize import normalize_ledger, normalize_outline
+from .normalize import normalize_ledger, normalize_outline, to_text_list
 
 
 def parse_outline(text: str) -> dict:
@@ -19,13 +21,26 @@ def unplanned_contradictions(ledger: dict) -> list[str]:
     return [c["what"] for c in ledger["contradictions"] if not c["planned"]]
 
 
+def _foreshadow_ref(x) -> int:
+    """卷计划里"要收的伏笔"必须是账本编号;容忍 "#3"、"#3 玉佩发烫" 这类写法。"""
+    if isinstance(x, int) and not isinstance(x, bool):
+        return x
+    m = re.match(r"\s*#?(\d+)", str(x))
+    if not m:
+        raise ParseError(f"resolve 需要伏笔编号,得到 {x!r}")
+    return int(m.group(1))
+
+
 def parse_volume_plan(text: str) -> dict:
     d = extract_json(text)
     if not need(d, "goal", str).strip():
         raise ParseError("empty goal")
-    for k in ("beats", "plant", "resolve"):
-        d.setdefault(k, [])
-        need(d, k, list)
+    d["beats"] = to_text_list(d.get("beats"), "beats")
+    d["plant"] = to_text_list(d.get("plant"), "plant")
+    resolve = d.get("resolve") or []
+    if not isinstance(resolve, list):
+        raise ParseError("resolve 不是列表")
+    d["resolve"] = list(dict.fromkeys(_foreshadow_ref(x) for x in resolve))
     if not d["beats"]:
         raise ParseError("volume plan has no beats")
     n = d.get("target_chapters")

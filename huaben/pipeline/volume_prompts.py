@@ -1,14 +1,17 @@
 """卷级编辑步骤的指令:卷规划、封卷。约束同 prompts.py:关键要求放末尾,示例不放专名。"""
 from ..context import StoryContext
-from ..render import render_bible, render_memory
+from ..render import render_bible, render_foreshadow, render_memory
 
 PLAN_SCHEMA = """{
   "goal": "本卷要达成的目标,1~2 句",
   "beats": ["节拍,按先后顺序,5~10 条,每条一句话"],
   "plant": ["本卷要新埋的伏笔"],
-  "resolve": ["本卷要回收的伏笔(优先从账本未回收伏笔里选)"],
+  "resolve": [本卷要回收的伏笔编号(整数,只能从下面【可回收的伏笔】里选)],
   "target_chapters": 本卷计划章数(整数,通常 20~40)
 }"""
+
+PLAN_LIST_LIMIT = 30   # 规划时展示的未回收伏笔上限(最早埋下的优先)
+BACKLOG_WARN = 8       # 未回收伏笔超过这个数,本卷应以回收为主
 
 SEAL_SCHEMA = """{
   "volume_summary": "本卷摘要,一段话(150~300 字):发生了什么、人物关系与力量格局的变化、留下的悬念",
@@ -19,9 +22,24 @@ SEAL_SCHEMA = """{
 _SYSTEM = "你是长篇连载小说的责任编辑。严格只输出 JSON,不要任何解释或代码围栏。"
 
 
-def plan_messages(ctx: StoryContext, idx: int) -> list[dict]:
+def foreshadow_backlog(ctx: StoryContext, carried_ids=()) -> str:
+    """规划用的伏笔清单:最早埋下的优先;上一卷计划要收却没收的单独点名。"""
+    fs = sorted(ctx.foreshadows, key=lambda f: (f["planted_ch"], f["id"]))
+    lines = [render_foreshadow(f, ctx.next_idx) for f in fs[:PLAN_LIST_LIMIT]]
+    if len(fs) > PLAN_LIST_LIMIT:
+        lines.append(f"(另有 {len(fs) - PLAN_LIST_LIMIT} 条较新的,本卷不必安排)")
+    out = "【可回收的伏笔(全部未回收,按埋下先后)】\n" + ("\n".join(lines) or "(无)")
+    carried = [f"#{i}" for i in carried_ids if any(f["id"] == i for f in fs)]
+    if carried:
+        out += "\n上一卷计划回收却没有收的:" + "、".join(carried) + "(本卷应优先安排)"
+    if len(fs) > BACKLOG_WARN:
+        out += f"\n未回收伏笔已积压 {len(fs)} 条:本卷以回收为主,新埋的不要超过 2 条。"
+    return out
+
+
+def plan_messages(ctx: StoryContext, idx: int, carried_ids=()) -> list[dict]:
     user = (
-        f"{render_bible(ctx.bible)}\n\n{render_memory(ctx)}\n\n"
+        f"{render_bible(ctx.bible)}\n\n{render_memory(ctx)}\n\n{foreshadow_backlog(ctx, carried_ids)}\n\n"
         f"请规划第 {idx} 卷。要求:有清晰的卷内目标和起承转合;未回收的伏笔要有计划地收,"
         f"同时埋下新的;与已有人物现状和世界事实自洽;符合雷点与风格设定;节奏紧凑,每个节拍都能撑起爽点或悬念。\n"
         f"只输出如下结构的 JSON:\n{PLAN_SCHEMA}"

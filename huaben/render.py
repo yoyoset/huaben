@@ -1,5 +1,5 @@
 """分层记忆·渲染:StoryContext → prompt 文本。纯函数,不碰数据库。"""
-from .context import StoryContext, select_ledger
+from .context import StoryContext, select_foreshadows, select_ledger
 
 
 def _lines(items: list[str]) -> str:
@@ -49,9 +49,24 @@ def volume_progress(ctx: StoryContext) -> str:
     return f"本卷进度:即将写本卷第 {pos}/{target} 章(写完本章后本卷还剩 {max(target - pos, 0)} 章)"
 
 
-def render_memory(ctx: StoryContext, scope: str = "") -> str:
+def render_foreshadow(f: dict, now_idx: int | None = None) -> str:
+    age = f"(已埋 {now_idx - f['planted_ch']} 章)" if now_idx else ""
+    plan = f"(计划:{f['payoff_plan']})" if f["payoff_plan"] else ""
+    return f"- #{f['id']} 第{f['planted_ch']}章埋{age}:{f['content']}{plan} [{f['status']}]"
+
+
+def _resolve_targets(ctx: StoryContext) -> str:
+    """本卷计划要收的伏笔:按编号对上账本内容;已收的标注出来。"""
+    open_by_id = {f["id"]: f for f in ctx.foreshadows}
+    items = [f"#{i} {open_by_id[i]['content']}" if i in open_by_id else f"#{i}(已回收)"
+             for i in ctx.volume["resolve"] if isinstance(i, int)]
+    return "、".join(items) or "无"
+
+
+def render_memory(ctx: StoryContext, scope: str = "", focus_ids=()) -> str:
     """分层记忆文本,顺序固定:梗概 → 往卷 → 本卷目标 → 本卷章摘要 → 账本。最近原文单独放,见 recent_text。
-    scope:按需挑账本条目的检索文本(写作时 = 章纲;核对时 = 章纲 + 正文)。
+    scope:按需挑人物的检索文本(写作时 = 章纲;核对时 = 章纲 + 正文)。
+    focus_ids:本章点名要推进/回收的伏笔编号(与本卷计划要收的一起优先展示)。
     """
     chars, facts = select_ledger(ctx.characters, ctx.facts, scope)
     parts = [f"【全书梗概】\n{ctx.book.get('synopsis') or '(尚无)'}"]
@@ -62,14 +77,16 @@ def render_memory(ctx: StoryContext, scope: str = "") -> str:
         parts.append(f"【本卷(第{v['idx']}卷)目标】{v['goal']}\n{volume_progress(ctx)}\n节拍:"
                      + ("→".join(v["beats"]) or "(无)")
                      + "\n本卷要埋的伏笔:" + ("、".join(v["plant"]) or "无")
-                     + "\n本卷要收的伏笔:" + ("、".join(v["resolve"]) or "无"))
+                     + "\n本卷要收的伏笔:" + _resolve_targets(ctx))
     parts.append("【本卷已发生(章摘要)】\n" + _lines(
         [f"第{i}章《{t}》:{s}" if t else f"第{i}章:{s}" for i, t, s in ctx.volume_chapter_summaries]))
     parts.append("【账本·人物现状(以此为准,不得矛盾)】\n" + _lines([render_character(c) for c in chars]))
-    parts.append("【账本·未回收伏笔】\n" + _lines(
-        [f"- #{f['id']} 第{f['planted_ch']}章埋:{f['content']}"
-         + (f"(计划:{f['payoff_plan']})" if f["payoff_plan"] else "")
-         + f" [{f['status']}]" for f in ctx.foreshadows]))
+    priority = set(focus_ids) | set(ctx.volume["resolve"] if ctx.volume else [])
+    shown, hidden = select_foreshadows(ctx.foreshadows, priority)
+    lines = [render_foreshadow(f, ctx.next_idx) for f in shown]
+    if hidden:
+        lines.append(f"(另有 {hidden} 条较新的未回收伏笔,本章不必处理)")
+    parts.append("【账本·未回收伏笔】\n" + _lines(lines))
     canon = (ctx.bible or {}).get("canon") or ""
     if canon:  # 往卷确立的事实在封卷时合并成定本;不截断,不会悄悄丢掉最早、最根本的设定
         parts.append(f"【账本·世界设定定本(往卷已确立,以此为准)】\n{canon}")

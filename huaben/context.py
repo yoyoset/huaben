@@ -60,6 +60,18 @@ def _volume_facts(conn, book_id: int) -> list[dict]:
     return [f for f in repo.list_facts(conn, book_id) if f["established_ch"] > sealed_upto]
 
 
+FORESHADOW_LIMIT = 12  # 写一章时最多展示这么多条未回收伏笔(其余只报数量),防止伏笔越埋越多撑大 prompt
+
+
+def select_foreshadows(open_fs: list[dict], priority_ids=(), limit: int = FORESHADOW_LIMIT) -> tuple[list[dict], int]:
+    """挑出本章要看到的未回收伏笔:先"本卷计划要收的 + 本章点名的",再按埋下先后(拖得最久的优先)。
+    返回 (展示的, 未展示的条数)。未展示的仍在账本里,只是本章不需要处理。"""
+    pri = set(priority_ids)
+    ordered = sorted(open_fs, key=lambda f: (f["id"] not in pri, f["planted_ch"], f["id"]))
+    shown = ordered[:limit]
+    return sorted(shown, key=lambda f: (f["planted_ch"], f["id"])), len(ordered) - len(shown)
+
+
 def select_ledger(characters: list[dict], facts: list[dict], scope: str = "") -> tuple[list[dict], list[dict]]:
     """按检索文本挑账本。核心人物永远带(前身教训:名字没出现就不进上下文会导致名字漂移);
     非核心人物只有名字出现在 scope(章纲,核对时再加上正文)里才带;已死亡的人物也保留,否则会"复活"。
