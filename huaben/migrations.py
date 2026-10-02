@@ -40,4 +40,7 @@ UPDATE books SET profile_id = (SELECT id FROM profiles WHERE name = '我') WHERE
   value TEXT NOT NULL,
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );""",
+    # 9: 伏笔分大小 short / medium / long(2026-10-02 用户:伏笔太死,有的该很短、有的该很长)。
+    #    已有的伏笔按中线(本卷内收)处理,见 foreshadow_scale.py
+    "ALTER TABLE ledger_foreshadows ADD COLUMN scale TEXT NOT NULL DEFAULT 'medium';",
 ]

@@ -59,7 +59,7 @@ function foreshadowSection(fr) {
   return h('section', {},
     h('h2', {}, '伏笔'),
     h('div', { class: 'stats' },
-      tile('已埋', String(t.planted)), tile('已回收', String(t.resolved)), tile('未回收', String(t.open)),
+      tile('已埋', String(t.planted)), tile('已回收', String(t.resolved)), tile('未回收', String(t.open), t.open_by_scale ? `短线 ${t.open_by_scale.short} · 中线 ${t.open_by_scale.medium} · 长线 ${t.open_by_scale.long}` : ''),
       tile('平均几章后回收', t.avg_chapters_to_resolve == null ? '—' : t.avg_chapters_to_resolve.toFixed(1))),
     t.oldest_open.length
       ? h('p', { class: 'muted' }, '拖得最久的:', t.oldest_open.map((o) => `#${o.id} ${o.content}(已 ${o.age} 章)`).join(';'))

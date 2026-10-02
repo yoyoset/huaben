@@ -4,6 +4,7 @@
 **真正无法理解的内容抛 ParseError**(由流水线当作一次失败的尝试)。
 下游(入账、prompt 组装)因此只会见到确定类型,不会在半路抛 TypeError/ValueError 变成静默失败。
 """
+from ..foreshadow_scale import normalize_scale
 from .jsonout import ParseError
 
 _TRUE = {"true", "yes", "y", "1", "是", "存活", "活", "活着", "对"}
@@ -96,7 +97,8 @@ def normalize_foreshadow_new(f) -> dict:
     content = to_text(f.get("content"), "foreshadows_new.content")
     if not content:
         raise ParseError("foreshadows_new: 伏笔内容为空")
-    return {"content": content, "payoff_plan": to_text(f.get("payoff_plan"), "foreshadows_new.payoff_plan")}
+    return {"content": content, "payoff_plan": to_text(f.get("payoff_plan"), "foreshadows_new.payoff_plan"),
+            "scale": normalize_scale(f.get("scale"))}  # 没填或写法不认识:按中线,不为这个打回整章
 
 
 def normalize_foreshadow_update(u) -> dict | None:

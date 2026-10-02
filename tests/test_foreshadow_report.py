@@ -24,6 +24,7 @@ def test_totals_and_oldest_open():
     rep = build_report(VOLS, RANGES, [fs(1, 2, 8), fs(2, 3), fs(3, 9, 12), fs(4, 13)], now_idx=15)
     t = rep["total"]
     assert (t["planted"], t["resolved"], t["open"]) == (4, 2, 2)
+    assert t["open_by_scale"] == {"short": 0, "medium": 2, "long": 0}  # 没标大小的旧伏笔按中线算
     assert t["avg_chapters_to_resolve"] == 4.5  # (8-2 + 12-9) / 2
     assert [(o["id"], o["age"]) for o in t["oldest_open"]] == [(2, 12), (4, 2)]
 

@@ -39,7 +39,8 @@ def apply_ledger(conn, book_id: int, chapter_id: int, idx: int, ledger: dict) ->
                 warnings.append(f"人物 {name} 由已故变为在世(若不是有意的反转,请检查入账)")
             repo.upsert_character(conn, book_id, name, updated_ch=idx, commit=False, **m)
         for f in ledger["foreshadows_new"]:
-            repo.add_foreshadow(conn, book_id, idx, f["content"], f["payoff_plan"], commit=False)
+            repo.add_foreshadow(conn, book_id, idx, f["content"], f["payoff_plan"], commit=False,
+                                scale=f.get("scale", "medium"))
         for u in ledger["foreshadows_update"]:
             fid, status = u["id"], u["status"]
             if fid not in status_of:

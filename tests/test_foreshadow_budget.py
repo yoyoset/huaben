@@ -38,7 +38,7 @@ def test_render_reports_hidden_count(conn):
     for i in range(1, 16):
         repo.add_foreshadow(conn, bid, i, f"伏笔{i}")
     out = render_memory(load_context(conn, bid))
-    assert "#1 第1章埋" in out and "#15 " not in out and "另有 3 条较新的未回收伏笔" in out
+    assert "#1 [中线] 第1章埋" in out and "#15 " not in out and "另有 3 条较新的未回收伏笔" in out
 
 
 @pytest.mark.parametrize("raw,ids", [([3, "#4", "#5 玉佩发烫", 3], [3, 4, 5]), ([], [])])

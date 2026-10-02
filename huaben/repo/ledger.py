@@ -34,10 +34,11 @@ def list_characters(conn, book_id: int) -> list[dict]:
     return out
 
 
-def add_foreshadow(conn, book_id: int, planted_ch: int, content: str, payoff_plan: str = "", commit: bool = True) -> int:
+def add_foreshadow(conn, book_id: int, planted_ch: int, content: str, payoff_plan: str = "", commit: bool = True,
+                   scale: str = "medium") -> int:
     cur = conn.execute(
-        "INSERT INTO ledger_foreshadows(book_id,planted_ch,content,payoff_plan) VALUES (?,?,?,?)",
-        (book_id, planted_ch, content, payoff_plan),
+        "INSERT INTO ledger_foreshadows(book_id,planted_ch,content,payoff_plan,scale) VALUES (?,?,?,?,?)",
+        (book_id, planted_ch, content, payoff_plan, scale),
     )
     if commit:
         conn.commit()

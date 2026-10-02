@@ -1,5 +1,6 @@
 """分层记忆·渲染:StoryContext → prompt 文本。纯函数,不碰数据库。"""
 from .context import StoryContext, select_foreshadows, select_ledger
+from .foreshadow_scale import due_state, tag
 
 
 def _lines(items: list[str]) -> str:
@@ -52,10 +53,27 @@ def volume_progress(ctx: StoryContext) -> str:
     return f"本卷进度:即将写本卷第 {pos}/{target} 章(写完本章后本卷还剩 {max(target - pos, 0)} 章)"
 
 
-def render_foreshadow(f: dict, now_idx: int | None = None) -> str:
+def render_foreshadow(f: dict, now_idx: int | None = None, state: str = "") -> str:
     age = f"(已埋 {now_idx - f['planted_ch']} 章)" if now_idx else ""
     plan = f"(计划:{f['payoff_plan']})" if f["payoff_plan"] else ""
-    return f"- #{f['id']} 第{f['planted_ch']}章埋{age}:{f['content']}{plan} [{f['status']}]"
+    return f"- #{f['id']} {tag(f, state)} 第{f['planted_ch']}章埋{age}:{f['content']}{plan} [{f['status']}]"
+
+
+def foreshadow_states(ctx: StoryContext) -> dict[int, str]:
+    """每条未收伏笔此刻的状态:还早 / 该收了 / 拖欠 / 长线只推进(规则见 foreshadow_scale)。"""
+    left = first = None
+    if ctx.volume:
+        left = max(ctx.volume["target_chapters"] - (ctx.volume_done + 1), 0)
+        first = ctx.next_idx - ctx.volume_done
+    return {f["id"]: due_state(f, ctx.next_idx, left, first) for f in ctx.foreshadows}
+
+
+def due_foreshadow_ids(ctx: StoryContext) -> list[int]:
+    """该收的伏笔编号:拖欠的在前,同类里埋得早的在前。"""
+    states = foreshadow_states(ctx)
+    due = [f for f in ctx.foreshadows if states[f["id"]] in ("due", "overdue")]
+    due.sort(key=lambda f: (states[f["id"]] != "overdue", f["planted_ch"], f["id"]))
+    return [f["id"] for f in due]
 
 
 def _resolve_targets(ctx: StoryContext) -> str:
@@ -86,9 +104,10 @@ def render_memory(ctx: StoryContext, scope: str = "", focus_ids=()) -> str:
     in_bible = {c.get("name") for c in (ctx.bible or {}).get("characters") or []}
     parts.append("【账本·人物现状(以此为准,不得矛盾)】\n" + _lines(
         [render_character(c, with_profile=c["name"] not in in_bible) for c in chars]))
-    priority = set(focus_ids) | set(ctx.volume["resolve"] if ctx.volume else [])
+    priority = set(focus_ids) | set(ctx.volume["resolve"] if ctx.volume else []) | set(due_foreshadow_ids(ctx))
     shown, hidden = select_foreshadows(ctx.foreshadows, priority)
-    lines = [render_foreshadow(f, ctx.next_idx) for f in shown]
+    states = foreshadow_states(ctx)
+    lines = [render_foreshadow(f, ctx.next_idx, states[f["id"]]) for f in shown]
     if hidden:
         lines.append(f"(另有 {hidden} 条较新的未回收伏笔,本章不必处理)")
     parts.append("【账本·未回收伏笔】\n" + _lines(lines))

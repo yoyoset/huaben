@@ -32,7 +32,7 @@ def test_common_deformations_are_normalized():
     ))
     c = out["characters"][0]
     assert c == {"name": "沈照", "alive": False, "core": True, "knows": ["井里有人"], "location": "3"}
-    assert out["foreshadows_new"] == [{"content": "井里的声音", "payoff_plan": ""}]
+    assert out["foreshadows_new"] == [{"content": "井里的声音", "payoff_plan": "", "scale": "medium"}]  # 没写大小:按中线
     assert out["foreshadows_update"] == [{"id": 2, "status": "resolved"}]
     assert out["facts"] == ["后山有井", "42"]  # 去空、去重
     assert out["contradictions"] == [{"what": "名字写错了", "planned": False}, {"what": "复活", "planned": True}]

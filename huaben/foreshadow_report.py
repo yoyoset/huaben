@@ -5,6 +5,7 @@
 build_report 是纯函数,load 只负责取数。
 """
 from . import repo
+from .foreshadow_scale import SCALES, normalize_scale
 
 
 def build_report(volumes: list[dict], ranges: dict[int, tuple[int, int]], foreshadows: list[dict],
@@ -35,6 +36,7 @@ def build_report(volumes: list[dict], ranges: dict[int, tuple[int, int]], foresh
         "volumes": per_volume,
         "total": {
             "planted": len(foreshadows), "resolved": len(resolved), "open": len(open_fs),
+            "open_by_scale": {s: sum(1 for f in open_fs if normalize_scale(f.get("scale")) == s) for s in SCALES},
             "avg_chapters_to_resolve": (sum(f["resolved_ch"] - f["planted_ch"] for f in resolved) / len(resolved)
                                         if resolved else None),
             "oldest_open": [{"id": f["id"], "content": f["content"], "age": now_idx - f["planted_ch"]}
