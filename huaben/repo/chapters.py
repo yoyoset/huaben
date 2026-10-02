@@ -59,10 +59,12 @@ def accepted_chapters(conn, book_id: int, volume_id: int | None = None) -> list[
 
 
 def chapter_index(conn, book_id: int, volume_id: int | None = None) -> list[dict]:
-    """定稿章的目录(不含正文):id、序号、标题、摘要、所属卷、是否已有保底音频。一条查询,不逐章查音频。"""
+    """定稿章的目录(不含正文):id、序号、标题、摘要、所属卷、音频登记(has_audio / audio_path)。一条查询。
+    注意 has_audio 只表示"数据库里登记了";文件是否真的在,由调用方用 tts.service.audio_file_ok 核对。"""
     where, args = _accepted_where(book_id, volume_id)
     rows = conn.execute(
-        "SELECT c.id, c.idx, c.title, c.summary, c.volume_id, (a.chapter_id IS NOT NULL) AS has_audio "
+        "SELECT c.id, c.idx, c.title, c.summary, c.volume_id, "
+        "(a.chapter_id IS NOT NULL) AS has_audio, a.path AS audio_path "
         "FROM chapters c LEFT JOIN audio a ON a.chapter_id = c.id AND a.quality = 'basic' "
         f"WHERE {where} ORDER BY c.idx", args)
     return [{**dict(r), "has_audio": bool(r["has_audio"])} for r in rows]

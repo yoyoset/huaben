@@ -107,3 +107,14 @@ def test_fill_audio_backfills_and_stops_on_failure(conn, tmp_path):
     done, err = fill_audio(conn, FakeTTS(always_fail=True), s, bid, NOSLEEP)
     assert done == 0 and "第 3 章配音失败" in err and "照常阅读" in err
     assert [c["idx"] for c in repo.chapters_missing_audio(conn, bid)] == [3]
+
+
+def test_lost_audio_file_is_regenerated(conn, tmp_path):
+    """实测曾出现:只恢复数据库备份、音频文件丢失时,fill_audio 补 0 章(以为已经有了)。"""
+    s = settings(tmp_path)
+    ch = make_chapter(conn)
+    fill_audio(conn, FakeTTS(), s, ch["book_id"], NOSLEEP)
+    path = tmp_path / "audio" / audio_relpath(ch["book_id"], 1)
+    path.unlink()
+    done, err = fill_audio(conn, FakeTTS(), s, ch["book_id"], NOSLEEP)
+    assert (done, err) == (1, "") and path.exists()

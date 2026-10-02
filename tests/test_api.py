@@ -155,3 +155,15 @@ def test_generating_flag_tracks_buffer(tmp_path):
     c.put(f"/api/books/{bid}/progress", json={"chapter": 1})       # 读完 → 缓冲空,补货失败
     assert c.get(f"/api/books/{bid}").json()["generating"] is True  # 前端据此继续自动刷新
 
+
+
+def test_has_audio_reflects_file_presence(tmp_path):
+    """数据库登记了音频但文件丢失:目录与章节都不能说"有音频",否则播放器会去取一个 404。"""
+    c, _ = make_client(tmp_path, [GUIDE, BIBLE, PLAN, OUTLINE, "正文。", LEDGER], tts=FakeTTS())
+    bid = open_book(c)
+    c.post(f"/api/books/{bid}/opening", json={"message": "x"})
+    c.post(f"/api/books/{bid}/finalize")
+    assert c.get(f"/api/books/{bid}/chapters").json()[0]["has_audio"] is True
+    next((tmp_path / "audio").rglob("*.mp3")).unlink()
+    assert c.get(f"/api/books/{bid}/chapters").json()[0]["has_audio"] is False
+    assert c.get(f"/api/books/{bid}/chapters/1").json()["audio_url"] is None

@@ -4,6 +4,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from .. import repo
+from ..tts.service import audio_file_ok
 from .background import topup_in_background
 from .deps import book_or_404, get_conn
 
@@ -22,17 +23,19 @@ def _accepted(conn, book_id: int, idx: int) -> dict:
 
 
 @router.get("/chapters")
-def chapters(book_id: int, conn=Depends(get_conn)):
+def chapters(book_id: int, request: Request, conn=Depends(get_conn)):
     book_or_404(conn, book_id)
-    return [{"idx": c["idx"], "title": c["title"], "has_audio": c["has_audio"]}
+    settings = request.app.state.settings
+    return [{"idx": c["idx"], "title": c["title"], "has_audio": audio_file_ok(settings, c["audio_path"])}
             for c in repo.chapter_index(conn, book_id)]
 
 
 @router.get("/chapters/{idx}")
-def chapter(book_id: int, idx: int, conn=Depends(get_conn)):
+def chapter(book_id: int, idx: int, request: Request, conn=Depends(get_conn)):
     book_or_404(conn, book_id)
     ch = _accepted(conn, book_id, idx)
-    has_audio = repo.get_audio(conn, ch["id"]) is not None
+    rec = repo.get_audio(conn, ch["id"])
+    has_audio = audio_file_ok(request.app.state.settings, rec["path"] if rec else None)
     return {"idx": idx, "title": ch["title"], "body": ch["body"],
             "audio_url": f"/api/books/{book_id}/chapters/{idx}/audio" if has_audio else None}
 

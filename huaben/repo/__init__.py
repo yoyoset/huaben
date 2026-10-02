@@ -1,5 +1,5 @@
 """数据访问层:唯一的 SQL 入口。按聚合拆成子模块,对外仍以 `repo.xxx` 使用。"""
-from .audio import chapters_missing_audio, get_audio, set_audio
+from .audio import chapters_missing_audio, get_audio, set_audio, voiced_chapters
 from .books import create_book, get_bible, get_book, list_books, open_chapter, save_bible, update_book
 from .chapters import (accepted_chapters, buffered_ahead, chapter_index, count_accepted, create_chapter,
                        discard_unaccepted, get_chapter, next_chapter_idx, recent_chapters, update_chapter)
@@ -12,7 +12,7 @@ from .volumes import (active_volume, create_volume, get_volume, list_volumes, se
 
 __all__ = [
     "add_message", "list_messages",
-    "chapters_missing_audio", "get_audio", "set_audio",
+    "chapters_missing_audio", "get_audio", "set_audio", "voiced_chapters",
     "create_book", "get_bible", "get_book", "list_books", "open_chapter", "save_bible", "update_book",
     "accepted_chapters", "buffered_ahead", "chapter_index", "count_accepted", "create_chapter", "discard_unaccepted", "get_chapter",
     "next_chapter_idx", "recent_chapters", "update_chapter",

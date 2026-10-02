@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 
 from .. import foreshadow_report, repo, stats
+from ..tts.service import audio_file_ok
 from .deps import book_or_404, get_conn
 
 router = APIRouter(prefix="/api/books", tags=["books"])
@@ -45,10 +46,11 @@ def get_book(book_id: int, request: Request, conn=Depends(get_conn)):
 
 
 @router.get("/{book_id}/stats")
-def book_stats(book_id: int, conn=Depends(get_conn)):
+def book_stats(book_id: int, request: Request, conn=Depends(get_conn)):
     """可观测:单章平均成本/耗时、重写率、配音覆盖、失败分布(口径见 huaben/stats.py)。"""
     book_or_404(conn, book_id)
-    return stats.book_stats(conn, book_id)
+    settings = request.app.state.settings
+    return stats.book_stats(conn, book_id, audio_ok=lambda path: audio_file_ok(settings, path))
 
 
 @router.get("/{book_id}/foreshadows")

@@ -62,10 +62,21 @@ def ensure_chapter_audio(conn, tts: TTS, settings: Settings, chapter: dict, slee
     return dest
 
 
+def audio_file_ok(settings: Settings, relpath: str | None) -> bool:
+    """"可以播"以文件为准:数据库有记录但文件不在(例如只恢复了数据库备份)不算。"""
+    return bool(relpath) and (settings.audio_dir / relpath).is_file()
+
+
+def chapters_needing_audio(conn, settings: Settings, book_id: int) -> list[dict]:
+    """没登记音频的章 + 登记了但文件已丢失的章,按章序。"""
+    lost = [c for c in repo.voiced_chapters(conn, book_id) if not audio_file_ok(settings, c["audio_path"])]
+    return sorted(repo.chapters_missing_audio(conn, book_id) + lost, key=lambda c: c["idx"])
+
+
 def fill_audio(conn, tts: TTS, settings: Settings, book_id: int, sleep=time.sleep) -> tuple[int, str]:
-    """给所有缺音频的已定稿章配音(也补历史空缺)。遇到失败就停,返回 (已完成章数, 错误摘要)。"""
+    """给所有缺音频(含文件丢失)的已定稿章配音,也补历史空缺。遇到失败就停,返回 (已完成章数, 错误摘要)。"""
     done = 0
-    for ch in repo.chapters_missing_audio(conn, book_id):
+    for ch in chapters_needing_audio(conn, settings, book_id):
         try:
             ensure_chapter_audio(conn, tts, settings, ch, sleep)
         except TTSError as e:

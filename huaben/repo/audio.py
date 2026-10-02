@@ -23,3 +23,11 @@ def chapters_missing_audio(conn, book_id: int, quality: str = "basic") -> list[d
         (quality, book_id),
     ).fetchall()
     return [dict(r) for r in rows]
+
+
+def voiced_chapters(conn, book_id: int, quality: str = "basic") -> list[dict]:
+    """已登记音频的定稿章(章的全部列 + audio_path)。用来核对文件是否真的还在。"""
+    rows = conn.execute(
+        "SELECT c.*, a.path AS audio_path FROM chapters c JOIN audio a ON a.chapter_id=c.id AND a.quality=? "
+        "WHERE c.book_id=? AND c.status='accepted' ORDER BY c.idx", (quality, book_id)).fetchall()
+    return [dict(r) for r in rows]
