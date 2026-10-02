@@ -32,6 +32,16 @@ def test_drains_the_queue_then_reports_idle(tmp_path):
     assert c.get("/api/voice/status").json()["pending"] == 0
 
 
+def test_log_lines_the_launcher_reads(tmp_path, caplog):
+    """启动器窗口靠日志里的"开始配/配好"显示"正在配第几章、已配几章";措辞变了窗口就不准了。"""
+    s, conn, books, c = setup(tmp_path)
+    with caplog.at_level("INFO", logger="huaben_voice"):
+        run_once(VoiceClient(c), FakeEngine())
+    msgs = [r.getMessage() for r in caplog.records]
+    assert any(m.startswith("开始配 ") and "第 2 章" in m for m in msgs)
+    assert any("配好" in m for m in msgs)
+
+
 def test_token_is_sent(tmp_path):
     s, conn, books, c = setup(tmp_path, voice_worker_token="t0k")
     with pytest.raises(ServerError, match="401"):

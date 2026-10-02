@@ -20,6 +20,8 @@ def run_once(client: VoiceClient, engine: Engine) -> int:
         return 0
     job = jobs[0]
     t0 = time.monotonic()
+    # "开始配""配好""出错了""引擎就绪"这几个词是启动器(launcher/HuabenVoice.cs)判断状态的依据,改措辞要两边一起改
+    log.info("开始配 书 %s 第 %s 章《%s》(%d 字)", job["book_id"], job["idx"], job["title"], len(job["text"]))
     mp3 = engine.synthesize(job["text"])
     client.upload(job["book_id"], job["idx"], mp3)
     log.info("书 %s 第 %s 章《%s》配好:%d 字 → %.1f MB,用时 %.0f 秒", job["book_id"], job["idx"], job["title"],

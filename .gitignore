@@ -5,3 +5,6 @@ __pycache__/
 .env
 data/
 *.db
+pc_worker/HuabenVoice.exe
+pc_worker/HuabenVoice.ini
+pc_worker/logs/
