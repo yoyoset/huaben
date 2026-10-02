@@ -23,6 +23,9 @@ class LLMError(Exception):
         super().__init__(message)
         self.kind = kind
         self.status = status
+        # 失败也可能已经计费(典型:200 但正文为空,token 照扣)。记下来,让 pipeline_runs 与花费上限看得见
+        self.tokens_in = self.tokens_out = 0
+        self.cost_usd = 0.0
 
 
 def _http_kind(status: int) -> str:
@@ -40,8 +43,9 @@ def _http_kind(status: int) -> str:
 class LLMEmptyError(LLMError):
     """200 但正文为空(典型:思考吃光 max_tokens)。"""
 
-    def __init__(self, message: str):
+    def __init__(self, message: str, tokens_in: int = 0, tokens_out: int = 0, cost_usd: float = 0.0):
         super().__init__(message, kind="empty")
+        self.tokens_in, self.tokens_out, self.cost_usd = tokens_in, tokens_out, cost_usd
 
 
 @dataclass
@@ -84,19 +88,13 @@ def parse_response(data: dict, duration_ms: int) -> LLMResult:
         err = data.get("error") if isinstance(data, dict) else None
         raise LLMError(f"unexpected response shape: {err or data!r}"[:500]) from e
     usage = data.get("usage") or {}
+    tin, tout = int(usage.get("prompt_tokens") or 0), int(usage.get("completion_tokens") or 0)
+    cost = float(usage.get("cost") or 0.0)
     if not text.strip():
         raise LLMEmptyError(
-            f"empty content (finish_reason={choice.get('finish_reason')}, "
-            f"completion_tokens={usage.get('completion_tokens')})"
-        )
-    return LLMResult(
-        text=text,
-        tokens_in=int(usage.get("prompt_tokens") or 0),
-        tokens_out=int(usage.get("completion_tokens") or 0),
-        cost_usd=float(usage.get("cost") or 0.0),
-        duration_ms=duration_ms,
-        truncated=choice.get("finish_reason") == "length",
-    )
+            f"empty content (finish_reason={choice.get('finish_reason')}, completion_tokens={tout})", tin, tout, cost)
+    return LLMResult(text=text, tokens_in=tin, tokens_out=tout, cost_usd=cost, duration_ms=duration_ms,
+                     truncated=choice.get("finish_reason") == "length")
 
 
 _RETRY_STATUS = {408, 429, 500, 502, 503, 504}
@@ -122,7 +120,8 @@ class OpenRouterClient:
         payload = build_payload(self._s.llm_model, messages,
                                 max_tokens=max_tokens or self._s.chapter_max_tokens,
                                 temperature=temperature, json_mode=json_mode)
-        last: Exception | None = None
+        last: LLMError | None = None
+        wasted = LLMResult(text="")  # 被丢弃但已计费的尝试(空正文):计入最终结果或最终错误,不能凭空消失
         for attempt in range(self._retries + 1):
             if attempt:
                 self._sleep(2 ** attempt)
@@ -142,11 +141,20 @@ class OpenRouterClient:
             except ValueError as e:
                 raise LLMError(f"non-JSON response: {r.text[:200]}") from e
             try:
-                return parse_response(data, int((time.monotonic() - t0) * 1000))
-            except LLMEmptyError as e:  # 空正文偶发:同样重试
+                res = parse_response(data, int((time.monotonic() - t0) * 1000))
+            except LLMEmptyError as e:  # 空正文偶发:同样重试,但它的费用要留着
+                wasted.tokens_in += e.tokens_in
+                wasted.tokens_out += e.tokens_out
+                wasted.cost_usd += e.cost_usd
                 last = e
                 continue
-        raise last or LLMError("unknown failure")
+            res.tokens_in += wasted.tokens_in
+            res.tokens_out += wasted.tokens_out
+            res.cost_usd += wasted.cost_usd
+            return res
+        err = last or LLMError("unknown failure")
+        err.tokens_in, err.tokens_out, err.cost_usd = wasted.tokens_in, wasted.tokens_out, wasted.cost_usd
+        raise err
 
     def close(self) -> None:
         self._http.close()
