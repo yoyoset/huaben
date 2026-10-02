@@ -97,6 +97,22 @@ export const STEP_LABELS = {
   volume_plan: '卷规划', volume_seal: '封卷', opening: '开书对话', finalize: '开书定稿',
 };
 
+/**
+ * 读者要看的第 idx 章现在是什么状态(深链、书签、别的设备上的链接都会指向任意章号):
+ *  - 'ready'   已写好
+ *  - 'writing' 正是后台下一章要写的(紧接最新一章且后台在补货)→ 等它写好自动打开
+ *  - 'later'   还没写到,而且不会马上写:后台只比读者进度多备几章,读者没往下读就不会写到它 → 不空等
+ *  - 'missing' 章号不合法(< 1 或非整数)
+ * 章号是连续的(只有定稿章占号),所以"比最新一章小却不在列表里"不会出现,归入 missing 兜底。
+ */
+export function chapterAvailability(chapters, idx, generating) {
+  if (!Number.isInteger(idx) || idx < 1) return 'missing';
+  if (chapters.some((c) => c.idx === idx)) return 'ready';
+  const latest = chapters.reduce((m, c) => Math.max(m, c.idx), 0);
+  if (idx <= latest) return 'missing';
+  return idx === latest + 1 && generating ? 'writing' : 'later';
+}
+
 /** 一本书该去哪个页面:开书阶段去开书对话,连载中去阅读。书架、阅读页、开书页共用,避免各自判断不一致。 */
 export function bookHome(book) {
   return book.status === 'drafting' ? `#/opening/${book.id}` : `#/read/${book.id}`;

@@ -77,3 +77,16 @@ test('bookHome:开书阶段去对话,连载中去阅读', async () => {
   assert.equal(bookHome({ id: 3, status: 'drafting' }), '#/opening/3');
   assert.equal(bookHome({ id: 3, status: 'serializing' }), '#/read/3');
 });
+
+test('chapterAvailability:深链到任意章号时区分已写好/正在写/还早/不合法', async () => {
+  const { chapterAvailability: av } = await import('../js/logic.js');
+  const three = [{ idx: 1 }, { idx: 2 }, { idx: 3 }];
+  assert.equal(av(three, 2, true), 'ready');
+  assert.equal(av(three, 4, true), 'writing');   // 紧接最新一章,后台在补货 → 等
+  assert.equal(av(three, 4, false), 'later');    // 缓冲已满:读者没往下读就不会写它,不空等
+  assert.equal(av(three, 9, true), 'later');     // 隔了好几章,不是"下一章"
+  assert.equal(av([], 1, true), 'writing');      // 第一章
+  assert.equal(av(three, 0, true), 'missing');
+  assert.equal(av(three, 1.5, true), 'missing');
+  assert.equal(av([{ idx: 1 }, { idx: 3 }], 2, true), 'missing');
+});

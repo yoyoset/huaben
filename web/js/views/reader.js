@@ -1,8 +1,8 @@
 // 阅读:最近读到的章(或指定章)、目录、上/下章、"听这一章"。
-// 等待态(第一章还没写好 / 下一章还在写 / 语音还在准备)自动轮询刷新,不用读者手动刷新。
+// 等待态(要看的章还在写 / 下一章还在写 / 语音还在准备)自动轮询刷新,不用读者手动刷新。
 import { api } from '../api.js';
 import { fill, h, mount, setTopTitle } from '../dom.js';
-import { bookHome, chapterMark, nextChapter, paragraphs, prevChapter } from '../logic.js';
+import { bookHome, chapterAvailability, chapterMark, nextChapter, paragraphs, prevChapter } from '../logic.js';
 import { play } from '../player.js';
 import { poll } from '../poll.js';
 import { prefsToolbar } from '../reading_prefs.js';
@@ -22,9 +22,11 @@ export async function readerView(bookId, idxParam) {
     setTopTitle(book.title);
     // 开书阶段的书不会自己开始写:不要在这里空等"第一章",直接回到开书对话
     if (book.status === 'drafting') { location.replace(bookHome(book)); return; }
-    if (!chapters.length) return waiting(box, book, bookId);
     // 没指定章:接着上次打开的那章(last_opened;0 表示还没读过 → 第 1 章)
     const idx = idxParam ?? Math.max(1, book.last_opened);
+    // 先按目录判断这章在不在,而不是请求了再看 404:深链/书签可能指向还没写好的章,要等而不是报错
+    const state = chapterAvailability(chapters, idx, book.generating);
+    if (state !== 'ready') return notYet(box, book, bookId, idxParam, idx, state, chapters);
     const ch = await api.chapter(bookId, idx);
     api.openChapter(bookId, idx).catch(() => {});
     const prev = prevChapter(chapters, idx);
@@ -95,13 +97,28 @@ async function listen(bookId, idx, bookTitle, note) {
   }
 }
 
-function waiting(box, book, bookId) {
-  const hint = h('p', { class: 'muted' }, '第一章还在写,通常一两分钟,写好会自动打开。');
-  fill(box, h('h2', {}, book.title), errorBanner(book), hint,
-    h('button', { onclick: () => readerView(bookId) }, '立即刷新'));
-  poll(async () => {
-    if (!(await api.chapters(bookId)).length) return false;
-    readerView(bookId);
+/**
+ * 要看的章还不能看。只有"正在写"的那一章值得自动等;"还早"的章读者不往下读就不会写到,空等只会白白轮询。
+ * 重绘时沿用原来的 idxParam:没指定章号的入口(书架点进来)写好后仍走"接着上次读"的逻辑。
+ */
+function notYet(box, book, bookId, idxParam, idx, state, chapters) {
+  const latest = chapters.reduce((m, c) => Math.max(m, c.idx), 0);
+  const text = {
+    writing: `${idx === 1 ? '第一章' : `第${idx}章`}还在写,通常一两分钟,写好会自动打开。`,
+    later: `第${idx}章还没写到。后台只比你的阅读进度多备几章,往下读就会接着写。`,
+    missing: `没有第${idx}章。`,
+  }[state];
+  const hint = h('p', { class: 'muted' }, text);
+  let stopPoll = () => {};  // 手动刷新要先停掉本页的轮询,否则旧轮询和新页面的轮询会叠在一起
+  const links = state === 'writing'
+    ? [h('button', { onclick: () => { stopPoll(); readerView(bookId, idxParam); } }, '立即刷新')]
+    : [latest ? h('a', { class: 'btn primary', href: `#/read/${bookId}/${latest}` }, `去最新的第${latest}章`) : null,
+      h('a', { class: 'btn', href: `#/read/${bookId}` }, '回到上次读的地方')];
+  fill(box, h('h2', {}, book.title), errorBanner(book), hint, h('div', { class: 'row' }, links));
+  if (state !== 'writing') return;
+  stopPoll = poll(async () => {
+    if (!(await api.chapters(bookId)).some((c) => c.idx === idx)) return false;
+    readerView(bookId, idxParam);
     return true;
   }, { onGiveUp: () => { hint.textContent = '等得有点久了,后台可能遇到了问题。可以稍后点"立即刷新"再看。'; } });
 }
