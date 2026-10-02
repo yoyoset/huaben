@@ -2,6 +2,7 @@
 import { api } from '../api.js';
 import { h, mount, setTopTitle } from '../dom.js';
 import { bookHome } from '../logic.js';
+import { poll } from '../poll.js';
 
 const GREETING = '想看什么样的故事?可以说说题材、喜欢的作品,最好直接贴一段你最喜欢的文字——我会照着它的味道写。';
 
@@ -56,6 +57,7 @@ export async function openingView(bookId) {
       await api.finalize(bookId);
       location.hash = `#/read/${bookId}`;
     } catch (e) {
+      if (e.status === 409) return waitForOpening(bookId, finish); // 之前那次开书还在进行:等它,不算失败
       showErr(e.message); // 后端文案已写明"可以重试"
       finish.textContent = '开书';
       busy(false);
@@ -63,4 +65,15 @@ export async function openingView(bookId) {
   };
 
   mount(h('div', {}, chat, err, input, h('div', { class: 'row', style: 'margin-top:8px' }, send, finish)));
+}
+
+/** 已有一次开书在进行(比如开书中途离开又回来):轮询书的状态,开好了直接去阅读。 */
+function waitForOpening(bookId, finish) {
+  finish.textContent = '正在开书(之前那次还在进行)…';
+  poll(async () => {
+    const book = await api.book(bookId);
+    if (book.status === 'drafting') return false;
+    location.replace(bookHome(book));
+    return true;
+  }, { onGiveUp: () => { finish.textContent = '开书'; finish.disabled = false; } });
 }

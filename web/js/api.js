@@ -16,7 +16,7 @@ async function call(method, path, body) {
       const j = await res.json();
       if (typeof j.detail === 'string') detail = j.detail;
     } catch { /* 非 JSON 响应,用默认文案 */ }
-    throw new Error(detail);
+    throw Object.assign(new Error(detail), { status: res.status }); // status 供调用方区分(如 409 = 已在进行)
   }
   return res.json();
 }

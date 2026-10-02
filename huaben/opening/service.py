@@ -3,6 +3,9 @@
 - finalize_book:从对话抽出故事圣经、初始化账本人物、规划第 1 卷,最后才把书置为 serializing。
   按"缺什么补什么"设计,中途失败后重试不会重复劳动,也不会留下"半开"的连载书。
 """
+import threading
+from contextlib import contextmanager
+
 from .. import repo
 from ..config import Settings
 from ..db import tx
@@ -23,6 +26,29 @@ class OpeningError(Exception):
     pass
 
 
+class OpeningBusy(OpeningError):
+    """同一本书已有开书请求在进行中。"""
+
+
+# 开书约 1 分钟,期间离开再回来按钮会重新可点;没有锁时第二个请求会重复花钱整理圣经,
+# 规划第 1 卷时撞卷表唯一约束得到 500。对话与定稿共用一把锁:定稿期间补发的话也不会被漏进圣经。
+# 进程内锁(v0 单进程部署,与 scheduler 的书锁同一前提)。
+_locks: dict[int, threading.Lock] = {}
+_locks_guard = threading.Lock()
+
+
+@contextmanager
+def _busy_guard(book_id: int):
+    with _locks_guard:
+        lock = _locks.setdefault(book_id, threading.Lock())
+    if not lock.acquire(blocking=False):
+        raise OpeningBusy("这本书正在开书,请稍候片刻(通常一分钟内完成)")
+    try:
+        yield
+    finally:
+        lock.release()
+
+
 def style_samples_from(messages: list[dict]) -> list[str]:
     """样章必须是读者原文,不能让 LLM 转述(转述就丢了文风)—— 所以确定性地从对话里取。"""
     longs = [m["content"].strip() for m in messages if m["role"] == "user" and len(m["content"].strip()) >= SAMPLE_MIN_CHARS]
@@ -35,6 +61,11 @@ def transcript(messages: list[dict]) -> str:
 
 
 def opening_turn(conn, llm: LLM, book_id: int, user_text: str) -> dict:
+    with _busy_guard(book_id):
+        return _opening_turn(conn, llm, book_id, user_text)
+
+
+def _opening_turn(conn, llm: LLM, book_id: int, user_text: str) -> dict:
     book = repo.get_book(conn, book_id)
     if book is None:
         raise OpeningError("书不存在")
@@ -83,6 +114,11 @@ def _extract_bible(conn, llm: LLM, book_id: int, messages: list[dict]) -> None:
 
 
 def finalize_book(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
+    with _busy_guard(book_id):
+        return _finalize_book(conn, llm, settings, book_id)
+
+
+def _finalize_book(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
     book = repo.get_book(conn, book_id)
     if book is None:
         raise OpeningError("书不存在")

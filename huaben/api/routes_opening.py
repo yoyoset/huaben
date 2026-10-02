@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from .. import repo
 from ..human_errors import explain
 from ..llm import LLMError
-from ..opening.service import OpeningError, finalize_book, opening_turn
+from ..opening.service import OpeningBusy, OpeningError, finalize_book, opening_turn
 from ..pipeline.errors import ChapterFailed
 from .background import topup_in_background
 from .deps import book_or_404, get_conn, get_llm
@@ -29,6 +29,8 @@ def say(book_id: int, body: Say, conn=Depends(get_conn), llm=Depends(get_llm)):
     book_or_404(conn, book_id)
     try:
         return opening_turn(conn, llm, book_id, body.message)
+    except OpeningBusy as e:
+        raise HTTPException(409, str(e)) from e
     except OpeningError as e:
         raise HTTPException(400, str(e)) from e
     except LLMError as e:
@@ -40,6 +42,8 @@ def finalize(book_id: int, request: Request, tasks: BackgroundTasks, conn=Depend
     book_or_404(conn, book_id)
     try:
         book = finalize_book(conn, llm, request.app.state.settings, book_id)
+    except OpeningBusy as e:  # 409:前端据此等待已在进行的那次开书,而不是当作失败
+        raise HTTPException(409, str(e)) from e
     except OpeningError as e:
         raise HTTPException(400, str(e)) from e
     except (LLMError, ChapterFailed) as e:
