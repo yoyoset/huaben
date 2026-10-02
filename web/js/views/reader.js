@@ -103,8 +103,11 @@ async function listen(bookId, idx, bookTitle, note) {
  */
 function notYet(box, book, bookId, idxParam, idx, state, chapters) {
   const latest = chapters.reduce((m, c) => Math.max(m, c.idx), 0);
+  const label = idx === 1 ? '第一章' : `第${idx}章`;
   const text = {
-    writing: `${idx === 1 ? '第一章' : `第${idx}章`}还在写,通常一两分钟,写好会自动打开。`,
+    // 后台已报错时不说"通常一两分钟"——那会让读者以为只要再等等
+    writing: book.gen_error ? `${label}暂时写不了(原因见上),问题解决后会自动打开。`
+      : `${label}还在写,通常一两分钟,写好会自动打开。`,
     later: `第${idx}章还没写到。后台只比你的阅读进度多备几章,往下读就会接着写。`,
     missing: `没有第${idx}章。`,
   }[state];

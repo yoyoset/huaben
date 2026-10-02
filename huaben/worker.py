@@ -12,6 +12,7 @@ from typing import Callable
 from . import repo
 from .api.deps import ensure_llm
 from .db import connect
+from .human_errors import explain
 from .llm import LLMError
 from .scheduler import TopUpResult, top_up
 
@@ -63,6 +64,7 @@ class Worker:
             if not self._llm_missing:
                 log.warning("后台补货暂停:%s(配置好后会自动恢复)", e)
             self._llm_missing = True
+            self._show_blocked(explain(e))
             return results
         if self._llm_missing:
             log.info("LLM 已可用,后台补货恢复")
@@ -80,6 +82,21 @@ class Worker:
         finally:
             conn.close()
         return results
+
+    def _show_blocked(self, reason: str) -> None:
+        """没有可用的模型时,把原因写到**正在等文字**的书上(缓冲不满的连载书)。
+        此前只记一行日志,书页一直显示"还在写"直到轮询放弃,读者不知道是卡在了配置上。
+        缓冲已满的书暂时不受影响,不打扰;模型恢复后第一次补货会用结果覆盖(成功即清空)。"""
+        conn = connect(self._state.settings.db_path, check_same_thread=False)
+        try:
+            for b in repo.list_books(conn):
+                if (b["status"] == "serializing" and b["gen_error"] != reason
+                        and repo.buffered_ahead(conn, b["id"]) < self._state.settings.buffer_chapters):
+                    repo.update_book(conn, b["id"], gen_error=reason)
+        except Exception:  # noqa: BLE001 —— 写提示失败不能让后台线程死掉
+            log.exception("写入'模型不可用'提示失败")
+        finally:
+            conn.close()
 
     def _tick_book(self, conn, llm, book_id: int) -> TopUpResult | None:
         text_ok = self._backoff.ready(book_id)
