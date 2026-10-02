@@ -67,3 +67,10 @@ def unpriced_calls(conn, book_id: int | None = None, hours: int | None = None) -
         where.append("created_at >= datetime('now', ?)")
         args.append(f"-{hours} hours")
     return conn.execute(f"SELECT COUNT(*) FROM pipeline_runs WHERE {' AND '.join(where)}", args).fetchone()[0]
+
+
+def spent_usd(conn, hours: int) -> float:
+    """过去 hours 小时、全部书合计的模型花费。"""
+    return conn.execute(
+        "SELECT COALESCE(SUM(cost_usd), 0) FROM pipeline_runs WHERE created_at >= datetime('now', ?)",
+        (f"-{hours} hours",)).fetchone()[0]

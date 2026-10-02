@@ -54,9 +54,7 @@ def load_context(conn, book_id: int, recent_n: int = 3) -> StoryContext:
 
 def _volume_facts(conn, book_id: int) -> list[dict]:
     """尚未封卷部分确立的事实。已封卷的在封卷时并入了圣经的世界设定定本(canon),不再逐条带。"""
-    sealed_upto = conn.execute(
-        "SELECT COALESCE(MAX(c.idx), 0) FROM chapters c JOIN volumes v ON v.id = c.volume_id "
-        "WHERE v.book_id=? AND v.status='sealed' AND c.status='accepted'", (book_id,)).fetchone()[0]
+    sealed_upto = repo.last_sealed_chapter_idx(conn, book_id)
     return [f for f in repo.list_facts(conn, book_id) if f["established_ch"] > sealed_upto]
 
 

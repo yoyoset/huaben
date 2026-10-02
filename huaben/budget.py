@@ -8,6 +8,7 @@ BudgetExceeded(属于 LLMError,沿用现有的"写进 gen_error + 退避"路径,
 """
 import logging
 
+from . import repo
 from .db import connect
 from .llm import LLM, LLMError, LLMResult
 
@@ -22,9 +23,7 @@ class BudgetExceeded(LLMError):
 
 
 def spent_recently(conn, hours: int = WINDOW_HOURS) -> float:
-    return conn.execute(
-        "SELECT COALESCE(SUM(cost_usd), 0) FROM pipeline_runs WHERE created_at >= datetime('now', ?)",
-        (f"-{hours} hours",)).fetchone()[0]
+    return repo.spent_usd(conn, hours)
 
 
 class BudgetGuard:

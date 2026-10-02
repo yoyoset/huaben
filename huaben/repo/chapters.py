@@ -90,3 +90,25 @@ def buffered_ahead(conn, book_id: int) -> int:
         "WHERE c.book_id=? AND c.status='accepted' AND c.idx > b.read_pos", (book_id,)
     ).fetchone()
     return r[0]
+
+
+def last_sealed_chapter_idx(conn, book_id: int) -> int:
+    """已封卷部分的最后一章序号(还没封过卷为 0)。之后确立的事实才需要逐条带进 prompt。"""
+    return conn.execute(
+        "SELECT COALESCE(MAX(c.idx), 0) FROM chapters c JOIN volumes v ON v.id = c.volume_id "
+        "WHERE v.book_id=? AND v.status='sealed' AND c.status='accepted'", (book_id,)).fetchone()[0]
+
+
+def volume_chapter_ranges(conn, book_id: int) -> dict[int, tuple[int, int]]:
+    """卷 id → (该卷第一章, 最后一章),只算定稿章;还没写章的卷没有条目。"""
+    return {r["volume_id"]: (r["lo"], r["hi"]) for r in conn.execute(
+        "SELECT volume_id, MIN(idx) AS lo, MAX(idx) AS hi FROM chapters "
+        "WHERE book_id=? AND status='accepted' GROUP BY volume_id", (book_id,))}
+
+
+def attempt_stats(conn, book_id: int) -> dict:
+    """定稿章的平均稿数,以及写了不止一稿的章数(重写率的分子)。"""
+    r = conn.execute(
+        "SELECT COALESCE(AVG(attempts),0) AS avg, COALESCE(SUM(attempts > 1),0) AS rewritten "
+        "FROM chapters WHERE book_id=? AND status='accepted'", (book_id,)).fetchone()
+    return {"avg": r["avg"], "rewritten": r["rewritten"]}

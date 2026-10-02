@@ -44,8 +44,6 @@ def build_report(volumes: list[dict], ranges: dict[int, tuple[int, int]], foresh
 
 
 def load(conn, book_id: int) -> dict:
-    ranges = {r["volume_id"]: (r["lo"], r["hi"]) for r in conn.execute(
-        "SELECT volume_id, MIN(idx) AS lo, MAX(idx) AS hi FROM chapters "
-        "WHERE book_id=? AND status='accepted' GROUP BY volume_id", (book_id,))}
-    return build_report(repo.list_volumes(conn, book_id), ranges, repo.list_foreshadows(conn, book_id),
+    return build_report(repo.list_volumes(conn, book_id), repo.volume_chapter_ranges(conn, book_id),
+                        repo.list_foreshadows(conn, book_id),
                         repo.next_chapter_idx(conn, book_id) - 1)

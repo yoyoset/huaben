@@ -18,9 +18,7 @@ def book_stats(conn, book_id: int, audio_ok=lambda path: path is not None) -> di
     """audio_ok:判断音频文件是否真的可播(API 层传入按文件核对的函数;默认只看数据库登记)。"""
     t = repo.run_totals(conn, book_id)
     n = repo.count_accepted(conn, book_id)
-    att = conn.execute(
-        "SELECT COALESCE(AVG(attempts),0) AS avg, COALESCE(SUM(attempts > 1),0) AS rewritten "
-        "FROM chapters WHERE book_id=? AND status='accepted'", (book_id,)).fetchone()
+    att = repo.attempt_stats(conn, book_id)
     voiced = sum(1 for c in repo.chapter_index(conn, book_id) if audio_ok(c["audio_path"]))
     return {
         "chapters": n,
