@@ -43,6 +43,41 @@ def test_round_voices_from_reading_position_and_stops_at_limit(conn, tmp_path):
     assert voiced_order(tts)[limit:2 * limit] == [29, 30, 24, 23][:limit]  # 先补完往后的,再往回补
 
 
+class RecordingTTS(FakeTTS):
+    """记下每次合成时模型已被调用了几次,用来判断配音与写章的先后。"""
+
+    def __init__(self, llm, **kw):
+        super().__init__(**kw)
+        self.llm, self.llm_calls_at = llm, []
+
+    def synthesize(self, text):
+        self.llm_calls_at.append(len(self.llm.calls))
+        return super().synthesize(text)
+
+
+def test_new_book_first_chapter_is_voiced_before_the_rest_are_written(conn, tmp_path):
+    from test_scheduler import PLAN, chapter_replies, serializing_book
+    s = Settings(openrouter_api_key="x", chapter_words=1, buffer_chapters=3, data_dir=tmp_path, _env_file=None)
+    bid = serializing_book(conn)
+    llm = FakeLLM([PLAN] + chapter_replies(3))
+    tts = RecordingTTS(llm)
+    res = top_up(conn, llm, s, bid, tts=tts)
+    assert res.generated == 3 and voiced_order(tts) == [1, 2, 3]
+    # 卷规划 1 次 + 每章 3 次(章纲/正文/入账):第 1 章在第 4 次调用后就配音,而不是等 10 次全写完
+    assert tts.llm_calls_at == [4, 7, 10]
+
+
+def test_voicing_failure_mid_round_does_not_stop_text(conn, tmp_path):
+    from test_scheduler import PLAN, chapter_replies, serializing_book
+    s = Settings(openrouter_api_key="x", chapter_words=1, buffer_chapters=3, data_dir=tmp_path,
+                 tts_retries=0, _env_file=None)
+    bid = serializing_book(conn)
+    tts = FakeTTS(always_fail=True)
+    res = top_up(conn, FakeLLM([PLAN] + chapter_replies(3)), s, bid, tts=tts)
+    assert res.generated == 3 and "配音失败" in res.audio_error
+    assert len(tts.calls) == 1  # 失败后本轮不再反复尝试,留给配音退避
+
+
 def test_round_limit_covers_a_full_buffer_plus_current_chapter():
     s = Settings(openrouter_api_key="x", chapter_words=1, buffer_chapters=3, _env_file=None)
     assert audio_round_limit(s) == 4  # 正常连载时一轮最多新增"缓冲章数"章 + 正在听的这章,不会被上限拖慢
