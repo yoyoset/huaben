@@ -16,4 +16,7 @@ MIGRATIONS: list[str] = [
     "ALTER TABLE bibles ADD COLUMN canon TEXT NOT NULL DEFAULT '';",
     # 3: 圣经是根据前多少条开书对话整理的。开书失败后用户又补充了对话,重试时据此重新整理,而不是沿用旧圣经
     "ALTER TABLE bibles ADD COLUMN extracted_msgs INTEGER NOT NULL DEFAULT 0;",
+    # 4: 最后打开的章(续读位置)。read_pos 从此只表示"读到的最远章",只增不减,预生成缓冲以它为准;
+    #    翻回前面重读只改 last_opened,不会让缓冲误以为读者退回去了
+    "ALTER TABLE books ADD COLUMN last_opened INTEGER NOT NULL DEFAULT 0;",
 ]

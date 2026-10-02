@@ -15,7 +15,9 @@ class NewBook(BaseModel):
 def book_view(conn, b: dict) -> dict:
     return {
         "id": b["id"], "title": b["title"], "genre": b["genre"], "status": b["status"],
-        "read_pos": b["read_pos"], "synopsis": b["synopsis"],
+        "read_pos": b["read_pos"],        # 读到的最远章
+        "last_opened": b["last_opened"],  # 续读位置(最后打开/播放的章)
+        "synopsis": b["synopsis"],
         "ready_chapters": len(repo.accepted_chapters(conn, b["id"])),
         "buffered_ahead": repo.buffered_ahead(conn, b["id"]),
         "gen_error": b["gen_error"],  # 非空 = 后台生成遇到问题,界面应提示

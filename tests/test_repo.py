@@ -92,3 +92,12 @@ def test_cascade_delete_book(conn):
     conn.execute("DELETE FROM books WHERE id=?", (bid,))
     assert conn.execute("SELECT COUNT(*) FROM chapters").fetchone()[0] == 0
     assert conn.execute("SELECT COUNT(*) FROM ledger_facts").fetchone()[0] == 0
+
+
+def test_open_chapter_tracks_furthest_and_last_opened(conn):
+    bid = repo.create_book(conn, "x")
+    assert repo.open_chapter(conn, bid, 3) is True
+    assert repo.open_chapter(conn, bid, 1) is False   # 往回翻:最远进度不动
+    b = repo.get_book(conn, bid)
+    assert (b["read_pos"], b["last_opened"]) == (3, 1)
+    assert repo.open_chapter(conn, bid, 4) is True

@@ -10,6 +10,14 @@ def create_book(conn, title: str, genre: str = "") -> int:
     return cur.lastrowid
 
 
+def open_chapter(conn, book_id: int, idx: int) -> bool:
+    """读者打开/播放了第 idx 章:续读位置 = idx;最远进度只增不减。返回最远进度是否前进了。"""
+    before = conn.execute("SELECT read_pos FROM books WHERE id=?", (book_id,)).fetchone()[0]
+    conn.execute("UPDATE books SET last_opened=?, read_pos=MAX(read_pos, ?) WHERE id=?", (idx, idx, book_id))
+    conn.commit()
+    return idx > before
+
+
 def get_book(conn, book_id: int) -> dict | None:
     return row(conn.execute("SELECT * FROM books WHERE id=?", (book_id,)).fetchone())
 
@@ -19,7 +27,7 @@ def list_books(conn) -> list[dict]:
 
 
 def update_book(conn, book_id: int, *, commit: bool = True, **fields) -> None:
-    allowed = {"title", "genre", "synopsis", "status", "read_pos", "gen_error"}
+    allowed = {"title", "genre", "synopsis", "status", "read_pos", "last_opened", "gen_error"}
     bad = set(fields) - allowed
     if bad:
         raise ValueError(f"unknown book fields: {bad}")

@@ -30,5 +30,5 @@ export const api = {
   finalize: (id) => call('POST', `/api/books/${id}/finalize`),
   chapters: (id) => call('GET', `/api/books/${id}/chapters`),
   chapter: (id, idx) => call('GET', `/api/books/${id}/chapters/${idx}`),
-  setProgress: (id, readPos) => call('PUT', `/api/books/${id}/progress`, { read_pos: readPos }),
+  openChapter: (id, chapter) => call('PUT', `/api/books/${id}/progress`, { chapter }),
 };

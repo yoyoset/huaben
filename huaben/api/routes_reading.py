@@ -11,7 +11,7 @@ router = APIRouter(prefix="/api/books/{book_id}", tags=["reading"])
 
 
 class Progress(BaseModel):
-    read_pos: int = Field(ge=0)
+    chapter: int = Field(ge=1)  # 刚打开/开始播放的章
 
 
 def _accepted(conn, book_id: int, idx: int) -> dict:
@@ -50,11 +50,11 @@ def audio(book_id: int, idx: int, request: Request, conn=Depends(get_conn)):
 
 @router.put("/progress")
 def progress(book_id: int, body: Progress, request: Request, tasks: BackgroundTasks, conn=Depends(get_conn)):
+    """记录读者打开/播放了哪一章。续读位置随之变化;最远进度只增不减(翻回去重读不影响预生成)。"""
     book = book_or_404(conn, book_id)
-    last = max((c["idx"] for c in repo.accepted_chapters(conn, book_id)), default=0)
-    if body.read_pos > last:
-        raise HTTPException(400, f"最多只能读到第 {last} 章")
-    repo.update_book(conn, book_id, read_pos=body.read_pos)
-    if book["status"] == "serializing":  # 读者往前读了 → 缓冲变薄 → 后台补货
+    _accepted(conn, book_id, body.chapter)  # 只能是已写好的章
+    advanced = repo.open_chapter(conn, book_id, body.chapter)
+    if advanced and book["status"] == "serializing":  # 读到了新的地方 → 缓冲变薄 → 后台补货
         tasks.add_task(topup_in_background, request.app.state, book_id)
-    return {"read_pos": body.read_pos}
+    b = repo.get_book(conn, book_id)
+    return {"read_pos": b["read_pos"], "last_opened": b["last_opened"]}

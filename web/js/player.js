@@ -56,7 +56,7 @@ export async function play(bookId, idx, bookTitle) {
   status('');
   updateMediaSession();
   await audio.play();
-  api.setProgress(bookId, idx).catch(() => {}); // 进度上报失败不影响播放
+  api.openChapter(bookId, idx).catch(() => {}); // 进度上报失败不影响播放
   emit();
   return true;
 }

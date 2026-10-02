@@ -111,11 +111,28 @@ def test_progress_validates_and_triggers_refill(tmp_path):
     bid = open_book(c)
     c.post(f"/api/books/{bid}/opening", json={"message": "x"})
     c.post(f"/api/books/{bid}/finalize")
-    assert c.put(f"/api/books/{bid}/progress", json={"read_pos": 5}).status_code == 400  # 没写到那章
-    assert c.put(f"/api/books/{bid}/progress", json={"read_pos": -1}).status_code == 422
-    llm._replies += [OUTLINE, "二", LEDGER]  # 读完第 1 章 → 缓冲变空 → 补第 2 章
-    assert c.put(f"/api/books/{bid}/progress", json={"read_pos": 1}).json() == {"read_pos": 1}
+    assert c.put(f"/api/books/{bid}/progress", json={"chapter": 5}).status_code == 404  # 没写到那章
+    assert c.put(f"/api/books/{bid}/progress", json={"chapter": 0}).status_code == 422
+    llm._replies += [OUTLINE, "二", LEDGER]  # 打开第 1 章 → 最远进度前进 → 缓冲变空 → 补第 2 章
+    assert c.put(f"/api/books/{bid}/progress", json={"chapter": 1}).json() == {"read_pos": 1, "last_opened": 1}
     assert c.get(f"/api/books/{bid}").json()["ready_chapters"] == 2
+
+
+def test_rereading_earlier_chapter_does_not_rewind_progress(tmp_path):
+    """边听第 2 章边翻回第 1 章看:续读位置变成 1,但最远进度仍是 2,不触发补货、不误判缓冲。"""
+    replies = [GUIDE, BIBLE, PLAN, OUTLINE, "一", LEDGER]
+    c, llm = make_client(tmp_path, replies)
+    bid = open_book(c)
+    c.post(f"/api/books/{bid}/opening", json={"message": "x"})
+    c.post(f"/api/books/{bid}/finalize")
+    llm._replies += [OUTLINE, "二", LEDGER, OUTLINE, "三", LEDGER]
+    c.put(f"/api/books/{bid}/progress", json={"chapter": 1})
+    c.put(f"/api/books/{bid}/progress", json={"chapter": 2})
+    calls = len(llm.calls)
+    assert c.put(f"/api/books/{bid}/progress", json={"chapter": 1}).json() == {"read_pos": 2, "last_opened": 1}
+    assert len(llm.calls) == calls  # 往回翻不触发补货
+    book = c.get(f"/api/books/{bid}").json()
+    assert book["read_pos"] == 2 and book["last_opened"] == 1
 
 
 def test_missing_llm_key_gives_503_not_500(tmp_path):

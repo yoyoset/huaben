@@ -13,10 +13,10 @@ export async function readerView(bookId, idxParam) {
     const [book, chapters] = await Promise.all([api.book(bookId), api.chapters(bookId)]);
     setTopTitle(book.title);
     if (!chapters.length) return waiting(box, book, bookId);
-    // 没指定章:接着上次读的那章(read_pos 是已读到的章,0 表示还没读过 → 第 1 章)
-    const idx = idxParam ?? Math.max(1, book.read_pos);
+    // 没指定章:接着上次打开的那章(last_opened;0 表示还没读过 → 第 1 章)
+    const idx = idxParam ?? Math.max(1, book.last_opened);
     const ch = await api.chapter(bookId, idx);
-    api.setProgress(bookId, idx).catch(() => {});
+    api.openChapter(bookId, idx).catch(() => {});
     const prev = prevChapter(chapters, idx);
     const next = nextChapter(chapters, idx);
     const note = h('p', { class: 'muted' }); // 底部一行提示位,供 listen 回显
