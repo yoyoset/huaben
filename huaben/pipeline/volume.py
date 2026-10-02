@@ -40,13 +40,17 @@ def plan_volume(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
 
 
 def seal_volume(conn, llm: LLM, settings: Settings, book_id: int, volume: dict) -> None:
-    """封卷:卷摘要 + 刷新全书梗概,在一个事务里写入。"""
+    """封卷:卷摘要 + 刷新全书梗概 + 并入世界设定定本,在一个事务里写入。"""
     ctx = load_context(conn, book_id, settings.recent_chapters_in_prompt)
     chapters = repo.accepted_chapters(conn, book_id, volume["id"])
-    sealed = _ask(conn, llm, book_id, "volume_seal", volume_prompts.seal_messages(ctx, volume, chapters), parse_seal)
-    with tx(conn):
+    need_canon = bool(ctx.facts or (ctx.bible or {}).get("canon"))
+    sealed = _ask(conn, llm, book_id, "volume_seal", volume_prompts.seal_messages(ctx, volume, chapters),
+                  lambda text: parse_seal(text, canon_required=need_canon))
+    with tx(conn):  # 卷摘要 + 全书梗概 + 世界设定定本 同一事务
         repo.seal_volume(conn, volume["id"], sealed["volume_summary"], commit=False)
         repo.update_book(conn, book_id, synopsis=sealed["synopsis"], commit=False)
+        if sealed["canon"]:
+            repo.save_bible(conn, book_id, canon=sealed["canon"], commit=False)
 
 
 def ensure_active_volume(conn, llm: LLM, settings: Settings, book_id: int) -> dict:

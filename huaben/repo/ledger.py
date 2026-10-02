@@ -49,7 +49,10 @@ def list_foreshadows(conn, book_id: int, open_only: bool = False) -> list[dict]:
     return [dict(r) for r in conn.execute(q + " ORDER BY planted_ch, id", (book_id,))]
 
 
-def add_fact(conn, book_id: int, fact: str, established_ch: int, commit: bool = True) -> int:
+def add_fact(conn, book_id: int, fact: str, established_ch: int, commit: bool = True) -> int | None:
+    """同一本书里一字不差的事实只记一次(重复登记会把真正新的事实挤出 prompt)。重复时返回 None。"""
+    if conn.execute("SELECT 1 FROM ledger_facts WHERE book_id=? AND fact=?", (book_id, fact)).fetchone():
+        return None
     cur = conn.execute(
         "INSERT INTO ledger_facts(book_id,fact,established_ch) VALUES (?,?,?)", (book_id, fact, established_ch)
     )

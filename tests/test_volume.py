@@ -91,3 +91,18 @@ def test_second_volume_plan_sees_sealed_summary(conn, book):
     ensure_active_volume(conn, llm, S, book)
     plan_prompt = llm.calls[1][-1]["content"]
     assert "主角入了宗门。" in plan_prompt and "新梗概:入门完成。" in plan_prompt
+
+
+def test_seal_with_facts_requires_canon_and_saves_it(conn, book):
+    v = plan_volume(conn, FakeLLM([plan_json()]), S, book)
+    fill(conn, book, v["id"], 5)
+    repo.add_fact(conn, book, "后山有井", 2)
+    with pytest.raises(ChapterFailed):  # 有事实却给空定本:拒绝,否则封卷后这条事实会从 prompt 消失
+        seal_volume(conn, FakeLLM([SEAL, SEAL]), S, book, v)
+    assert repo.get_volume(conn, v["id"])["status"] == "active"
+    with_canon = json.dumps({"volume_summary": "卷摘要", "synopsis": "梗概", "canon": ["后山有井", "宗门禁夜行"]},
+                            ensure_ascii=False)
+    llm = FakeLLM([with_canon])
+    seal_volume(conn, llm, S, book, v)
+    assert repo.get_bible(conn, book)["canon"] == "后山有井\n宗门禁夜行"  # 数组形式被规整成每行一条
+    assert "后山有井" in llm.calls[0][-1]["content"]  # 封卷时编辑看得到本卷事实

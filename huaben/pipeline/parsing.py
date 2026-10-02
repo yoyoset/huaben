@@ -33,9 +33,18 @@ def parse_volume_plan(text: str) -> dict:
     return d
 
 
-def parse_seal(text: str) -> dict:
+def parse_seal(text: str, canon_required: bool = False) -> dict:
+    """canon_required:旧定本或本卷事实非空时,新定本不能为空——否则封卷后这些事实会从 prompt 里消失。"""
     d = extract_json(text)
     for k in ("volume_summary", "synopsis"):
         if not need(d, k, str).strip():
             raise ParseError(f"empty {k}")
+    canon = d.get("canon")
+    if isinstance(canon, list):  # 模型常把"每行一条"给成数组
+        canon = "\n".join(str(x).strip() for x in canon if str(x).strip())
+    if canon is not None and not isinstance(canon, str):
+        raise ParseError("canon 不是文本")
+    d["canon"] = (canon or "").strip()
+    if canon_required and not d["canon"]:
+        raise ParseError("canon 为空,会丢失已确立的世界事实")
     return d

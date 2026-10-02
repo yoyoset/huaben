@@ -45,18 +45,31 @@ def test_select_ledger_core_always_noncore_by_outline(conn, book):
     assert names(select_ledger(chars, [], "阿蘅出场")) == {"沈照", "阿蘅"}
 
 
-def test_select_ledger_caps_facts():
-    facts = [{"fact": f"f{i}", "established_ch": i} for i in range(100)]
-    _, kept = select_ledger([], facts)
-    assert len(kept) == 40 and kept[-1]["fact"] == "f99"
+def test_facts_are_not_truncated_and_sealed_ones_come_via_canon(conn, book):
+    """不再按条数截断(会先丢最早、最根本的事实):往卷事实走定本,本卷事实逐条全带。"""
+    for i in range(3, 6):
+        for k in range(30):
+            repo.add_fact(conn, book, f"第{i}章事实{k}", i)
+    repo.save_bible(conn, book, canon="太玄宗禁夜行(定本)")
+    ctx = load_context(conn, book)
+    assert len(ctx.facts) == 90 and all(f["established_ch"] >= 3 for f in ctx.facts)  # 卷 1(第1~2章)的不在
+    out = render_memory(ctx)
+    assert "太玄宗禁夜行(定本)" in out and "第3章事实0" in out and "第5章事实29" in out
+
+
+def test_duplicate_fact_recorded_once(conn, book):
+    assert repo.add_fact(conn, book, "后山有井", 3) is not None
+    assert repo.add_fact(conn, book, "后山有井", 4) is None
+    assert [f["fact"] for f in repo.list_facts(conn, book)].count("后山有井") == 1
 
 
 def test_render_memory_contains_all_layers(conn, book):
     out = render_memory(load_context(conn, book, recent_n=2), scope="阿蘅出场")
     for needle in ["少年入宗门", "第1卷:主角入了太玄宗", "下山", "离宗→遇险", "第3章《T3》:摘要3",
-                   "沈照(存活)", "阿蘅(存活)", "玉佩发烫", "太玄宗禁夜行"]:
+                   "沈照(存活)", "阿蘅(存活)", "玉佩发烫"]:
         assert needle in out, needle
     assert "摘要1" not in out  # 封卷后旧卷章摘要不再进 prompt
+    assert "太玄宗禁夜行" not in out  # 第 1 章(已封卷)的事实不逐条带;它应已并入定本
 
 
 def test_dead_character_stays_visible_when_in_outline(conn, book):

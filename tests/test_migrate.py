@@ -29,7 +29,7 @@ def test_upgrade_preserves_data_and_takes_premigrate_backup(tmp_path):
     path = tmp_path / "a.db"
     conn = connect(path)
     repo.create_book(conn, "诡仙")
-    assert migrate(conn, MIGRATIONS + [ADD_COVER]) == 2
+    assert migrate(conn, MIGRATIONS + [ADD_COVER]) == len(MIGRATIONS) + 1
     assert conn.execute("SELECT title, cover FROM books").fetchone()[:] == ("诡仙", "")  # 数据还在,新列有默认值
     backups = list((tmp_path / "premigrate").glob("huaben-*.db"))
     assert len(backups) == 1
@@ -77,4 +77,4 @@ def test_pre_migration_dev_database_is_stamped_not_rebuilt(tmp_path):
 
 def test_in_memory_db_migrates_without_backup():
     conn = connect(":memory:")
-    assert migrate(conn, MIGRATIONS + [ADD_COVER]) == 2  # 内存库没有文件可备份,也不应报错
+    assert migrate(conn, MIGRATIONS + [ADD_COVER]) == len(MIGRATIONS) + 1  # 内存库没有文件可备份,也不应报错

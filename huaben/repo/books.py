@@ -32,7 +32,7 @@ def update_book(conn, book_id: int, *, commit: bool = True, **fields) -> None:
 
 
 _BIBLE_JSON = {"characters", "style_samples", "taboos"}
-_BIBLE_TEXT = {"world", "style_fingerprint"}
+_BIBLE_TEXT = {"world", "style_fingerprint", "canon"}
 
 
 def get_bible(conn, book_id: int) -> dict | None:

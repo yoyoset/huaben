@@ -101,3 +101,14 @@ def test_observability_covers_every_step(world):
     assert {"outline", "write", "ledger", "check", "volume_plan", "volume_seal"} <= steps
     assert llm.steps.count("volume_seal") == 3 and llm.steps.count("volume_plan") == 4
     assert repo.buffered_ahead(conn, bid) == N
+
+
+def test_world_facts_survive_volume_seals_via_canon(world):
+    """第 1 章确立的事实到第 35 章仍在 prompt 里(经定本),本卷的事实逐条在;不再按条数截断丢掉最早的。"""
+    conn, bid, llm = world
+    p = llm.write_prompts[35]
+    canon_part = p.split("【账本·世界设定定本")[1].split("【账本·本卷新确立的事实】")[0]
+    assert "第1章确立的事实" in canon_part and "第30章确立的事实" in canon_part
+    current_part = p.split("【账本·本卷新确立的事实】")[1]
+    assert "第34章确立的事实" in current_part and "第30章确立的事实" not in current_part
+    assert repo.get_bible(conn, bid)["canon"].count("确立的事实") == 30  # 3 次封卷,每次并入一卷

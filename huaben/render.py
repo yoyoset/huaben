@@ -70,7 +70,10 @@ def render_memory(ctx: StoryContext, scope: str = "") -> str:
         [f"- #{f['id']} 第{f['planted_ch']}章埋:{f['content']}"
          + (f"(计划:{f['payoff_plan']})" if f["payoff_plan"] else "")
          + f" [{f['status']}]" for f in ctx.foreshadows]))
-    parts.append("【账本·已确立的世界事实】\n" + _lines([f"- {f['fact']}" for f in facts]))
+    canon = (ctx.bible or {}).get("canon") or ""
+    if canon:  # 往卷确立的事实在封卷时合并成定本;不截断,不会悄悄丢掉最早、最根本的设定
+        parts.append(f"【账本·世界设定定本(往卷已确立,以此为准)】\n{canon}")
+    parts.append("【账本·本卷新确立的事实】\n" + _lines([f"- {f['fact']}" for f in facts]))
     return "\n\n".join(parts)
 
 

@@ -12,7 +12,8 @@ PLAN_SCHEMA = """{
 
 SEAL_SCHEMA = """{
   "volume_summary": "本卷摘要,一段话(150~300 字):发生了什么、人物关系与力量格局的变化、留下的悬念",
-  "synopsis": "更新后的全书梗概(300~600 字):这是什么故事、至今走到哪了"
+  "synopsis": "更新后的全书梗概(300~600 字):这是什么故事、至今走到哪了",
+  "canon": "更新后的世界设定定本:把旧定本与本卷新确立的事实合并,去重、删掉已被剧情推翻的,要点式,每行一条"
 }"""
 
 _SYSTEM = "你是长篇连载小说的责任编辑。严格只输出 JSON,不要任何解释或代码围栏。"
@@ -30,10 +31,14 @@ def plan_messages(ctx: StoryContext, idx: int) -> list[dict]:
 
 def seal_messages(ctx: StoryContext, volume: dict, chapters: list[dict]) -> list[dict]:
     summaries = "\n".join(f"第{c['idx']}章《{c['title']}》:{c['summary']}" for c in chapters)
+    facts = "\n".join(f"- {f['fact']}" for f in ctx.facts) or "(无)"
     user = (
         f"【旧全书梗概】\n{ctx.book.get('synopsis') or '(尚无)'}\n\n"
+        f"【旧世界设定定本】\n{(ctx.bible or {}).get('canon') or '(尚无)'}\n\n【本卷新确立的事实】\n{facts}\n\n"
         f"【本卷(第{volume['idx']}卷)目标】{volume['goal']}\n【本卷章摘要】\n{summaries}\n\n"
-        "本卷已经写完,请封卷:压缩成卷摘要,并把这一卷融入全书梗概。保留会影响后续的事实、人物状态变化和悬念。\n"
+        "本卷已经写完,请封卷:压缩成卷摘要,把这一卷融入全书梗概,并把本卷新事实并入世界设定定本"
+        "(定本之后会替代这些事实逐条进入写作 prompt,所以不能漏掉仍然成立的事实)。"
+        "保留会影响后续的事实、人物状态变化和悬念。\n"
         f"只输出如下结构的 JSON:\n{SEAL_SCHEMA}"
     )
     return [{"role": "system", "content": _SYSTEM}, {"role": "user", "content": user}]

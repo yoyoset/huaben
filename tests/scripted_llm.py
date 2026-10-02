@@ -32,7 +32,11 @@ class ScriptedLLM:
         if "请封卷" in user:
             self.steps.append("volume_seal")
             k = int(re.search(r"本卷\(第(\d+)卷\)目标", user)[1])
-            return self._r(_j({"volume_summary": f"第{k}卷摘要", "synopsis": f"梗概至第{k}卷"}))
+            old = re.search(r"【旧世界设定定本】\n(.*?)\n\n", user, re.S)[1]
+            facts = re.search(r"【本卷新确立的事实】\n(.*?)\n\n", user, re.S)[1]
+            merged = [x for x in old.splitlines() if x != "(尚无)"] + [x for x in facts.splitlines() if x != "(无)"]
+            return self._r(_j({"volume_summary": f"第{k}卷摘要", "synopsis": f"梗概至第{k}卷",
+                               "canon": "\n".join(merged)}))
         if m := re.search(r"请为第 (\d+) 章写章纲工单", user):
             self.steps.append("outline")
             n = int(m[1])

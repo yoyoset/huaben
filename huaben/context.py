@@ -11,8 +11,6 @@ from dataclasses import dataclass
 
 from . import repo
 
-MAX_FACTS = 40  # 世界事实只带最近确立的这么多条,防止账本无限撑大 prompt
-
 
 @dataclass
 class StoryContext:
@@ -24,7 +22,7 @@ class StoryContext:
     recent: list[dict]                                # 最近几章完整原文
     characters: list[dict]
     foreshadows: list[dict]                           # 未回收
-    facts: list[dict]
+    facts: list[dict]                                 # 本卷新确立的事实(往卷的已并入圣经 canon)
     next_idx: int = 1
     volume_done: int = 0                              # 本卷已定稿章数(卷进度 = volume_done+1 / target)
 
@@ -48,10 +46,18 @@ def load_context(conn, book_id: int, recent_n: int = 3) -> StoryContext:
         recent=recent,
         characters=repo.list_characters(conn, book_id),
         foreshadows=repo.list_foreshadows(conn, book_id, open_only=True),
-        facts=repo.list_facts(conn, book_id),
+        facts=_volume_facts(conn, book_id),
         next_idx=repo.next_chapter_idx(conn, book_id),
         volume_done=len(vol_chapters),
     )
+
+
+def _volume_facts(conn, book_id: int) -> list[dict]:
+    """尚未封卷部分确立的事实。已封卷的在封卷时并入了圣经的世界设定定本(canon),不再逐条带。"""
+    sealed_upto = conn.execute(
+        "SELECT COALESCE(MAX(c.idx), 0) FROM chapters c JOIN volumes v ON v.id = c.volume_id "
+        "WHERE v.book_id=? AND v.status='sealed' AND c.status='accepted'", (book_id,)).fetchone()[0]
+    return [f for f in repo.list_facts(conn, book_id) if f["established_ch"] > sealed_upto]
 
 
 def select_ledger(characters: list[dict], facts: list[dict], scope: str = "") -> tuple[list[dict], list[dict]]:
@@ -59,4 +65,4 @@ def select_ledger(characters: list[dict], facts: list[dict], scope: str = "") ->
     非核心人物只有名字出现在 scope(章纲,核对时再加上正文)里才带;已死亡的人物也保留,否则会"复活"。
     """
     chars = [c for c in characters if c["core"] or (scope and c["name"] in scope)]
-    return chars, facts[-MAX_FACTS:]
+    return chars, facts
