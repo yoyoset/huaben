@@ -78,6 +78,17 @@ test('bookHome:开书阶段去对话,连载中去阅读', async () => {
   assert.equal(bookHome({ id: 3, status: 'serializing' }), '#/read/3');
 });
 
+test('resumeAt:同一章接着播并回退几秒;换章/刚开头/快听完从头', async () => {
+  const { resumeAt } = await import('../js/logic.js');
+  assert.equal(resumeAt({ idx: 3, t: 192 }, 3, 600), 189);
+  assert.equal(resumeAt({ idx: 3, t: 192 }, 3, NaN), 189);  // 时长还不知道
+  assert.equal(resumeAt({ idx: 2, t: 192 }, 3, 600), 0);    // 记的是别的章
+  assert.equal(resumeAt({ idx: 3, t: 4 }, 3, 600), 0);      // 只听了开头
+  assert.equal(resumeAt({ idx: 3, t: 595 }, 3, 600), 0);    // 快听完了:多半是想重听
+  assert.equal(resumeAt(null, 3, 600), 0);
+  assert.equal(resumeAt({ idx: 3, t: 'x' }, 3, 600), 0);    // 本机存储被改坏
+});
+
 test('chapterAvailability:深链到任意章号时区分已写好/正在写/还早/不合法', async () => {
   const { chapterAvailability: av } = await import('../js/logic.js');
   const three = [{ idx: 1 }, { idx: 2 }, { idx: 3 }];

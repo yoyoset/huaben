@@ -113,6 +113,24 @@ export function chapterAvailability(chapters, idx, generating) {
   return idx === latest + 1 && generating ? 'writing' : 'later';
 }
 
+/**
+ * 重新打开某章时从哪儿接着播(秒)。saved = 本机记下的 { idx, t }。
+ *  - 记的不是这一章 / 只听了开头几秒 → 从头
+ *  - 已经快听完(离结尾不到 10 秒)→ 从头(多半是想重听,而不是只听最后一句)
+ *  - 否则往回退 3 秒:接上上下文,不至于从半个词开始
+ * duration 未知(元数据没到)时只按前两条判断。
+ */
+export const RESUME_MIN_S = 5;
+export const RESUME_TAIL_S = 10;
+export const RESUME_BACKUP_S = 3;
+
+export function resumeAt(saved, idx, duration) {
+  const t = Number(saved?.t);
+  if (!saved || saved.idx !== idx || !Number.isFinite(t) || t < RESUME_MIN_S) return 0;
+  if (Number.isFinite(duration) && t > duration - RESUME_TAIL_S) return 0;
+  return Math.max(0, t - RESUME_BACKUP_S);
+}
+
 /** 一本书该去哪个页面:开书阶段去开书对话,连载中去阅读。书架、阅读页、开书页共用,避免各自判断不一致。 */
 export function bookHome(book) {
   return book.status === 'drafting' ? `#/opening/${book.id}` : `#/read/${book.id}`;

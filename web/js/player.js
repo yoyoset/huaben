@@ -3,13 +3,15 @@
 //  - Media Session 提供锁屏/耳机控制与元数据。
 //  - 一章播完按 logic.afterEnded 决定:接下一章 / 停(睡眠定时)/ 等(后台还在生成)。
 import { api } from './api.js';
-import { afterEnded, nextChapter, nextRate, nextSleepOption, prevChapter, SLEEP_OPTIONS } from './logic.js';
+import { clearPos, loadPos, savePos } from './listen_pos.js';
+import { afterEnded, fmtSeconds, nextChapter, nextRate, nextSleepOption, prevChapter, resumeAt, SLEEP_OPTIONS } from './logic.js';
 
 const audio = document.getElementById('audio');
 const bar = document.getElementById('player');
 const $ = (id) => document.getElementById(id);
 
-const st = { bookId: null, bookTitle: '', idx: null, title: '', sleepIdx: 0, sleepTimer: null, waitTimer: null };
+const st = { bookId: null, bookTitle: '', idx: null, title: '', sleepIdx: 0, sleepTimer: null, waitTimer: null,
+  resume: null, lastSaved: 0 };  // resume:本机记下的上次位置,元数据到了再决定要不要跳过去
 const listeners = new Set();
 export const onChange = (fn) => listeners.add(fn);
 const emit = () => listeners.forEach((fn) => fn({ ...st, playing: !audio.paused }));
@@ -48,7 +50,7 @@ export async function play(bookId, idx, bookTitle) {
   clearTimeout(st.waitTimer);
   const ch = await api.chapter(bookId, idx);
   if (!ch.audio_url) return false;
-  Object.assign(st, { bookId, idx, bookTitle: bookTitle ?? st.bookTitle, title: ch.title });
+  Object.assign(st, { bookId, idx, bookTitle: bookTitle ?? st.bookTitle, title: ch.title, resume: loadPos(bookId), lastSaved: 0 });
   audio.src = ch.audio_url;
   audio.playbackRate = parseFloat($('btn-rate').dataset.rate || '1');
   bar.hidden = false;
@@ -82,7 +84,24 @@ function waitForNext(tries = 0) {
   }, 20000);
 }
 
+// —— 章内位置:元数据到了才知道时长,这时再决定跳不跳;播放中每 5 秒、暂停/离开页面时记一次;听完就清掉
+audio.addEventListener('loadedmetadata', () => {
+  const t = resumeAt(st.resume, st.idx, audio.duration);
+  st.resume = null;
+  if (t > 0) { audio.currentTime = t; status(`接着上次的位置(${fmtSeconds(t)})`); }
+});
+function rememberPos(force = false) {
+  if (st.bookId == null || !audio.currentTime) return;
+  if (!force && Math.abs(audio.currentTime - st.lastSaved) < 5) return;
+  savePos(st.bookId, st.idx, audio.currentTime);
+  st.lastSaved = audio.currentTime;
+}
+audio.addEventListener('timeupdate', () => rememberPos());
+audio.addEventListener('pause', () => { if (!audio.ended) rememberPos(true); });
+window.addEventListener('pagehide', () => rememberPos(true));
+
 audio.addEventListener('ended', async () => {
+  if (st.bookId != null) clearPos(st.bookId);
   const opt = SLEEP_OPTIONS[st.sleepIdx];
   let next = null;
   try { next = nextChapter(await api.chapters(st.bookId), st.idx); } catch { /* 取不到当作没有 */ }
