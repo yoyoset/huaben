@@ -21,8 +21,8 @@ def call_step(conn, llm: LLM, book_id: int, idx: int | None, step: str, messages
         log.warning("step=%s ok=false kind=%s ms=%d err=%s", step, e.kind, ms, str(e)[:200])
         raise
     ms = res.duration_ms or int((time.monotonic() - t0) * 1000)
-    repo.log_run(conn, book_id, step, chapter_idx=idx, duration_ms=ms,
-                 tokens_in=res.tokens_in, tokens_out=res.tokens_out, cost_usd=res.cost_usd)
-    log.info("step=%s ok=true ms=%d tokens_in=%d tokens_out=%d cost=%.5f%s", step, ms, res.tokens_in,
-             res.tokens_out, res.cost_usd, " truncated=true" if res.truncated else "")
+    repo.log_run(conn, book_id, step, chapter_idx=idx, duration_ms=ms, tokens_in=res.tokens_in,
+                 tokens_out=res.tokens_out, cost_usd=res.cost_usd, note=f"provider={res.provider}" if res.provider else "")
+    log.info("step=%s ok=true ms=%d tokens_in=%d tokens_out=%d cost=%.5f provider=%s%s", step, ms, res.tokens_in,
+             res.tokens_out, res.cost_usd, res.provider or "-", " truncated=true" if res.truncated else "")
     return res

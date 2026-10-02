@@ -47,6 +47,22 @@ def clean_draft(text: str) -> str:
     return "\n".join(lines).strip()
 
 
+# 生成退化的两个症状(2026-10-02 生产环境第 1 章实测:后半段整段没有逗号、并改写成繁体,且通过了旧的标点密度检查——
+# 尾部的引号和破折号把密度"凑够"了)。正常中文叙事很少连续 60 字以上不出现任何标点。
+MAX_UNPUNCT_RUN = 80
+TRAD_LIMIT = 8  # 下面都是繁体专用字(简体正文里不会出现);偶然一两个(人名、引文)放过
+_TRAD_ONLY = set("說這們個來時會對過還為麼國後裡著與從見間現開問頭聲經樣點讓錢給錯歡實應邊聽當嗎幾發眾雖貓")
+
+
+def longest_unpunctuated(text: str) -> int:
+    runs = re.split(_PUNCT.pattern + "|\\s", text)
+    return max((len(r) for r in runs), default=0)
+
+
+def traditional_count(text: str) -> int:
+    return sum(ch in _TRAD_ONLY for ch in text)
+
+
 def draft_problems(text: str, target_words: int) -> list[str]:
     """返回打回理由(写给作者看的人话);空列表 = 通过。text 应是 clean_draft 之后的。"""
     problems: list[str] = []
@@ -58,6 +74,10 @@ def draft_problems(text: str, target_words: int) -> list[str]:
     tail = re.sub(r"\s", "", text)[-TAIL_WINDOW:]
     if len(tail) >= 200 and len(_PUNCT.findall(tail)) < len(tail) * MIN_PUNCT_DENSITY:
         problems.append("后半部分标点缺失、句子粘连,请全文使用完整的中文标点")
+    elif longest_unpunctuated(text) > MAX_UNPUNCT_RUN:
+        problems.append(f"有一大段超过 {MAX_UNPUNCT_RUN} 字没有任何标点、句子粘连,请全文使用完整的中文标点")
+    if traditional_count(text) >= TRAD_LIMIT:
+        problems.append("正文里出现了繁体字,请全文使用简体中文")
     paras = [p.strip() for p in text.split("\n") if len(p.strip()) >= 15]
     if paras and max(paras.count(p) for p in set(paras)) >= REPEAT_LIMIT:
         problems.append("出现大段重复的段落,请不要重复")

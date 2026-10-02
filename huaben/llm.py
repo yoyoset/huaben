@@ -57,6 +57,7 @@ class LLMResult:
     cost_usd: float = 0.0
     duration_ms: int = 0
     truncated: bool = False  # finish_reason == "length":正文被 max_tokens 截断
+    provider: str = ""       # 实际出结果的托管商(OpenRouter 才有):质量/速度问题要能追到是哪一家
 
 
 class LLM(Protocol):
@@ -77,6 +78,10 @@ def build_payload(model: str, messages: list[dict], *, max_tokens: int, temperat
     if openrouter:  # OpenRouter 扩展字段;别家(如 OpenCode Zen)可能把未知参数当错误拒绝,不发
         payload["reasoning"] = {"effort": "none"}
         payload["usage"] = {"include": True}  # OpenRouter 在 usage.cost 里返回真实费用
+        # 只用 fp8 及以上精度的托管商,按速度排序。OpenRouter 默认先走最便宜的,而最便宜的几家是 fp4 量化:
+        # 2026-10-02 实测同一真实章节 prompt,Decart(fp4)388 秒、DeepInfra(fp8)30 秒;生产第 1 章后半段
+        # 整段无标点并转成繁体。贵的部分每章不到 0.1 美分。
+        payload["provider"] = {"quantizations": ["fp8", "fp16", "bf16", "fp32"], "sort": "throughput"}
     if json_mode:
         payload["response_format"] = {"type": "json_object"}
     return payload
@@ -96,7 +101,7 @@ def parse_response(data: dict, duration_ms: int) -> LLMResult:
         raise LLMEmptyError(
             f"empty content (finish_reason={choice.get('finish_reason')}, completion_tokens={tout})", tin, tout, cost)
     return LLMResult(text=text, tokens_in=tin, tokens_out=tout, cost_usd=cost, duration_ms=duration_ms,
-                     truncated=choice.get("finish_reason") == "length")
+                     truncated=choice.get("finish_reason") == "length", provider=str(data.get("provider") or ""))
 
 
 _RETRY_STATUS = {408, 429, 500, 502, 503, 504}

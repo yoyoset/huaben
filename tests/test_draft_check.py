@@ -96,3 +96,13 @@ def test_fullwidth_trailer_and_heading_are_cleaned():
     text = "标题：夜巡\n" + GOOD + "\n（本章完）"  # 标题:夜巡 … (本章完)
     cleaned = clean_draft(text)
     assert not cleaned.startswith("标题") and not cleaned.endswith("）")
+
+
+def test_degeneration_symptoms_from_production_chapter_1_are_rejected():
+    """2026-10-02 生产环境第 1 章:后半段 186 字不见标点、122 个繁体字,旧检查全放过了。"""
+    run_on = "他噗通一声跪了下去膝盖结结实实磕在地砖缝里疼得他自己先嘶了一声" * 4  # 一大段没有任何标点
+    assert any("标点" in p for p in draft_problems(GOOD + "\n" + run_on, 100))  # 在结尾:尾部密度检查先打回
+    assert any("没有任何标点" in p for p in draft_problems(run_on + "\n" + GOOD, 100))  # 在中间:只有新检查抓得到
+    trad = "錢管事說這可是三百年的老參" * 3  # 繁体,每份 3 个繁体专用字,3 份 = 9 ≥ 8
+    assert any("繁体" in p for p in draft_problems(GOOD + "\n" + trad, 100))
+    assert draft_problems(GOOD + "\n他说这钱给你。", 100) == []  # 简体同义字不误伤

@@ -77,3 +77,13 @@ def test_connection_check_reports_success_and_plain_language_failure(tmp_path):
     c.put("/api/settings", json={"api_key": "sk-bad-87654321"})
     bad = c.post("/api/settings/test").json()
     assert bad["ok"] is False and "密钥无效" in bad["error"]
+
+
+def test_openrouter_requests_avoid_fp4_hosts_and_record_who_served():
+    """2026-10-02 实测:默认路由先走最便宜的 fp4 托管商,同一章节 prompt 388 秒(fp8 的 DeepInfra 30 秒)。"""
+    p = build_payload("m", [], max_tokens=10, temperature=0)
+    assert "fp4" not in p["provider"]["quantizations"] and p["provider"]["sort"] == "throughput"
+    assert "provider" not in build_payload("m", [], max_tokens=10, temperature=0, openrouter=False)
+    from huaben.llm import parse_response
+    res = parse_response({**OK, "provider": "DeepInfra"}, 5)
+    assert res.provider == "DeepInfra"
