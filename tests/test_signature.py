@@ -70,3 +70,12 @@ def test_ledger_schema_and_prompts_ask_for_signature(conn):
     assert "招牌能力" in write_messages(ctx, OUTLINE, 1000)[1]["content"]
     assert "招牌能力" in outline_messages(ctx)[1]["content"]
     assert "招牌能力" in ledger_messages(ctx, OUTLINE, "正文")[1]["content"]
+
+
+def test_each_character_speaks_in_their_own_voice(conn):
+    """2026-10-03 用户:要写出《海贼王》《火影》《死神》那种故事——每个人说话一听就知道是谁。"""
+    bid = repo.create_book(conn, "书")
+    repo.create_volume(conn, bid, 1, status="active")
+    ctx = load_context(conn, bid)
+    assert "每个人物说话要有自己的辨识度" in write_messages(ctx, OUTLINE, 1000)[1]["content"]
+    assert "不要所有人一个腔调" in outline_messages(ctx)[1]["content"]

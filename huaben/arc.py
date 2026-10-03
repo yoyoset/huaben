@@ -7,7 +7,7 @@
 """
 MODES = ("正面对决", "智斗骗局", "破案追查", "朝堂博弈", "逃亡求生", "比赛竞技", "谈判结盟",
          "潜入夺取", "守城保卫", "探索奇境", "内部清洗", "营救")
-FIELDS = ("antagonist", "motive", "edge", "stakes", "mode", "low_point", "cost", "change", "thread")
+FIELDS = ("antagonist", "motive", "edge", "stakes", "mode", "low_point", "cost", "change", "thread", "world")
 REQUIRED = ("antagonist", "motive", "stakes", "low_point", "cost", "change")
 
 ARC_SCHEMA = """{
@@ -20,6 +20,7 @@ ARC_SCHEMA = """{
     "low_point": "谷底:主角被逼到最低处时发生了什么",
     "cost": "胜利的代价:赢了,但失去或付出了什么",
     "change": "卷末什么变了:主角、人物关系、势力格局,或读者对这个世界的认识",
+    "world": "本卷把读者的世界坐标推到哪一格(新的地方/势力/层级/尺度,如'东海→伟大航路''下忍→中忍''瀞灵廷→虚圈');只升不降,必须比往卷更大或更深",
     "thread": "本卷推进哪条长线/超长线伏笔、推进到哪一步(不揭底)"
   }""" % "、".join(MODES)
 
@@ -48,6 +49,8 @@ def render_arc(arc: dict | None) -> str:
         lines.append(f"打法:{arc['mode']}")
     lines += [f"谷底(第 {arc['low_point_beat']} 个节拍):{arc['low_point']}", f"胜利的代价:{arc['cost']}",
               f"卷末的变化:{arc['change']}"]
+    if arc.get("world"):
+        lines.append(f"世界坐标:{arc['world']}")
     if arc.get("thread"):
         lines.append(f"推进的长线:{arc['thread']}")
     return "本卷是一段征战——\n" + "\n".join(f"  {x}" for x in lines)
@@ -69,3 +72,20 @@ def arc_pacing(arc: dict | None, beat_index: int, chapters_left: int) -> str:
 def past_modes(volumes: list[dict]) -> list[str]:
     """往卷用过的打法(按卷序),规划新卷时要求换一种。"""
     return [f"第{v['idx']}卷:{v['arc']['mode']}" for v in volumes if (v.get("arc") or {}).get("mode")]
+
+
+def past_worlds(volumes: list[dict]) -> list[str]:
+    """往卷已经把世界坐标推到哪一格(按卷序),规划新卷时要求"只升不降"。
+    2026-10-03 用户:要写出《海贼王》《火影》《死神》那种故事——它们是卷卷把世界的尺度往上推
+    (东海→伟大航路→新世界;下忍→中忍→影;现世→瀞灵廷→虚圈),而不是换个地方重讲一遍。
+    只列有 world 的往卷;老卷没这个字段时返回空,不强行编造。"""
+    return [f"第{v['idx']}卷:{v['arc']['world']}" for v in volumes if (v.get("arc") or {}).get("world")]
+
+
+def world_ladder_rule(used_worlds: list[str]) -> str:
+    """卷规划提示里的一句。没有往卷坐标时不加(第一卷没法比较)。"""
+    if not used_worlds:
+        return ""
+    return ("本卷的世界坐标必须比往卷更大或更深(只升不降):往卷已经到过——"
+            + ";".join(used_worlds) + "。换一个更大的舞台、更高的势力层级,或这个世界更底层/更核心的真相;"
+            "不要让读者觉得只是换了个地方重讲一遍。")

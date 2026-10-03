@@ -6,12 +6,13 @@
 """
 import json
 
-from ..arc import arc_pacing
 from ..context import StoryContext
 from ..craft import from_book, novelty_rule, render_craft
 from ..devices import avoid_rule, from_rows, known_list
 from ..foreshadow_scale import planting_rule
 from ..render import due_foreshadow_ids, handoff_text, recent_text, render_bible, render_memory, render_style_samples
+from .rules import (PAYOFF_RULE, SIGNATURE_RULE, SPEECH_RULE, consistency_rule,  # noqa: F401  (对外仍从 prompts 取)
+                    pacing_rule)
 
 OUTLINE_SCHEMA = """{
   "title": "本章标题(4~10 字)",
@@ -46,39 +47,6 @@ LEDGER_SCHEMA = """{
 _SYSTEM_EDITOR = "你是长篇连载小说的责任编辑,负责规划、记账与核对。严格只输出 JSON,不要任何解释或代码围栏。"
 
 
-def pacing_rule(ctx: StoryContext) -> str:
-    """按卷进度给节奏要求:卷在第 target 章自动封存,编辑必须让剧情弧恰好在那里收住。"""
-    v = ctx.volume
-    if v is None:
-        return ""
-    target, pos = v["target_chapters"], ctx.volume_done + 1
-    left = max(target - pos, 0)
-    beats = v["beats"] or []
-    i = min(len(beats), ctx.volume_done * len(beats) // target + 1) if beats else 0
-    if pos >= target:
-        base = "节奏:本章是本卷最后一章——必须完成本卷目标、回收本卷要收的伏笔,并留下通往下一卷的钩子。"
-    elif left <= max(2, target // 5):
-        base = f"节奏:本卷进入收尾阶段(本章之后只剩 {left} 章)——推向高潮、开始回收本卷伏笔,不要再开新的大支线。"
-    elif beats:
-        base = f"节奏:按进度,本章大约应推进第 {i}/{len(beats)} 个节拍「{beats[i - 1]}」。"
-    else:
-        base = ""
-    arc = arc_pacing(v.get("arc"), i, left)  # 征战结构里此刻该落地的一项(谷底前/谷底/翻盘/收尾)
-    return "\n".join(x for x in (base, arc) if x)
-
-
-# 2026-10-03 读生产书:《杂役仙尊》13~14 章零笑点零算计,主角被动收纸条、比刮痕;《算尽仙朝》9~10 章一个人查账——
-# 只留问题不兑现,读者就不追了。每章都要"兑现一点 + 留一个问题",而且转折要由主角自己的选择或计谋推动。
-PAYOFF_RULE = ("每章都要有兑现(payoff 必填):读者追更是因为每章都能拿到一点东西,只有新谜题的一章是欠账;"
-               "兑现要符合这本书对读者的承诺(风格指纹里的幽默/热血/阴冷比例、读者开书时要的爽点)。"
-               "本章的转折由主角自己的选择、计谋或行动推动,不要让他只是被动地收到信息(纸条、传话、偷听到)。")
-
-# 2026-10-03 用户:要能写出《海贼王》《火影》《死神》那种故事。那三部里每个重要角色的招牌能力都有名字、规则、代价,
-# 而且能进阶(二档、须佐能乎、卍解)。系统里此前只有一段自由文本的"能力",模型就会临时给主角万能能力。见 signature.py
-signature_rule = ("重要角色靠自己的招牌能力解决问题:有名有姓、有明确的规则与代价,不要临时冒出万能的新能力;"
-                  "招牌能力若在本章进阶,要写成靠主角自己挣来的爽点(顿悟、苦练、付出代价),不能凭空获得。")
-
-
 def recent_hooks(ctx: StoryContext) -> str:
     """最近几章的结尾钩子。2026-10-03《算尽仙朝》实测:第 1、3、5 章都以"算盘残片发烫、浮现一行字"收尾——
     编辑看不到自己前几章用过什么钩子,就会反复用同一招。纯函数;章纲解析不了的跳过。"""
@@ -107,7 +75,7 @@ def outline_messages(ctx: StoryContext) -> list[dict]:
         f"{render_bible(ctx.bible)}\n\n{render_craft(from_book(ctx.book))}\n\n{render_memory(ctx)}\n\n"
         f"【最近原文(用于衔接)】\n{recent_text(ctx)}\n\n"
         f"请为第 {ctx.next_idx} 章写章纲工单。要求:紧扣本卷目标与节拍;伏笔该推进的推进、该收的收;"
-        f"结尾留钩子;不得与账本冲突(除非明确写进 planned_reversals)。\n{PAYOFF_RULE}\n{signature_rule}\n{pacing_rule(ctx)}\n"
+        f"结尾留钩子;不得与账本冲突(除非明确写进 planned_reversals)。\n{PAYOFF_RULE}\n{SIGNATURE_RULE}\n{SPEECH_RULE}\n{pacing_rule(ctx)}\n"
         f"{planting_rule(ctx.foreshadows, due_foreshadow_ids(ctx))}\n{recent_hooks(ctx)}"
         f"{novelty_rule(from_book(ctx.book))}\n{avoid_rule(from_rows(ctx.recent))}\n"
         f"只输出如下结构的 JSON:\n{OUTLINE_SCHEMA}"
@@ -164,12 +132,13 @@ def write_messages(ctx: StoryContext, outline: dict, words: int, feedback: list[
     parts.append(  # 后置指令:紧贴输出位置
         f"现在写第 {ctx.next_idx} 章正文,约 {words} 字。硬性要求:\n"
         "1. 只输出正文,不要标题、不要解释、不要状态栏、不要任何前后缀;\n"
-        + _consistency_rule(outline) +
+        + consistency_rule(outline) +
         "3. 按【写法设定】写,保持风格指纹与样章的语感;全文使用完整的中文标点;\n"
         # 2026-10-03 读生产书:《算尽仙朝》整屏抽成数字,读者跟不上,且第 9 章说等比、第 10 章说等差
         "4. 推理、算账写给读者看得懂:一处推理只亮一两个关键数字,结论用一句人话点破(谁在搞鬼、怎么搞的),不要整屏罗列数字;"
         "账本里已有的数字照用,不要改;\n"
-        + signature_rule + "\n"
+        + SIGNATURE_RULE + "\n"
+        + SPEECH_RULE + "\n"
         "6. 结尾落在工单指定的钩子上。"
     )
     return [{"role": "system", "content": system}, {"role": "user", "content": "\n\n".join(parts)}]

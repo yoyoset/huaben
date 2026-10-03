@@ -5,7 +5,7 @@
 import logging
 
 from .. import repo
-from ..arc import normalize_arc, past_modes
+from ..arc import normalize_arc, past_modes, past_worlds
 from ..canon_size import CANON_WARN_CHARS, canon_size, seal_note
 from ..config import Settings
 from ..context import load_context
@@ -40,7 +40,8 @@ def plan_volume(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
     idx = len(volumes) + 1
     carried = unresolved_targets(conn, book_id, volumes[-1]) if volumes else []
     plan = _ask(conn, llm, book_id, "volume_plan",
-                volume_prompts.plan_messages(ctx, idx, carried, past_modes(volumes)), parse_volume_plan)
+                volume_prompts.plan_messages(ctx, idx, carried, past_modes(volumes), past_worlds(volumes)),
+                parse_volume_plan)
     open_ids = {f["id"] for f in ctx.foreshadows}
     resolve = [i for i in plan["resolve"] if i in open_ids]
     if len(resolve) < len(plan["resolve"]):  # 编号不存在或早已回收:丢掉并留痕,不让卷计划指向不存在的伏笔
@@ -62,7 +63,7 @@ def fill_arc(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
     summaries = [f"第{c['idx']}章《{c['title']}》:{c['summary']}" for c in repo.chapter_index(conn, book_id, volume["id"])]
     earlier = [v for v in repo.list_volumes(conn, book_id) if v["idx"] < volume["idx"]]
     arc = _ask(conn, llm, book_id, "volume_arc",
-               volume_prompts.arc_messages(ctx, volume, summaries, past_modes(earlier)),
+               volume_prompts.arc_messages(ctx, volume, summaries, past_modes(earlier), past_worlds(earlier)),
                lambda text: normalize_arc(extract_json(text), len(volume["beats"])) or _missing())
     repo.set_volume_arc(conn, volume["id"], arc)
     return arc

@@ -10,7 +10,7 @@ from huaben.pipeline.volume_prompts import plan_messages
 
 ARC = {"antagonist": "账房总管", "motive": "他觉得寒门上位会毁了规矩", "edge": "掌握全部旧账", "stakes": "父亲的名声",
        "mode": "智斗骗局", "low_point_beat": 3, "low_point": "假户籍被当众揭穿", "cost": "失去唯一的证人",
-       "change": "主角从躲着走变成主动设局", "thread": "残片主人露出一角"}
+       "change": "主角从躲着走变成主动设局", "thread": "残片主人露出一角", "world": "从县城推到州府"}
 
 
 def test_arc_needs_the_core_items_and_clamps_low_point():
@@ -19,6 +19,19 @@ def test_arc_needs_the_core_items_and_clamps_low_point():
     assert normalize_arc({**ARC, "low_point_beat": "?"}, 6)["low_point_beat"] == 4   # 没给:放在三分之二处
     assert normalize_arc({**ARC, "motive": ""}, 4) is None                          # 对手没有自己的道理:不算规划好了
     assert normalize_arc("不是对象", 4) is None
+    assert normalize_arc({**ARC, "world": ""}, 4)["world"] == ""  # world 可空:老规划没有它也能用
+
+
+def test_world_ladder_only_goes_up():
+    """2026-10-03 用户:要写出《海贼王》《火影》《死神》那种故事——卷卷把世界的尺度往上推(东海→伟大航路)。"""
+    from huaben.arc import past_worlds, world_ladder_rule
+    vols = [{"idx": 1, "arc": {"world": "县城"}}, {"idx": 2, "arc": {"world": "州府"}}, {"idx": 3, "arc": {}}]
+    assert past_worlds(vols) == ["第1卷:县城", "第2卷:州府"]
+    assert world_ladder_rule([]) == ""                                  # 第一卷无从比较
+    rule = world_ladder_rule(past_worlds(vols))
+    assert "只升不降" in rule and "县城" in rule and "州府" in rule
+    assert normalize_arc(ARC, 4)["world"] == "从县城推到州府"
+    assert "世界坐标:从县城推到州府" in render_arc(normalize_arc(ARC, 4))
 
 
 def test_pacing_follows_the_arc_shape():
@@ -48,6 +61,7 @@ def test_editor_and_writer_see_the_arc(conn):
     assert "本卷是一段征战" in user and "他的道理:他觉得寒门上位会毁了规矩" in user
     assert "对手要一步步占上风" in user  # 第 1 章,谷底在第 3 个节拍之前
     assert "本卷换一种打法" in plan_messages(ctx, 2, used_modes=["第1卷:智斗骗局"])[1]["content"]
+    assert "只升不降" in plan_messages(ctx, 2, used_worlds=["第1卷:县城"])[1]["content"]
     assert render_arc(None) == ""
 
 
