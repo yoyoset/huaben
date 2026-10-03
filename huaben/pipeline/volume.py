@@ -21,11 +21,11 @@ DEFAULT_TARGET_CHAPTERS = 30
 log = logging.getLogger("huaben.volume")
 
 
-def _ask(conn, llm: LLM, book_id: int, step: str, messages, parse):
+def _ask(conn, llm: LLM, book_id: int, step: str, messages, parse, temperature: float = 0.7):
     """调用编辑 + 解析;解析失败重试一次(格式问题多为偶发),仍失败抛 ChapterFailed。"""
     last = ""
     for _ in range(2):
-        res = call_step(conn, llm, book_id, None, step, messages, json_mode=True, temperature=0.7)
+        res = call_step(conn, llm, book_id, None, step, messages, json_mode=True, temperature=temperature)
         try:
             return parse(res.text)
         except ParseError as e:

@@ -37,14 +37,19 @@ def rebudget(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
     summaries = [f"第{c['idx']}章《{c['title']}》:{c['summary']}"
                  for c in repo.chapter_index(conn, book_id, volume["id"])]
 
-    def parse(text: str) -> list[int]:
+    def parse(text: str) -> tuple[list[int], int]:
         d = extract_json(text)
-        budget = merge_budget(d.get("done_beats"), d.get("remaining"), len(volume["beats"]), len(summaries))
+        done_beats = d.get("done_beats")
+        budget = merge_budget(done_beats, d.get("remaining"), len(volume["beats"]), len(summaries))
         if budget is None:
             raise ParseError("节拍预算形状不对")
-        return budget
+        return budget, done_beats
 
-    budget = _ask(conn, llm, book_id, "volume_budget",
-                  volume_prompts.budget_messages(volume, summaries), parse)
+    # temperature=0.2:这是对照摘要的判断题,不是规划题——0.7 时同一个卷两次判断差两个节拍(T009)
+    budget, done_beats = _ask(conn, llm, book_id, "volume_budget",
+                              volume_prompts.budget_messages(volume, summaries), parse, temperature=0.2)
+    old_target = volume["target_chapters"]
     repo.set_volume_budget(conn, volume["id"], budget, sum(budget))
-    return {"beat_chapters": budget, "target_chapters": sum(budget)}
+    repo.log_run(conn, book_id, "volume_budget",
+                 note=f"已走完 {done_beats} 个节拍;预算 {budget};总章数 {old_target}→{sum(budget)}")
+    return {"beat_chapters": budget, "target_chapters": sum(budget), "done_beats": done_beats}

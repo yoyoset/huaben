@@ -35,6 +35,13 @@ def test_beat_line_speaks_differently_for_transition_climax_and_last():
     assert "大约应推进" in beat_line(["a", "b"], 1, 0, 0)
 
 
+def test_two_chapter_beat_is_not_called_a_climax():
+    """卷规划规则里 2 章是普通节拍,3 章以上才是重头戏(T009)。"""
+    line = beat_line(["a", "b"], 1, 1, 2)
+    assert "共 2 章" in line and "正常推进" in line and "重头戏" not in line
+    assert "重头戏" in beat_line(["a", "b"], 1, 1, 3)
+
+
 def _plan(**kw):
     d = {"goal": "g", "beats": ["a", "b", "c"], "plant": [], "resolve": [], "target_chapters": 99, "arc": {}}
     d.update(kw)

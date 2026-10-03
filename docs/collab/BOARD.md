@@ -9,7 +9,7 @@
 | [T003](tasks/T003-beat-budget.md) | 节奏:每个节拍给不同的章数 | 无 | 已交付 | 通过 2026-10-03 |
 | [T005](tasks/T005-review-leftovers.md) | 上一轮审查留下的三处小修 | 无 | 已交付 | 通过 2026-10-03 |
 | [T004](tasks/T004-rebudget-active-volume.md) | 节奏:给已经在写的卷补章数预算 | T003 | 已交付 | 通过 2026-10-03 |
-| [T009](tasks/T009-rebudget-stability.md) | 节奏:补预算的判断要稳,2 章的节拍别叫"重头戏" | 无 | 待做 | |
+| [T009](tasks/T009-rebudget-stability.md) | 节奏:补预算的判断要稳,2 章的节拍别叫"重头戏" | 无 | 待审 | |
 | [T006](tasks/T006-scene-clock.md) | 常识:人要睡觉,事情大多在白天办(场景时间) | 无 | 待做 | |
 | [T007](tasks/T007-planned-foreshadows.md) | 伏笔:先知道答案再埋,不为埋而埋 | T006 | 待做 | |
 | [T010](tasks/T010-import-book.md) | 剧本制(一):导入一本由架构方写好的书 | T007 | 待做 | |

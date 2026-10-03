@@ -56,9 +56,51 @@ def _app(tmp_path, replies):
 def test_rebudget_endpoint_updates_the_volume(tmp_path):
     _, conn, bid, c = _app(tmp_path, [json.dumps({"done_beats": 1, "remaining": [3, 2]}, ensure_ascii=False)])
     r = c.post(f"/api/books/{bid}/volume/budget").json()
-    assert r == {"beat_chapters": [4, 3, 2], "target_chapters": 9}
+    assert r == {"beat_chapters": [4, 3, 2], "target_chapters": 9, "done_beats": 1}
     v = repo.active_volume(conn, bid)
     assert v["beat_chapters"] == [4, 3, 2] and v["target_chapters"] == 9
+
+
+class RecordingLLM:
+    """记录每次调用的 temperature(现有替身不记,T009 要断言判断题用低温)。"""
+
+    def __init__(self, reply):
+        self.reply = reply
+        self.temperatures = []
+
+    def chat(self, messages, *, max_tokens=None, temperature=0.9, json_mode=False):
+        from huaben.llm import LLMResult
+        self.temperatures.append(temperature)
+        return LLMResult(text=self.reply, tokens_in=1, tokens_out=1, cost_usd=0)
+
+
+def _book_with_chapters(tmp_path):
+    from huaben.db import connect
+    s = Settings(openrouter_api_key="x", data_dir=tmp_path, _env_file=None)
+    conn = connect(s.db_path)
+    bid = repo.create_book(conn, "书")
+    vid = repo.create_volume(conn, bid, 1, beats=["a", "b", "c"], status="active", target_chapters=30)
+    for i in range(1, 5):
+        cid = repo.create_chapter(conn, bid, vid, i, title=f"T{i}")
+        repo.update_chapter(conn, cid, body="b", summary="s", status="accepted")
+    return s, conn, bid
+
+
+def test_rebudget_returns_done_beats_and_uses_low_temperature(tmp_path):
+    s, conn, bid = _book_with_chapters(tmp_path)
+    llm = RecordingLLM(json.dumps({"done_beats": 1, "remaining": [3, 2]}, ensure_ascii=False))
+    r = rebudget(conn, llm, s, bid)
+    assert r["done_beats"] == 1 and r["beat_chapters"] == [4, 3, 2]
+    assert llm.temperatures == [0.2]  # 对照摘要判断走到哪了:低温
+
+
+def test_plan_volume_still_uses_planning_temperature(tmp_path):
+    from huaben.pipeline.volume import plan_volume
+    s, conn, bid = _book_with_chapters(tmp_path)
+    llm = RecordingLLM(json.dumps({"goal": "g", "beats": ["a", "b"], "plant": [], "resolve": [],
+                                   "target_chapters": 10}, ensure_ascii=False))
+    plan_volume(conn, llm, s, bid)
+    assert llm.temperatures == [0.7]
 
 
 def test_rebudget_bad_output_twice_is_502(tmp_path):
