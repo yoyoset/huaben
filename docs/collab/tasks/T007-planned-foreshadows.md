@@ -153,4 +153,5 @@ ledger["foreshadows_new"], plant_notes = to_register(outline.get("plant"), len(c
 
 ## 审核记录
 
-(架构方填)
+**通过(2026-10-03)**。架构方重跑 427 项全过;`planting.py` 与卡一致;4 处旧测试的修改都是本卡有意改变的行为所致,合理。
+尚未部署(与 T010、T011 一起部署)。
