@@ -87,7 +87,7 @@ def test_bonds_accumulate_and_supporting_cast_get_signatures(conn):
     bid = repo.create_book(conn, "书")
     repo.create_volume(conn, bid, 1, status="active")
     ctx = load_context(conn, bid)
-    assert "伙伴关系要一部部攒起来" in write_messages(ctx, OUTLINE, 1000)[1]["content"]
+    assert "伙伴关系要一部部攒起来" in outline_messages(ctx)[1]["content"]  # 作者那条已换成作息常识(T006),伙伴关系留在章纲/卷规划
     assert "伙伴关系要一部部攒起来" in plan_messages(ctx, 2)[1]["content"]
     assert "常驻配角" in outline_messages(ctx)[1]["content"]
     assert "反复出场的人物在本章首次显露招牌能力" in ledger_messages(ctx, OUTLINE, "正文")[1]["content"]

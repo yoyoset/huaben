@@ -6,6 +6,7 @@
 """
 import json
 
+from ..clock import REALISM_RULE, WHEN_SCHEMA, recent_when
 from ..context import StoryContext
 from ..craft import from_book, novelty_rule, render_craft
 from ..devices import avoid_rule, from_rows, known_list
@@ -17,6 +18,7 @@ from .rules import (BOND_RULE, PAYOFF_RULE, REPETITION_RULE, SIGNATURE_RULE, SPE
 OUTLINE_SCHEMA = """{
   "title": "本章标题(4~10 字)",
   "outline": "本章要发生什么,3~6 句,必须是一个完整剧情节拍",
+  "when": "本章发生在什么时候:相对上一章过了多久(紧接着 / 当天晚些 / 第二天 / 几天后),加上时段(清晨、上午、午后、傍晚、夜里);一章跨了几天也写明",
   "characters": ["本章出场的人物名,须与账本/人物卡完全一致"],
   "foreshadows": [伏笔编号(整数),本章要推进或回收的],
   "planned_reversals": ["本章有意为之、会打破账本既有设定的反转;没有就留空数组"],
@@ -75,8 +77,8 @@ def outline_messages(ctx: StoryContext) -> list[dict]:
         f"{render_bible(ctx.bible)}\n\n{render_craft(from_book(ctx.book))}\n\n{render_memory(ctx)}\n\n"
         f"【最近原文(用于衔接)】\n{recent_text(ctx)}\n\n"
         f"请为第 {ctx.next_idx} 章写章纲工单。要求:紧扣本卷目标与节拍;伏笔该推进的推进、该收的收;"
-        f"结尾留钩子;不得与账本冲突(除非明确写进 planned_reversals)。\n{PAYOFF_RULE}\n{BOND_RULE}\n{SIGNATURE_RULE}\n{SPEECH_RULE}\n{REPETITION_RULE}\n{opening_rule(ctx.next_idx)}\n{title_rule(ctx.titles)}\n{pacing_rule(ctx)}\n"
-        f"{planting_rule(ctx.foreshadows, due_foreshadow_ids(ctx))}\n{recent_hooks(ctx)}"
+        f"结尾留钩子;不得与账本冲突(除非明确写进 planned_reversals)。\n{PAYOFF_RULE}\n{BOND_RULE}\n{SIGNATURE_RULE}\n{SPEECH_RULE}\n{REPETITION_RULE}\n{opening_rule(ctx.next_idx)}\n{title_rule(ctx.titles)}\n{pacing_rule(ctx)}\n{REALISM_RULE}\n"
+        f"{planting_rule(ctx.foreshadows, due_foreshadow_ids(ctx))}\n{recent_when(ctx.recent)}{recent_hooks(ctx)}"
         f"{novelty_rule(from_book(ctx.book))}\n{avoid_rule(from_rows(ctx.recent))}\n"
         f"只输出如下结构的 JSON:\n{OUTLINE_SCHEMA}"
     )
@@ -93,6 +95,8 @@ def work_order(idx: int, outline: dict, open_foreshadows: list[dict] = ()) -> st
     - 本章要推进/回收的伏笔:否则"伏笔该推进的推进"只停留在编辑脑子里;
     - 有意反转:否则作者只看到"死者不得复活"之类的硬约束,会拒绝执行或写得自相矛盾。"""
     lines = [f"【本章工单】第 {idx} 章《{outline['title']}》", outline["outline"]]
+    if outline.get("when"):
+        lines.append(f"本章时间:{outline['when']}")
     by_id = {f["id"]: f for f in open_foreshadows}
     threads = [by_id[i] for i in outline.get("foreshadows", []) if i in by_id]
     if threads:
@@ -137,7 +141,7 @@ def write_messages(ctx: StoryContext, outline: dict, words: int, feedback: list[
         "5. " + SIGNATURE_RULE + "\n"
         "6. " + SPEECH_RULE + "\n"
         "7. " + REPETITION_RULE + "\n"
-        "8. " + BOND_RULE + "\n"
+        "8. " + REALISM_RULE + "\n"
     )
     if opening:
         hard += f"【开篇要求】{opening}\n"

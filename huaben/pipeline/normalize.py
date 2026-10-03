@@ -176,4 +176,5 @@ def normalize_outline(d: dict) -> dict:
         "planned_reversals": to_text_list(d.get("planned_reversals"), "planned_reversals"),
         "payoff": to_text(d.get("payoff"), "payoff"),  # 提示里要求必填;解析时不因缺它打回整份章纲,工单里有就交给作者
         "novelty": to_text(d.get("novelty"), "novelty"),  # 可空:"类型惯例"档不要求
+        "when": to_text(d.get("when"), "when"),  # 本章发生在什么时候;可空,不因缺它打回章纲
     }
