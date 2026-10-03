@@ -1,13 +1,15 @@
 """每本书的写法设定:开书时选模板,开书后随时改(下一章起生效)。选项与默认值见 huaben/craft.py。"""
 import json
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 
 from .. import repo
 from ..craft import from_book, normalize_craft, options_view
 from ..human_errors import explain
 from ..llm import LLMError
+from ..pipeline.errors import ChapterFailed
 from ..pipeline.jsonout import ParseError
+from ..pipeline.volume import fill_arc
 from ..pipeline.world_expand import expand_world
 from .deps import book_or_404, get_conn, get_llm
 
@@ -42,4 +44,14 @@ def expand(book_id: int, conn=Depends(get_conn), llm=Depends(get_llm)):
     try:
         return expand_world(conn, llm, book_id)
     except (LLMError, ParseError) as e:
+        raise HTTPException(502, explain(e, auto_retry=False)) from e
+
+
+@router.post("/api/books/{book_id}/volume/arc")
+def volume_arc(book_id: int, request: Request, conn=Depends(get_conn), llm=Depends(get_llm)):
+    """给进行中的卷补"一段征战"的结构(旧书升级用;新卷规划时就带着)。一次模型调用。"""
+    book_or_404(conn, book_id)
+    try:
+        return fill_arc(conn, llm, request.app.state.settings, book_id)
+    except (LLMError, ChapterFailed) as e:
         raise HTTPException(502, explain(e, auto_retry=False)) from e

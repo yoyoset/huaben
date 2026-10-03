@@ -6,6 +6,7 @@
 """
 import json
 
+from ..arc import arc_pacing
 from ..context import StoryContext
 from ..craft import from_book, render_craft
 from ..foreshadow_scale import planting_rule
@@ -42,16 +43,19 @@ def pacing_rule(ctx: StoryContext) -> str:
     if v is None:
         return ""
     target, pos = v["target_chapters"], ctx.volume_done + 1
-    if pos >= target:
-        return "节奏:本章是本卷最后一章——必须完成本卷目标、回收本卷要收的伏笔,并留下通往下一卷的钩子。"
-    left = target - pos
-    if left <= max(2, target // 5):
-        return f"节奏:本卷进入收尾阶段(本章之后只剩 {left} 章)——推向高潮、开始回收本卷伏笔,不要再开新的大支线。"
+    left = max(target - pos, 0)
     beats = v["beats"] or []
-    if not beats:
-        return ""
-    i = min(len(beats), ctx.volume_done * len(beats) // target + 1)
-    return f"节奏:按进度,本章大约应推进第 {i}/{len(beats)} 个节拍「{beats[i - 1]}」。"
+    i = min(len(beats), ctx.volume_done * len(beats) // target + 1) if beats else 0
+    if pos >= target:
+        base = "节奏:本章是本卷最后一章——必须完成本卷目标、回收本卷要收的伏笔,并留下通往下一卷的钩子。"
+    elif left <= max(2, target // 5):
+        base = f"节奏:本卷进入收尾阶段(本章之后只剩 {left} 章)——推向高潮、开始回收本卷伏笔,不要再开新的大支线。"
+    elif beats:
+        base = f"节奏:按进度,本章大约应推进第 {i}/{len(beats)} 个节拍「{beats[i - 1]}」。"
+    else:
+        base = ""
+    arc = arc_pacing(v.get("arc"), i, left)  # 征战结构里此刻该落地的一项(谷底前/谷底/翻盘/收尾)
+    return "\n".join(x for x in (base, arc) if x)
 
 
 def recent_hooks(ctx: StoryContext) -> str:

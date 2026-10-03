@@ -122,3 +122,12 @@ def test_foreshadow_report_over_35_chapters(world):
     assert (rep["total"]["planted"], rep["total"]["resolved"], rep["total"]["open"]) == (7, 6, 1)
     assert rep["total"]["avg_chapters_to_resolve"] == 3
     assert [v["planted"] for v in rep["volumes"]] == [2, 2, 2, 1]  # 每卷 10 章、每 5 章埋一条
+
+
+def test_each_volume_is_an_arc_and_modes_are_passed_on(world):
+    """卷 = 一段征战:每卷规划都带征战结构;规划新卷时能看到往卷用过的打法。"""
+    conn, bid, llm = world
+    vols = repo.list_volumes(conn, bid)
+    assert all(v["arc"].get("antagonist") for v in vols)
+    assert [v["arc"]["mode"] for v in vols[:3]] == ["智斗骗局", "破案追查", "逃亡求生"]
+    assert "本卷是一段征战" in llm.write_prompts[35]

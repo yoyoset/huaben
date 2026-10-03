@@ -5,11 +5,12 @@ from ._util import row
 
 def create_volume(conn, book_id: int, idx: int, goal: str = "", beats=None,
                   plant=None, resolve=None, status: str = "planned", target_chapters: int = 30,
-                  commit: bool = True) -> int:
+                  commit: bool = True, arc: dict | None = None) -> int:
     cur = conn.execute(
-        "INSERT INTO volumes(book_id, idx, goal, beats, plant, resolve, status, target_chapters) "
-        "VALUES (?,?,?,?,?,?,?,?)",
-        (book_id, idx, goal, dumps(beats or []), dumps(plant or []), dumps(resolve or []), status, target_chapters),
+        "INSERT INTO volumes(book_id, idx, goal, beats, plant, resolve, status, target_chapters, arc) "
+        "VALUES (?,?,?,?,?,?,?,?,?)",
+        (book_id, idx, goal, dumps(beats or []), dumps(plant or []), dumps(resolve or []), status, target_chapters,
+         dumps(arc or {})),
     )
     if commit:
         conn.commit()
@@ -19,7 +20,7 @@ def create_volume(conn, book_id: int, idx: int, goal: str = "", beats=None,
 def _vol(r) -> dict | None:
     d = row(r)
     if d:
-        for k in ("beats", "plant", "resolve"):
+        for k in ("beats", "plant", "resolve", "arc"):
             d[k] = loads(d[k])
     return d
 
@@ -46,4 +47,9 @@ def seal_volume(conn, volume_id: int, summary: str, commit: bool = True) -> None
 
 def set_volume_status(conn, volume_id: int, status: str) -> None:
     conn.execute("UPDATE volumes SET status=? WHERE id=?", (status, volume_id))
+    conn.commit()
+
+
+def set_volume_arc(conn, volume_id: int, arc: dict) -> None:
+    conn.execute("UPDATE volumes SET arc=? WHERE id=?", (dumps(arc), volume_id))
     conn.commit()

@@ -4,6 +4,7 @@
 """
 import re
 
+from ..arc import normalize_arc
 from .jsonout import ParseError, extract_json, need  # noqa: F401  (对外统一从这里取)
 from .normalize import normalize_ledger, normalize_outline, to_text_list
 
@@ -45,6 +46,8 @@ def parse_volume_plan(text: str) -> dict:
         raise ParseError("volume plan has no beats")
     n = d.get("target_chapters")
     d["target_chapters"] = n if isinstance(n, int) and 5 <= n <= 200 else None  # 越界交给调用方用默认值
+    # 征战结构缺项不打回整份卷规划(节拍与伏笔照用);存 None,下一次写章前由 volume.ensure_arc 单独补
+    d["arc"] = normalize_arc(d.get("arc"), len(d["beats"]))
     return d
 
 

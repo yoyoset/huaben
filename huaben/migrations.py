@@ -51,4 +51,7 @@ UPDATE books SET profile_id = (SELECT id FROM profiles WHERE name = '我') WHERE
     "ALTER TABLE books ADD COLUMN craft TEXT NOT NULL DEFAULT '';",
     # 12: 出门前"预备到第几章"(2026-10-03 用户:跑步前下好 10 章、20 章离线听)。0 = 没有预备,按默认缓冲,见 prep.py
     "ALTER TABLE books ADD COLUMN prep_until INTEGER NOT NULL DEFAULT 0;",
+    # 13: 卷的征战结构(对手与道理/赌注/打法/谷底/代价/变化/推进的长线,JSON)。2026-10-03 用户:吸引人的连载
+    #     就是一段段征战;旧卷为空,进行中的卷在下一次写章前自动补全,见 arc.py
+    "ALTER TABLE volumes ADD COLUMN arc TEXT NOT NULL DEFAULT '{}';",
 ]

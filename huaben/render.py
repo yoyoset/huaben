@@ -1,4 +1,5 @@
 """分层记忆·渲染:StoryContext → prompt 文本。纯函数,不碰数据库。"""
+from .arc import render_arc
 from .context import StoryContext, select_foreshadows, select_ledger
 from .foreshadow_scale import due_state, tag
 
@@ -98,7 +99,8 @@ def render_memory(ctx: StoryContext, scope: str = "", focus_ids=()) -> str:
         parts.append(f"【本卷(第{v['idx']}卷)目标】{v['goal']}\n{volume_progress(ctx)}\n节拍:"
                      + ("→".join(v["beats"]) or "(无)")
                      + "\n本卷要埋的伏笔:" + ("、".join(v["plant"]) or "无")
-                     + "\n本卷要收的伏笔:" + _resolve_targets(ctx))
+                     + "\n本卷要收的伏笔:" + _resolve_targets(ctx)
+                     + (f"\n{render_arc(v.get('arc'))}" if v.get("arc") else ""))
     parts.append("【本卷已发生(章摘要)】\n" + _lines(
         [f"第{i}章《{t}》:{s}" if t else f"第{i}章:{s}" for i, t, s in ctx.volume_chapter_summaries]))
     in_bible = {c.get("name") for c in (ctx.bible or {}).get("characters") or []}

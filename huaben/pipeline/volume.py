@@ -5,6 +5,7 @@
 import logging
 
 from .. import repo
+from ..arc import normalize_arc, past_modes
 from ..canon_size import CANON_WARN_CHARS, canon_size, seal_note
 from ..config import Settings
 from ..context import load_context
@@ -13,7 +14,7 @@ from ..llm import LLM
 from . import volume_prompts
 from .errors import ChapterFailed
 from .llm_step import call_step
-from .parsing import ParseError, parse_seal, parse_volume_plan
+from .parsing import ParseError, extract_json, parse_seal, parse_volume_plan
 
 DEFAULT_TARGET_CHAPTERS = 30
 log = logging.getLogger("huaben.volume")
@@ -38,7 +39,8 @@ def plan_volume(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
     volumes = repo.list_volumes(conn, book_id)
     idx = len(volumes) + 1
     carried = unresolved_targets(conn, book_id, volumes[-1]) if volumes else []
-    plan = _ask(conn, llm, book_id, "volume_plan", volume_prompts.plan_messages(ctx, idx, carried), parse_volume_plan)
+    plan = _ask(conn, llm, book_id, "volume_plan",
+                volume_prompts.plan_messages(ctx, idx, carried, past_modes(volumes)), parse_volume_plan)
     open_ids = {f["id"] for f in ctx.foreshadows}
     resolve = [i for i in plan["resolve"] if i in open_ids]
     if len(resolve) < len(plan["resolve"]):  # 编号不存在或早已回收:丢掉并留痕,不让卷计划指向不存在的伏笔
@@ -46,8 +48,28 @@ def plan_volume(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
         repo.log_run(conn, book_id, "volume_plan", note=f"resolve 中无效的伏笔编号已忽略: {dropped}")
     vid = repo.create_volume(
         conn, book_id, idx, goal=plan["goal"], beats=plan["beats"], plant=plan["plant"], resolve=resolve,
-        status="active", target_chapters=plan["target_chapters"] or DEFAULT_TARGET_CHAPTERS)
+        status="active", target_chapters=plan["target_chapters"] or DEFAULT_TARGET_CHAPTERS, arc=plan["arc"])
     return repo.get_volume(conn, vid)
+
+
+def fill_arc(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
+    """给进行中的卷补征战结构:旧书一次性升级,或规划时模型没给全。显式调用(接口/运维),不放在写章路径上——
+    写章前多一次模型调用,网络一抖就会拖住正文;而需要补的只是少数旧卷。失败抛 ChapterFailed/LLMError。"""
+    volume = repo.active_volume(conn, book_id)
+    if volume is None:
+        raise ChapterFailed("这本书没有进行中的卷", step="volume")
+    ctx = load_context(conn, book_id, settings.recent_chapters_in_prompt)
+    summaries = [f"第{c['idx']}章《{c['title']}》:{c['summary']}" for c in repo.chapter_index(conn, book_id, volume["id"])]
+    earlier = [v for v in repo.list_volumes(conn, book_id) if v["idx"] < volume["idx"]]
+    arc = _ask(conn, llm, book_id, "volume_arc",
+               volume_prompts.arc_messages(ctx, volume, summaries, past_modes(earlier)),
+               lambda text: normalize_arc(extract_json(text), len(volume["beats"])) or _missing())
+    repo.set_volume_arc(conn, volume["id"], arc)
+    return arc
+
+
+def _missing():
+    raise ParseError("征战结构缺少对手/道理/赌注/谷底/代价/变化中的某项")
 
 
 def unresolved_targets(conn, book_id: int, volume: dict) -> list[int]:

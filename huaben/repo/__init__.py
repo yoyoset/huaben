@@ -10,7 +10,7 @@ from .ledger import (add_fact, add_foreshadow, clear_characters, list_characters
 from .opening import add_message, list_messages
 from .profiles import create_profile, get_profile, list_profiles, rename_profile
 from .runs import cost_summary, failure_counts, log_run, recent_failures, run_totals, spent_usd, unpriced_calls
-from .volumes import (active_volume, create_volume, get_volume, list_volumes, seal_volume,
+from .volumes import (active_volume, create_volume, get_volume, list_volumes, seal_volume, set_volume_arc,
                       set_volume_status)
 
 __all__ = [
@@ -25,5 +25,5 @@ __all__ = [
     "add_fact", "add_foreshadow", "clear_characters", "list_characters", "list_facts", "list_foreshadows",
     "update_foreshadow", "upsert_character",
     "cost_summary", "failure_counts", "log_run", "recent_failures", "run_totals", "spent_usd", "unpriced_calls",
-    "active_volume", "create_volume", "get_volume", "list_volumes", "seal_volume", "set_volume_status",
+    "active_volume", "create_volume", "get_volume", "list_volumes", "seal_volume", "set_volume_arc", "set_volume_status",
 ]

@@ -30,8 +30,11 @@ class ScriptedLLM:
         if m := re.search(r"请规划第 (\d+) 卷", user):
             self.steps.append("volume_plan")
             k = int(m[1])
+            modes = ["智斗骗局", "破案追查", "逃亡求生"]  # 每卷换一种打法,检验"往卷打法"会传给下一卷的规划
+            arc = {"antagonist": f"第{k}卷对手", "motive": "他有他的道理", "stakes": "师门", "mode": modes[(k - 1) % 3],
+                   "low_point_beat": 3, "low_point": "被逼到绝境", "cost": "失去一位同伴", "change": "格局改变"}
             return self._r(_j({"goal": f"第{k}卷目标", "beats": ["起", "承", "转", "合"], "plant": [], "resolve": [],
-                               "target_chapters": self.vol_chapters}))
+                               "target_chapters": self.vol_chapters, "arc": arc}))
         if "请封卷" in user:
             self.steps.append("volume_seal")
             k = int(re.search(r"本卷\(第(\d+)卷\)目标", user)[1])
