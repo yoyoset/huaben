@@ -4,6 +4,7 @@
 **真正无法理解的内容抛 ParseError**(由流水线当作一次失败的尝试)。
 下游(入账、prompt 组装)因此只会见到确定类型,不会在半路抛 TypeError/ValueError 变成静默失败。
 """
+from ..devices import normalize_devices
 from ..foreshadow_scale import normalize_scale
 from .jsonout import ParseError
 
@@ -143,6 +144,7 @@ def normalize_ledger(d: dict) -> dict:
         "foreshadows_update": [x for x in map(normalize_foreshadow_update, _list(d, "foreshadows_update")) if x],
         "facts": to_text_list(_list(d, "facts"), "facts"),
         "contradictions": [normalize_contradiction(c) for c in _list(d, "contradictions")],
+        "devices": normalize_devices(d.get("devices")),
     }
 
 

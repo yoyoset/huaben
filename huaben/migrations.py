@@ -54,4 +54,7 @@ UPDATE books SET profile_id = (SELECT id FROM profiles WHERE name = '我') WHERE
     # 13: 卷的征战结构(对手与道理/赌注/打法/谷底/代价/变化/推进的长线,JSON)。2026-10-03 用户:吸引人的连载
     #     就是一段段征战;旧卷为空,进行中的卷在下一次写章前自动补全,见 arc.py
     "ALTER TABLE volumes ADD COLUMN arc TEXT NOT NULL DEFAULT '{}';",
+    # 14: 本章用来推动情节/制造悬念的手段(JSON 列表,入账时登记)。2026-10-03 实测《算尽仙朝》10 章章章"残片发烫",
+    #     《杂役仙尊》14 章里 12 章靠"枕下纸条"——规划下一章时据此点名"别再用",见 devices.py
+    "ALTER TABLE chapters ADD COLUMN devices TEXT NOT NULL DEFAULT '[]';",
 ]

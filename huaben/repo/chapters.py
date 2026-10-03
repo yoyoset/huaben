@@ -31,7 +31,7 @@ def get_chapter(conn, book_id: int, idx: int) -> dict | None:
 
 
 def update_chapter(conn, chapter_id: int, *, commit: bool = True, **fields) -> None:
-    allowed = {"outline", "title", "body", "summary", "status", "attempts"}
+    allowed = {"outline", "title", "body", "summary", "status", "attempts", "devices"}
     bad = set(fields) - allowed
     if bad:
         raise ValueError(f"unknown chapter fields: {bad}")

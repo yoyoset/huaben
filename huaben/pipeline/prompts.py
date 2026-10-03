@@ -9,6 +9,7 @@ import json
 from ..arc import arc_pacing
 from ..context import StoryContext
 from ..craft import from_book, novelty_rule, render_craft
+from ..devices import avoid_rule, from_rows, known_list
 from ..foreshadow_scale import planting_rule
 from ..render import due_foreshadow_ids, handoff_text, recent_text, render_bible, render_memory, render_style_samples
 
@@ -32,7 +33,8 @@ LEDGER_SCHEMA = """{
                        "scale": "short / medium / long / epic 四选一:short 短线 3~5 章内收(眼前的约定、小谜);medium 中线本卷内收;long 长线跨几卷(身世、主线谜团);epic 超长线全书级,终局才揭开"}],
   "foreshadows_update": [{"id": 伏笔编号(整数), "status": "progressing 或 resolved"}],
   "facts": ["本章新确立的世界事实"],
-  "contradictions": [{"what": "与账本哪一条冲突、怎么冲突", "planned": 是否属于章纲 planned_reversals 里的有意反转(true/false)}]
+  "contradictions": [{"what": "与账本哪一条冲突、怎么冲突", "planned": 是否属于章纲 planned_reversals 里的有意反转(true/false)}],
+  "devices": ["本章用来推动情节或制造悬念的手段(道具显灵、密信传话、偷听、异象等),每条 2~8 字;和【最近用过的手段】相同的沿用原名"]
 }"""
 
 _SYSTEM_EDITOR = "你是长篇连载小说的责任编辑,负责规划、记账与核对。严格只输出 JSON,不要任何解释或代码围栏。"
@@ -83,7 +85,7 @@ def outline_messages(ctx: StoryContext) -> list[dict]:
         f"请为第 {ctx.next_idx} 章写章纲工单。要求:紧扣本卷目标与节拍;伏笔该推进的推进、该收的收;"
         f"结尾留钩子;不得与账本冲突(除非明确写进 planned_reversals)。\n{pacing_rule(ctx)}\n"
         f"{planting_rule(ctx.foreshadows, due_foreshadow_ids(ctx))}\n{recent_hooks(ctx)}"
-        f"{novelty_rule(from_book(ctx.book))}\n"
+        f"{novelty_rule(from_book(ctx.book))}\n{avoid_rule(from_rows(ctx.recent))}\n"
         f"只输出如下结构的 JSON:\n{OUTLINE_SCHEMA}"
     )
     return [{"role": "system", "content": _SYSTEM_EDITOR}, {"role": "user", "content": user}]
@@ -128,7 +130,9 @@ def write_messages(ctx: StoryContext, outline: dict, words: int, feedback: list[
         handoff_text(ctx),
         work_order(ctx.next_idx, outline, ctx.foreshadows),
         render_craft(from_book(ctx.book)),  # 写法放在工单后、硬性要求前:离输出位置近,关思考的模型才不会丢
+        avoid_rule(from_rows(ctx.recent)),  # 作者也要知道:章纲没写的地方,别顺手又让同一个道具出场
     ]
+    parts = [p for p in parts if p]
     if feedback:
         parts.append("【上一稿被编辑打回,以下问题必须修正】\n" + "\n".join(f"- {f}" for f in feedback))
     parts.append(  # 后置指令:紧贴输出位置
@@ -149,6 +153,7 @@ def ledger_messages(ctx: StoryContext, outline: dict, body: str) -> list[dict]:
         f"章纲点名要推进的伏笔:{'、'.join(f'#{i}' for i in outline.get('foreshadows', [])) or '无'}"
         "(正文里确有推进/回收的,务必在 foreshadows_update 登记)\n\n"
         f"【第 {ctx.next_idx} 章正文】\n{body}\n\n"
+        f"【最近用过的手段】{known_list(from_rows(ctx.recent))}\n\n"
         "请完成入账与核对:提取摘要;更新出场人物的现状(生死/位置/能力/关系/知情);登记新伏笔与伏笔进展;"
         "登记新确立的世界事实;并核对正文是否与账本冲突(人名、生死、能力、知情范围、世界事实)。"
         "与账本冲突但属于章纲 planned_reversals 的,planned 填 true;其余冲突 planned 填 false。\n"

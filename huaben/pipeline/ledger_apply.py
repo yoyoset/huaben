@@ -1,6 +1,6 @@
 """把"编辑·入账"的结果写进账本。整章入账在一个事务里:要么全进,要么全不进。"""
 from .. import repo
-from ..db import tx
+from ..db import dumps, tx
 
 _CHAR_FIELDS = ("alive", "location", "abilities", "relations", "knows", "core", "profile")
 _LEDGER_WRITABLE = ("alive", "location", "abilities", "relations", "knows", "profile")
@@ -53,5 +53,6 @@ def apply_ledger(conn, book_id: int, chapter_id: int, idx: int, ledger: dict) ->
                                    resolved_ch=idx if status == "resolved" else None, commit=False)
         for fact in ledger["facts"]:
             repo.add_fact(conn, book_id, fact, idx, commit=False)
-        repo.update_chapter(conn, chapter_id, summary=ledger["summary"], status="accepted", commit=False)
+        repo.update_chapter(conn, chapter_id, summary=ledger["summary"], status="accepted",
+                            devices=dumps(ledger.get("devices", [])), commit=False)
     return warnings
