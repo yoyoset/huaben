@@ -99,6 +99,36 @@ def test_dry_run_endpoint_does_not_write(tmp_path):
     assert repo.max_scripted_idx(conn, bid) == 0  # 什么都不写库
 
 
+def test_big_turns_too_close_warn():
+    chs = [ch(i + 1) for i in range(9)]
+    chs[2]["turn"] = "大"
+    chs[8]["turn"] = "大"  # 第 3 和第 9 章,相隔 6 < 8
+    assert any("太密" in w for w in rhythm_warnings(chs))
+    far = [ch(i + 1) for i in range(12)]
+    far[2]["turn"] = "大"
+    far[11]["turn"] = "大"  # 相隔 9,不提醒
+    assert not any("太密" in w for w in rhythm_warnings(far))
+
+
+def test_medium_turn_runs_warn():
+    chs = [ch(1), ch(2), ch(3)]
+    chs[0]["turn"] = "中"
+    chs[1]["turn"] = "大"
+    chs[2]["turn"] = "中"
+    assert any("来不及信" in w for w in rhythm_warnings(chs))
+    short = [ch(1), ch(2)]
+    short[0]["turn"] = "中"
+    short[1]["turn"] = "大"
+    assert not any("来不及信" in w for w in rhythm_warnings(short))
+
+
+def test_turn_marker_validation():
+    bad = ch(1)
+    bad["turn"] = "巨"
+    assert any("turn" in p for p in rhythm_problems([bad]))
+    assert rhythm_problems([ch(1)]) == []  # 不填 turn 不报
+
+
 def test_cli_prints_warnings_or_pass(tmp_path, capsys):
     bad = tmp_path / "bad.json"
     bad.write_text(json.dumps({"chapters": [ch(i + 1, mode="笑", gain="g") for i in range(4)]}, ensure_ascii=False),
