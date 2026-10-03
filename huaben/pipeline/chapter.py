@@ -104,10 +104,40 @@ def _outline(conn, llm: LLM, book_id: int, ctx: StoryContext) -> tuple[int, dict
     return chapter_id, outline
 
 
+def _imported_text(conn, llm: LLM, settings: Settings, book_id: int, ctx: StoryContext,
+                   chapter_id: int, outline: dict) -> dict:
+    """架构方写好的正文:不用作者模型,直接记账。机械检查与账本出入只留痕、不打回(没有"重写"这一步)。"""
+    idx = ctx.next_idx
+    body = clean_draft(repo.get_scripted_body(conn, book_id, idx))
+    repo.update_chapter(conn, chapter_id, body=body, status="written")
+    repo.log_run(conn, book_id, "write", chapter_idx=idx, note="write: 来自导入的正文")
+    prev = ctx.recent[-1]["body"] if ctx.recent else ""
+    for p in (draft_problems(body, settings.chapter_words) + copy_problems(body, [c["body"] for c in ctx.recent])
+              + restage_problems(body, prev, [c["name"] for c in ctx.characters])):
+        repo.log_run(conn, book_id, "write", chapter_idx=idx, note=f"导入正文的提醒(未打回):{p}")
+    ledger = _record(conn, llm, book_id, idx, prompts.ledger_messages(ctx, outline, body))
+    if ledger is None:
+        raise _fail(conn, book_id, chapter_id, idx, "ledger", "导入正文的入账两次都无法解析")
+    for bad in unplanned_contradictions(ledger):
+        repo.log_run(conn, book_id, "ledger", chapter_idx=idx, note=f"导入正文与账本的出入(未打回):{bad}")
+    ledger["foreshadows_new"], plant_notes = to_register(
+        outline.get("plant"), len(ctx.foreshadows), ledger["foreshadows_new"],
+        scripted=bool(ctx.book.get("scripted")))
+    for w in apply_ledger(conn, book_id, chapter_id, idx, ledger) + _thread_follow_through(ctx, outline, ledger) + plant_notes:
+        repo.log_run(conn, book_id, "ledger", chapter_idx=idx, note=w)
+    note = repetition_note(body, [c["name"] for c in ctx.characters])  # 逐字重复:只留痕,不打回
+    if note:
+        repo.log_run(conn, book_id, "check", chapter_idx=idx, note=note)
+    repo.log_run(conn, book_id, "check", chapter_idx=idx, note="accepted at attempt 1(导入)")
+    return repo.get_chapter(conn, book_id, idx)
+
+
 def _draft_until_accepted(conn, llm: LLM, settings: Settings, book_id: int, ctx: StoryContext,
                           chapter_id: int, outline: dict) -> dict:
     """作者·正文 → 机械底线 → 编辑·入账核对;不过则带反馈重写,最多 max_write_attempts 稿。"""
     idx, feedback = ctx.next_idx, []
+    if repo.get_scripted_body(conn, book_id, idx) is not None:
+        return _imported_text(conn, llm, settings, book_id, ctx, chapter_id, outline)
     for attempt in range(1, settings.max_write_attempts + 1):
         repo.update_chapter(conn, chapter_id, attempts=attempt)
         draft = call_step(conn, llm, book_id, idx, "write",

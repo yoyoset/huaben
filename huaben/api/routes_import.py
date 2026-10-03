@@ -6,6 +6,7 @@ from ..llm import LLMError
 from ..pipeline.errors import ChapterFailed
 from ..pipeline.parsing import ParseError
 from ..script_import import ScriptImportError, import_book, import_volume, review_volume_script
+from ..script_text import import_chapter_texts
 from .deps import get_conn, get_llm
 
 router = APIRouter(tags=["import"])
@@ -30,3 +31,11 @@ def import_volume_route(book_id: int, request: Request, body: dict = Body(...), 
         raise HTTPException(400, detail=e.problems) from e
     except (LLMError, ChapterFailed) as e:
         raise HTTPException(502, explain(e, auto_retry=False)) from e
+
+
+@router.post("/api/books/{book_id}/import/texts")
+def import_texts_route(book_id: int, body: dict = Body(...), conn=Depends(get_conn)):
+    try:
+        return import_chapter_texts(conn, book_id, body.get("chapters") or [])
+    except ScriptImportError as e:
+        raise HTTPException(400, detail=e.problems) from e

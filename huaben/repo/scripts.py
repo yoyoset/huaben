@@ -27,3 +27,16 @@ def max_scripted_idx(conn, book_id: int) -> int:
 def foreshadow_ids_by_key(conn, book_id: int) -> dict[str, int]:
     return {r["key"]: r["id"] for r in conn.execute(
         "SELECT id, key FROM ledger_foreshadows WHERE book_id=? AND key != ''", (book_id,))}
+
+
+def save_scripted_bodies(conn, book_id: int, bodies: dict, commit: bool = True) -> None:
+    """{章序号: 正文} 存进库。同一章再导一次就覆盖。"""
+    conn.executemany("INSERT OR REPLACE INTO scripted_bodies(book_id, idx, body) VALUES (?,?,?)",
+                     [(book_id, int(idx), b) for idx, b in bodies.items()])
+    if commit:
+        conn.commit()
+
+
+def get_scripted_body(conn, book_id: int, idx: int) -> str | None:
+    r = conn.execute("SELECT body FROM scripted_bodies WHERE book_id=? AND idx=?", (book_id, idx)).fetchone()
+    return r[0] if r else None

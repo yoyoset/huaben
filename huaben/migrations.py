@@ -89,4 +89,11 @@ UPDATE books SET profile_id = (SELECT id FROM profiles WHERE name = '我') WHERE
   PRIMARY KEY(book_id, idx)
 );
 ALTER TABLE ledger_foreshadows ADD COLUMN key TEXT NOT NULL DEFAULT '';""",
+    # 21: 剧本制(T016)。scripted_bodies = 架构方写好的正文(有它的章不用作者模型,直接记账)
+    """CREATE TABLE scripted_bodies (
+  book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+  idx INTEGER NOT NULL,
+  body TEXT NOT NULL,
+  PRIMARY KEY(book_id, idx)
+);""",
 ]
