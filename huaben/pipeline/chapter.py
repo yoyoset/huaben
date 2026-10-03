@@ -18,6 +18,7 @@ from .errors import ChapterFailed, NoActiveVolume
 from .ledger_apply import apply_ledger
 from .llm_step import call_step
 from .parsing import ParseError, parse_ledger, parse_outline, unplanned_contradictions
+from ..planting import to_register
 from ..repetition import repetition_note
 
 log = logging.getLogger("huaben.chapter")
@@ -119,7 +120,9 @@ def _draft_until_accepted(conn, llm: LLM, settings: Settings, book_id: int, ctx:
             _reject(conn, book_id, idx, "contradiction: " + "; ".join(bad))
             feedback = bad
             continue
-        for w in apply_ledger(conn, book_id, chapter_id, idx, ledger) + _thread_follow_through(ctx, outline, ledger):
+        # 登记伏笔以章纲的 plant 为准;入账捡出来的只留痕,不登记(不知道答案的"神秘细节"不是伏笔)
+        ledger["foreshadows_new"], plant_notes = to_register(outline.get("plant"), len(ctx.foreshadows), ledger["foreshadows_new"])
+        for w in apply_ledger(conn, book_id, chapter_id, idx, ledger) + _thread_follow_through(ctx, outline, ledger) + plant_notes:
             repo.log_run(conn, book_id, "ledger", chapter_idx=idx, note=w)
         note = repetition_note(body, [c["name"] for c in ctx.characters])  # 逐字重复:只留痕,不打回(分不清复沓与词穷)
         if note:

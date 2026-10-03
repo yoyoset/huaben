@@ -52,8 +52,12 @@ class ScriptedLLM:
         if m := re.search(r"请为第 (\d+) 章写章纲工单", user):
             self.steps.append("outline")
             n = int(m[1])
-            return self._r(_j({"title": f"章{n}", "outline": "老道的遗物引出新线索" if n == 25 else f"第{n}章事件",
-                               "characters": ["沈照"], "foreshadows": [], "planned_reversals": [], "hook": "钩"}))
+            d = {"title": f"章{n}", "outline": "老道的遗物引出新线索" if n == 25 else f"第{n}章事件",
+                 "characters": ["沈照"], "foreshadows": [], "planned_reversals": [], "hook": "钩"}
+            # 第 5k 章计划埋一条伏笔(T007:登记以章纲 plant 为准)
+            if n % 5 == 0:
+                d["plant"] = {"content": f"第{n}章伏笔", "truth": f"第{n}章伏笔的真相", "scale": "medium"}
+            return self._r(_j(d))
         if m := re.search(r"现在写第 (\d+) 章正文", user):
             self.steps.append("write")
             n = int(m[1])

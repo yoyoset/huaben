@@ -6,6 +6,7 @@
 """
 from ..devices import normalize_devices
 from ..foreshadow_scale import normalize_scale
+from ..planting import normalize_plant
 from ..signature import normalize_signature
 from .jsonout import ParseError
 
@@ -177,4 +178,5 @@ def normalize_outline(d: dict) -> dict:
         "payoff": to_text(d.get("payoff"), "payoff"),  # 提示里要求必填;解析时不因缺它打回整份章纲,工单里有就交给作者
         "novelty": to_text(d.get("novelty"), "novelty"),  # 可空:"类型惯例"档不要求
         "when": to_text(d.get("when"), "when"),  # 本章发生在什么时候;可空,不因缺它打回章纲
+        "plant": normalize_plant(d.get("plant")),  # 本章计划要埋的伏笔;缺 content/truth 就是 None
     }

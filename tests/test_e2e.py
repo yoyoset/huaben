@@ -73,7 +73,8 @@ def test_foreshadow_ledger_tracks_plant_and_payoff(world):
     resolved = {f["planted_ch"]: f["resolved_ch"] for f in fs if f["status"] == "resolved"}
     assert resolved == {5: 8, 10: 13, 15: 18, 20: 23, 25: 28, 30: 33}  # 每个都在埋下 3 章后回收
     assert [f["planted_ch"] for f in repo.list_foreshadows(conn, bid, open_only=True)] == [35]
-    assert "第35章伏笔" not in world[2].write_prompts[35]  # 本章刚埋的,还没进账本(入账在写完之后)
+    # 本章计划的伏笔按 T007 进了作者工单(入账在写完之后才登记),所以内容在 prompt 里
+    assert "本章要埋的伏笔(轻轻带一笔,不点破、不解释):第35章伏笔" in world[2].write_prompts[35]
     assert "第30章伏笔" in world[2].write_prompts[32]       # 未回收的伏笔会出现在后续章的 prompt 里
 
 

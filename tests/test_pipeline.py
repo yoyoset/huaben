@@ -12,7 +12,9 @@ from huaben.pipeline.ledger_apply import merge_character
 S = Settings(openrouter_api_key="x", chapter_words=1, _env_file=None)
 
 OUTLINE = json.dumps({"title": "夜巡", "outline": "沈照夜里巡查,发现井边有异响。", "characters": ["沈照"],
-                      "foreshadows": [], "planned_reversals": [], "hook": "井里有人在敲"}, ensure_ascii=False)
+                      "foreshadows": [], "planned_reversals": [], "hook": "井里有人在敲",
+                      "plant": {"content": "井里的敲击声", "truth": "老道在井下敲石传信", "scale": "short"}},
+                     ensure_ascii=False)
 
 
 def ledger(contradictions=None, **kw):

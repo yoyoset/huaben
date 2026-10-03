@@ -11,6 +11,7 @@ from ..context import StoryContext
 from ..craft import from_book, novelty_rule, render_craft
 from ..devices import avoid_rule, from_rows, known_list
 from ..foreshadow_scale import planting_rule
+from ..planting import HOOK_RULE, PLANT_SCHEMA, plant_rule
 from ..render import due_foreshadow_ids, handoff_text, recent_text, render_bible, render_memory, render_style_samples
 from .rules import (BOND_RULE, PAYOFF_RULE, REPETITION_RULE, SIGNATURE_RULE, SPEECH_RULE,  # noqa: F401
                     consistency_rule, opening_rule, pacing_rule, title_rule)
@@ -21,6 +22,7 @@ OUTLINE_SCHEMA = """{
   "when": "本章发生在什么时候:相对上一章过了多久(紧接着 / 当天晚些 / 第二天 / 几天后),加上时段(清晨、上午、午后、傍晚、夜里);一章跨了几天也写明",
   "characters": ["本章出场的人物名,须与账本/人物卡完全一致"],
   "foreshadows": [伏笔编号(整数),本章要推进或回收的],
+  "plant": {"content": "本章要埋的伏笔:读者会看到什么", "truth": "它背后的真相是什么、将来怎么改变剧情(你必须现在就知道答案;只有编辑和作者知道,不写进正文)", "scale": "short / medium / long / epic"},
   "planned_reversals": ["本章有意为之、会打破账本既有设定的反转;没有就留空数组"],
   "payoff": "本章兑现:读者在这一章拿到什么——主角赢下了什么、谁吃了亏、哪里好笑、揭开了什么、关系往前走了哪一步;要具体,'获得新线索'不算",
   "novelty": "本章读者没见过的东西:用到世界观里哪一项原创设定(或按其规则新造一个),它在本章怎么起作用、怎么改变人物处境",
@@ -77,8 +79,8 @@ def outline_messages(ctx: StoryContext) -> list[dict]:
         f"{render_bible(ctx.bible)}\n\n{render_craft(from_book(ctx.book))}\n\n{render_memory(ctx)}\n\n"
         f"【最近原文(用于衔接)】\n{recent_text(ctx)}\n\n"
         f"请为第 {ctx.next_idx} 章写章纲工单。要求:紧扣本卷目标与节拍;伏笔该推进的推进、该收的收;"
-        f"结尾留钩子;不得与账本冲突(除非明确写进 planned_reversals)。\n{PAYOFF_RULE}\n{BOND_RULE}\n{SIGNATURE_RULE}\n{SPEECH_RULE}\n{REPETITION_RULE}\n{opening_rule(ctx.next_idx)}\n{title_rule(ctx.titles)}\n{pacing_rule(ctx)}\n{REALISM_RULE}\n"
-        f"{planting_rule(ctx.foreshadows, due_foreshadow_ids(ctx))}\n{recent_when(ctx.recent)}{recent_hooks(ctx)}"
+        f"不得与账本冲突(除非明确写进 planned_reversals)。\n{PAYOFF_RULE}\n{BOND_RULE}\n{SIGNATURE_RULE}\n{SPEECH_RULE}\n{REPETITION_RULE}\n{opening_rule(ctx.next_idx)}\n{title_rule(ctx.titles)}\n{pacing_rule(ctx)}\n{REALISM_RULE}\n"
+        f"{planting_rule(ctx.foreshadows, due_foreshadow_ids(ctx))}\n{plant_rule(len(ctx.foreshadows))}\n{HOOK_RULE}\n{recent_when(ctx.recent)}{recent_hooks(ctx)}"
         f"{novelty_rule(from_book(ctx.book))}\n{avoid_rule(from_rows(ctx.recent))}\n"
         f"只输出如下结构的 JSON:\n{OUTLINE_SCHEMA}"
     )
@@ -102,6 +104,13 @@ def work_order(idx: int, outline: dict, open_foreshadows: list[dict] = ()) -> st
     if threads:
         lines.append("本章要推进或回收的伏笔(要在情节里落到实处):")
         lines += [f"- #{f['id']} {f['content']}(第{f['planted_ch']}章埋)" for f in threads]
+    plant = outline.get("plant")
+    if plant:
+        lines += ["本章要埋的伏笔(轻轻带一笔,不点破、不解释):" + plant["content"],
+                  f"(它背后的真相,只给你知道,不要写进正文:{plant['truth']})",
+                  "除此之外,不要再留新的神秘物件、神秘人、神秘记号。"]
+    else:
+        lines.append("本章不埋新伏笔:不要留下来历不明的痕迹、记号、纸条或人影。")
     if outline.get("payoff"):
         lines.append(f"本章兑现(要写足、写在读者能感到痛快或好笑的地方,不能一笔带过):{outline['payoff']}")
     if outline.get("novelty"):
