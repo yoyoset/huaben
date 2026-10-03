@@ -52,3 +52,5 @@ ${b.pending_drafts ? `(另有 ${b.pending_drafts} 章已备稿,读到附近或�
 - 不改"读到附近才放出"的规则,不做前端别的页面。
 
 ## 审核记录
+
+通过 2026-10-04(执行:glm-5.3-flash,202 秒)。架构方重跑 `python -m pytest -q` 507 全过;读了 diff,与方案逐行一致。已部署,生产书架接口实测 `pending_drafts=26`。
