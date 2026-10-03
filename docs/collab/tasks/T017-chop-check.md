@@ -70,3 +70,6 @@ def chop_problems(text: str) -> list[str]:
 - 不改已定稿的章。
 
 ## 审核记录
+
+通过 2026-10-03。架构方自己重跑:`python -m pytest -q` 486 全过(含 T019);密度命令实测 01=6.2、30=12.4,与期望一致;
+`chapter.py` 185 行、`chop.py` 29 行。读了 diff:打回理由与卡里原文一致(全角标点),写章路径打回、导入路径只留痕,`ScriptedLLM` 的 `choppy` 默认关闭。未部署,等 T018 一起。
