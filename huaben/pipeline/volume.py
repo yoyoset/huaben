@@ -107,9 +107,14 @@ def seal_volume(conn, llm: LLM, settings: Settings, book_id: int, volume: dict) 
 
 
 def ensure_active_volume(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
-    """调度器在每次写章前调用:当前卷写满就封卷并规划下一卷;没有进行中的卷就规划一卷。"""
+    """调度器在每次写章前调用:当前卷写满就封卷并规划下一卷;没有进行中的卷就规划一卷。
+    剧本书不规划:写满照旧先封卷,然后等下一卷剧本导入(T010)。"""
     vol = repo.active_volume(conn, book_id)
     if vol is not None and repo.count_accepted(conn, book_id, vol["id"]) >= vol["target_chapters"]:
         seal_volume(conn, llm, settings, book_id, vol)
         vol = None
-    return vol if vol is not None else plan_volume(conn, llm, settings, book_id)
+    if vol is None:
+        if (repo.get_book(conn, book_id) or {}).get("scripted"):
+            raise ChapterFailed("这一卷已经写完,等下一卷剧本导入后继续", step="script")
+        return plan_volume(conn, llm, settings, book_id)
+    return vol

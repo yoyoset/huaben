@@ -47,6 +47,8 @@ def _explain(exc: BaseException) -> str:
     if isinstance(exc, LLMError):
         return _LLM.get(exc.kind, _LLM["bad_response"])
     if isinstance(exc, ChapterFailed):
+        if exc.step == "script":  # 剧本书:提示等下一卷/下一批剧本导入,不会自动重试
+            return str(exc)
         where = f"第 {exc.idx} 章:" if exc.idx else ""
         return f"{where}{_STEP.get(exc.step, '生成没有成功')}," + AUTO
     if isinstance(exc, TTSError):

@@ -30,7 +30,8 @@ def list_books(conn, profile_id: int | None = None) -> list[dict]:
 
 
 def update_book(conn, book_id: int, *, commit: bool = True, **fields) -> None:
-    allowed = {"title", "genre", "synopsis", "status", "read_pos", "last_opened", "gen_error", "audio_error", "craft", "prep_until"}
+    allowed = {"title", "genre", "synopsis", "status", "read_pos", "last_opened", "gen_error", "audio_error", "craft",
+               "prep_until", "scripted"}
     bad = set(fields) - allowed
     if bad:
         raise ValueError(f"unknown book fields: {bad}")
@@ -42,8 +43,14 @@ def update_book(conn, book_id: int, *, commit: bool = True, **fields) -> None:
         conn.commit()
 
 
+def delete_book(conn, book_id: int) -> None:
+    """剧本导入中途失败时清掉刚建的书(卷/章/账本/圣经随外键级联删)。"""
+    conn.execute("DELETE FROM books WHERE id=?", (book_id,))
+    conn.commit()
+
+
 _BIBLE_JSON = {"characters", "style_samples", "taboos"}
-_BIBLE_SCALAR = {"world", "style_fingerprint", "canon", "extracted_msgs", "theme", "central_mystery"}
+_BIBLE_SCALAR = {"world", "style_fingerprint", "canon", "extracted_msgs", "theme", "central_mystery", "secrets"}
 
 
 def get_bible(conn, book_id: int) -> dict | None:

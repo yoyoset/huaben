@@ -76,4 +76,8 @@ UPDATE books SET profile_id = (SELECT id FROM profiles WHERE name = '我') WHERE
     # 18: 每个节拍分配几章(JSON 整数列表,与 beats 等长)。2026-10-03 用户:"都四章了,连山门都还没进"——
     #     旧的平均摊法让小过渡也占 3 章、重头戏被压扁。旧卷为空 = 走原来的平均算法,补预算见 T004,见 beat_budget.py
     "ALTER TABLE volumes ADD COLUMN beat_chapters TEXT NOT NULL DEFAULT '[]';",
+    # 19: 剧本制(T010)。scripted=1 表示这本书的章纲与卷规划只来自架构方导入的剧本,不让模型现出;
+    #     secrets=真相层(只有作者知道的答案),只存不用:不进任何模型提示词,也不进任何读者接口,见 architecture.md 5.5
+    "ALTER TABLE books ADD COLUMN scripted INTEGER NOT NULL DEFAULT 0;"
+    "ALTER TABLE bibles ADD COLUMN secrets TEXT NOT NULL DEFAULT '';",
 ]
