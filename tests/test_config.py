@@ -23,6 +23,7 @@ def test_defaults_are_valid():
 @pytest.mark.parametrize("kw", [
     {"buffer_chapters": 0}, {"chapter_words": -5}, {"max_write_attempts": 0}, {"port": 70000},
     {"worker_interval_s": 0}, {"tts_retries": -1}, {"llm_model": ""}, {"openrouter_base_url": "openrouter.ai"},
+    {"llm_call_deadline_s": 0},
 ])
 def test_out_of_range_rejected(kw):
     with pytest.raises(ValidationError):

@@ -19,7 +19,7 @@ from .llm_config import is_openrouter
 
 class LLMError(Exception):
     """调用失败。kind 是给"人话错误"用的分类,不必解析消息文本:
-    no_key / auth / quota / rate_limit / server / network / request / bad_response / empty
+    no_key / auth / quota / rate_limit / server / network / timeout / request / bad_response / empty
     """
 
     def __init__(self, message: str, kind: str = "bad_response", status: int | None = None):
@@ -146,12 +146,19 @@ class OpenRouterClient:
                                 openrouter=is_openrouter(self._s.openrouter_base_url))
         last: LLMError | None = None
         wasted = LLMResult(text="")  # 被丢弃但已计费的尝试(空正文):计入最终结果或最终错误,不能凭空消失
+        started = time.monotonic()
+        deadline = started + self._s.llm_call_deadline_s
         for attempt in range(self._retries + 1):
             if attempt:
-                self._sleep(2 ** attempt)
+                self._sleep(min(2 ** attempt, max(deadline - time.monotonic(), 0)))
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break  # 总时长耗尽:不再发起新的一次尝试
+            # 单次 httpx 超时是"两字节之间",上游发保活字节永不触发;再套一个"这次尝试最多等到 deadline"的上限
+            timeout = min(self._s.llm_timeout_s, remaining)
             t0 = time.monotonic()
             try:
-                r = self._http.post("/chat/completions", json=payload,
+                r = self._http.post("/chat/completions", json=payload, timeout=timeout,
                                     headers={"x-opencode-session": session_id(self._s.llm_model, messages)})
             except httpx.TransportError as e:  # 超时/连接失败:可重试
                 last = LLMError(f"network error: {type(e).__name__}: {e}", kind="network")
@@ -177,7 +184,13 @@ class OpenRouterClient:
             res.tokens_out += wasted.tokens_out
             res.cost_usd += wasted.cost_usd
             return res
-        err = last or LLMError("unknown failure")
+        if last is None or time.monotonic() >= deadline:
+            # 总时长耗尽(或在耗尽前没有任何一次可重试的失败):显式报超时,而不是伪装成网络错误
+            err = last if isinstance(last, LLMEmptyError) else LLMError(
+                f"call deadline exceeded after {time.monotonic() - started:.0f}s", kind="timeout")
+            err.tokens_in, err.tokens_out, err.cost_usd = wasted.tokens_in, wasted.tokens_out, wasted.cost_usd
+            raise err
+        err = last
         err.tokens_in, err.tokens_out, err.cost_usd = wasted.tokens_in, wasted.tokens_out, wasted.cost_usd
         raise err
 

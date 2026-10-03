@@ -16,6 +16,7 @@ _LLM = {
     "rate_limit": "模型调用太频繁被限流了," + AUTO,
     "server": "模型服务暂时不可用," + AUTO,
     "network": "连不上模型服务(网络问题)," + AUTO,
+    "timeout": "模型调用卡住超过总时长上限,已放弃这一稿," + AUTO,
     "empty": "模型返回了空内容," + AUTO,
     "bad_response": "模型返回的内容无法识别," + AUTO,
     "budget": "过去 24 小时的模型花费已达上限,已暂停生成;额度回落后会自动继续。"

@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     llm_model: str = Field("deepseek/deepseek-v4.1-flash", min_length=1)
     llm_timeout_s: float = Field(180.0, gt=0, le=1800)
+    # 单次 chat() 的总时长上限(含重试与退避等待)。httpx 的超时是"两字节之间",上游发保活字节就永不触发,
+    # 一次挂住会占死唯一的后台线程(路线 62/33)。到点即放弃这一稿,交给退避重试。
+    llm_call_deadline_s: float = Field(600.0, gt=0, le=3600)
     chapter_max_tokens: int = Field(8000, ge=256, le=200_000)  # 3000 字约 4~6k token,留足余量
     chapter_words: int = Field(2500, ge=1, le=20_000)          # 单章目标字数
     max_write_attempts: int = Field(3, ge=1, le=10)            # 正文被打回/截断/解析失败时最多写几稿

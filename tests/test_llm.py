@@ -92,6 +92,31 @@ def test_network_error_retried_then_raised():
         client(handler, retries=1).chat([])
 
 
+def test_total_call_deadline_gives_up_and_reports_timeout():
+    """httpx 超时是"两字节之间",上游发保活字节永不触发;总时长上限到点就放弃(路线 62/33)。"""
+    import time as _t
+
+    def handler(req):
+        _t.sleep(0.05)  # 每次都拖过 deadline
+        return httpx.Response(503, text="busy")
+
+    c = OpenRouterClient(settings(llm_call_deadline_s=0.02), transport=httpx.MockTransport(handler),
+                         retries=5, sleep=lambda s: None)
+    with pytest.raises(LLMError) as ei:
+        c.chat([])
+    assert ei.value.kind == "timeout"
+
+
+def test_deadline_caps_retry_sleep(monkeypatch):
+    """到点前没时间了就不再等退避:睡眠时长被夹到剩余时间,不会白等一大段。"""
+    slept = []
+    c = OpenRouterClient(settings(llm_call_deadline_s=0.05), transport=httpx.MockTransport(
+        lambda r: httpx.Response(503, text="busy")), retries=3, sleep=lambda s: slept.append(s))
+    with pytest.raises(LLMError):
+        c.chat([])
+    assert slept and all(s <= 0.05 for s in slept)  # 未出现 2/4/8 秒的大退避
+
+
 def test_error_body_shape():
     with pytest.raises(LLMError, match="boom"):
         parse_response({"error": {"message": "boom"}}, 1)
