@@ -27,6 +27,7 @@ export async function statsView(bookId) {
         tile('累计花费', fmtUSD(s.total_cost_usd), s.unpriced_calls
           ? `⚠ 有 ${s.unpriced_calls} 次调用上游没报费用,金额偏低`
           : `开书 ${fmtUSD(s.cost_breakdown_usd.opening)}`),
+        promptTile(s.prompt),
         canonTile(s.canon)),
       foreshadowSection(fr),
       editorNotesSection(s.editor_notes),
@@ -42,6 +43,17 @@ export async function statsView(bookId) {
   } catch (e) {
     fill(box, h('div', { class: 'banner', role: 'alert' }, e.message));
   }
+}
+
+/** prompt 体量:分层记忆的目标是"第 500 章和第 50 章差不多",超过观测线说明某个环节没压住(路线 68)。 */
+function promptTile(p) {
+  if (!p || !p.write_chars) return null;
+  const hint = p.too_long
+    ? `偏长(超过观测线 ${p.warn_chars} 字):检查定本是否没去重、未收伏笔/人物是否越带越多`
+    : `约 ${p.write_chars} 字(分层记忆应该让长篇也保持在这个量级)`;
+  return h('div', { class: p.too_long ? 'stat warn' : 'stat' },
+    h('div', { class: 'stat-value' }, `${p.write_chars} 字`), h('div', { class: 'muted' }, '下一章 prompt'),
+    h('div', { class: 'stat-hint' }, hint));
 }
 
 /** 世界设定定本:每章都整段带上,封卷时由模型合并;过长说明可能没去重,会推高每章成本。 */

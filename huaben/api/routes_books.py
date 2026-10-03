@@ -63,7 +63,19 @@ def book_stats(book_id: int, request: Request, conn=Depends(get_conn)):
     """可观测:单章平均成本/耗时、重写率、配音覆盖、失败分布(口径见 huaben/stats.py)。"""
     book_or_404(conn, book_id)
     settings = request.app.state.settings
-    return stats.book_stats(conn, book_id, audio_ok=lambda c: best_playable(settings, index_paths(c)) is not None)
+    out = stats.book_stats(conn, book_id, audio_ok=lambda c: best_playable(settings, index_paths(c)) is not None)
+    out["prompt"] = _prompt_size(conn, book_id, settings)
+    return out
+
+
+def _prompt_size(conn, book_id: int, settings) -> dict:
+    """下一章实际会发的 prompt 体量(路线 68)。读库失败不影响统计本身。"""
+    try:
+        from ..context import load_context
+        from ..prompt_size import measure
+        return measure(load_context(conn, book_id, settings.recent_chapters_in_prompt), settings.chapter_words)
+    except Exception:  # noqa: BLE001 —— 只是观测,不能因为它让统计页打不开
+        return {}
 
 
 @router.get("/{book_id}/foreshadows")
