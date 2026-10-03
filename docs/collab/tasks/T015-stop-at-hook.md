@@ -58,4 +58,6 @@ def ending_problem(body: str, ending: str) -> list[str]:
 
 ## 审核记录
 
-(架构方填)
+通过 2026-10-03。架构方自己重跑 `python -m pytest -q`:481 全过(478→481);读了 `verbatim.py`、`prompts.py`、`chapter.py`、`normalize.py` 的 diff,
+与卡里"照抄"的部分一致;`test_verbatim.py` 的三项新测试覆盖了 5 种 `ending_problem` 情形、工单停笔行有/无、端到端"写过头被打回→第二稿定稿"。
+旧测试期望字典补 `"ending": ""`(`test_normalize.py`)已在报告里列出。
