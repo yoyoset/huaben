@@ -14,8 +14,8 @@
 
 - **2026-10-03 起改为文档协作**:新任务不再往下面的路线里加,而是写成 `docs/collab/tasks/` 里的任务卡,
   队列看 [docs/collab/BOARD.md](docs/collab/BOARD.md);验收通过后再由架构方把结果记回这里和 `docs/build-log/`。
-  当前在队列里:配音跨段落合并(T001/T002)、节拍章数预算(T003/T004)、审查遗留小修(T005)。
-- 现状(2026-10-03):生产 DB 迁移第 17 版;383 项 pytest 全过;写作模型 OpenCode Go `deepseek-v4.1-flash`;配音 `qwen3-zh` 克隆音色。
+  已通过并部署:T001 配音跨段落合并、T003 节拍章数预算、T005 小修;在队列里:T002 显卡实测块长、T004 给在写的卷补预算。
+- 现状(2026-10-03):生产 DB 迁移第 18 版;401 项 pytest 全过;写作模型 OpenCode Go `deepseek-v4.1-flash`;配音 `qwen3-zh` 克隆音色。
 
 ## 归档
 
@@ -24,6 +24,8 @@
 - [docs/build-log/2026-10-02-polish.md](docs/build-log/2026-10-02-polish.md) — 持续完善(loop)
 - [docs/build-log/2026-10-02-user-direction.md](docs/build-log/2026-10-02-user-direction.md) — 用户改定方向:每人一个书架、配音以电脑为主、花费只提醒
 - [docs/build-log/2026-10-03-master-foundation.md](docs/build-log/2026-10-03-master-foundation.md) — 大师级基底(招牌能力/世界阶梯/对白辨识度/宿敌)+人物志+调用时长上限+热路径索引(路线 58~64)
+
+- [docs/build-log/2026-10-03-collab-round1.md](docs/build-log/2026-10-03-collab-round1.md) — 文档协作第 1 轮:配音跨段落合并、节拍章数预算、小修(T001/T003/T005)
 
 ## 持续完善路线(loop 每轮取最上面一项未完成的)
 
