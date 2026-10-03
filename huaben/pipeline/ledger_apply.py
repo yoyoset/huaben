@@ -54,7 +54,7 @@ def apply_ledger(conn, book_id: int, chapter_id: int, idx: int, ledger: dict) ->
             apply_character(conn, book_id, entry, existing, idx, warnings)
         for f in ledger["foreshadows_new"]:
             repo.add_foreshadow(conn, book_id, idx, f["content"], f["payoff_plan"], commit=False,
-                                scale=f.get("scale", "medium"))
+                                scale=f.get("scale", "medium"), key=f.get("key", ""))
         for u in ledger["foreshadows_update"]:
             fid, status = u["id"], u["status"]
             if fid not in status_of:

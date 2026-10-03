@@ -15,7 +15,8 @@ PLANT = {"content": "账本页脚有一行小字", "truth": "老道早就知道�
 
 
 def test_normalize_plant_requires_content_and_truth():
-    assert normalize_plant({"content": "a", "truth": "b", "scale": "长线"}) == {"content": "a", "truth": "b", "scale": "long"}
+    assert normalize_plant({"content": "a", "truth": "b", "scale": "长线"}) == {"content": "a", "truth": "b",
+                                                                                "scale": "long", "key": ""}
     assert normalize_plant({"content": "a", "truth": ""}) is None
     assert normalize_plant(None) is None and normalize_plant("x") is None
 

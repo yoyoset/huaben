@@ -20,6 +20,7 @@ from .llm_step import call_step
 from .parsing import ParseError, parse_ledger, parse_outline, unplanned_contradictions
 from ..planting import to_register
 from ..repetition import repetition_note
+from ..script_import import resolve_keys
 
 log = logging.getLogger("huaben.chapter")
 
@@ -69,9 +70,22 @@ def generate_chapter(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
 
 
 def _outline(conn, llm: LLM, book_id: int, ctx: StoryContext) -> tuple[int, dict]:
-    """编辑·章纲。解析失败直接重试一次(格式问题多为偶发);两次都不行则本章失败。
+    """编辑·章纲。剧本书的章纲来自导入的剧本,不调模型;非剧本书走原路(解析失败重试一次)。
     标题与已有章重复只留痕、不重出:提示里已列出已有标题做预防,撞名是质量问题、不是停更或多花一次调用的理由。"""
-    idx, outline, res = ctx.next_idx, None, None
+    idx = ctx.next_idx
+    scripted = repo.get_scripted_outline(conn, book_id, idx)
+    if scripted is not None:
+        raw, missing = resolve_keys(scripted, repo.foreshadow_ids_by_key(conn, book_id))
+        outline = parse_outline(dumps(raw))  # 代号翻译后过规整;节奏标记只留在 scripted_outlines,不进章纲
+        if missing:
+            repo.log_run(conn, book_id, "outline", chapter_idx=idx, note=f"剧本引用了不存在的伏笔代号: {missing}")
+        chapter_id = repo.create_chapter(conn, book_id, ctx.volume["id"], idx,
+                                         outline=dumps(outline), title=outline["title"])
+        repo.log_run(conn, book_id, "outline", chapter_idx=idx, note="outline: 来自剧本")
+        return chapter_id, outline
+    if ctx.book.get("scripted"):
+        raise ChapterFailed("这一批剧本已经写完,等下一批剧本导入后继续", step="script", idx=idx)
+    outline, res = None, None
     for _ in range(2):
         res = call_step(conn, llm, book_id, idx, "outline", prompts.outline_messages(ctx), json_mode=True, temperature=0.7)
         try:
@@ -121,7 +135,9 @@ def _draft_until_accepted(conn, llm: LLM, settings: Settings, book_id: int, ctx:
             feedback = bad
             continue
         # 登记伏笔以章纲的 plant 为准;入账捡出来的只留痕,不登记(不知道答案的"神秘细节"不是伏笔)
-        ledger["foreshadows_new"], plant_notes = to_register(outline.get("plant"), len(ctx.foreshadows), ledger["foreshadows_new"])
+        ledger["foreshadows_new"], plant_notes = to_register(
+            outline.get("plant"), len(ctx.foreshadows), ledger["foreshadows_new"],
+            scripted=bool(ctx.book.get("scripted")))
         for w in apply_ledger(conn, book_id, chapter_id, idx, ledger) + _thread_follow_through(ctx, outline, ledger) + plant_notes:
             repo.log_run(conn, book_id, "ledger", chapter_idx=idx, note=w)
         note = repetition_note(body, [c["name"] for c in ctx.characters])  # 逐字重复:只留痕,不打回(分不清复沓与词穷)

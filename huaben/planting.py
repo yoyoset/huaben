@@ -37,7 +37,8 @@ def normalize_plant(raw) -> dict | None:
     content, truth = str(raw.get("content") or "").strip(), str(raw.get("truth") or "").strip()
     if not content or not truth:
         return None
-    return {"content": content, "truth": truth, "scale": normalize_scale(raw.get("scale"))}
+    return {"content": content, "truth": truth, "scale": normalize_scale(raw.get("scale")),
+            "key": str(raw.get("key") or "").strip()}
 
 
 def plant_rule(open_count: int) -> str:
@@ -47,11 +48,14 @@ def plant_rule(open_count: int) -> str:
     return PLANT_RULE
 
 
-def to_register(plant: dict | None, open_count: int, extracted: list[dict]) -> tuple[list[dict], list[str]]:
-    """→ (要登记进账本的新伏笔, 运行记录)。只登记章纲计划的那一条;入账捡出来的(extracted)一律不登记、只留痕。"""
+def to_register(plant: dict | None, open_count: int, extracted: list[dict],
+                scripted: bool = False) -> tuple[list[dict], list[str]]:
+    """→ (要登记进账本的新伏笔, 运行记录)。只登记章纲计划的那一条;入账捡出来的(extracted)一律不登记、只留痕。
+    scripted=True(剧本书):剧本里埋多少是架构方算过的,不受 OPEN_TOTAL_LIMIT 限制。"""
     notes = [f"计划外的悬念(未登记为伏笔):{f['content'][:60]}" for f in extracted]
     if plant is None:
         return [], notes
-    if open_count > OPEN_TOTAL_LIMIT:
+    if not scripted and open_count > OPEN_TOTAL_LIMIT:
         return [], notes + [f"未回收伏笔 {open_count} 条超过上限 {OPEN_TOTAL_LIMIT},章纲计划的伏笔未登记:{plant['content'][:60]}"]
-    return [{"content": plant["content"], "payoff_plan": plant["truth"], "scale": plant["scale"]}], notes
+    return [{"content": plant["content"], "payoff_plan": plant["truth"], "scale": plant["scale"],
+             "key": plant.get("key", "")}], notes

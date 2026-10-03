@@ -80,4 +80,13 @@ UPDATE books SET profile_id = (SELECT id FROM profiles WHERE name = '我') WHERE
     #     secrets=真相层(只有作者知道的答案),只存不用:不进任何模型提示词,也不进任何读者接口,见 architecture.md 5.5
     "ALTER TABLE books ADD COLUMN scripted INTEGER NOT NULL DEFAULT 0;"
     "ALTER TABLE bibles ADD COLUMN secrets TEXT NOT NULL DEFAULT '';",
+    # 20: 剧本制(T011)。scripted_outlines = 架构方预先写好的章纲(含节奏标记,原样存);ledger_foreshadows.key = 伏笔代号
+    #     (如 F3)。章纲提前写好,而伏笔的数据库编号要等写到埋它的那一章才产生,所以章纲里只能用代号引用它
+    """CREATE TABLE scripted_outlines (
+  book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+  idx INTEGER NOT NULL,
+  outline TEXT NOT NULL,
+  PRIMARY KEY(book_id, idx)
+);
+ALTER TABLE ledger_foreshadows ADD COLUMN key TEXT NOT NULL DEFAULT '';""",
 ]

@@ -11,6 +11,8 @@ from .opening import add_message, list_messages
 from .profiles import create_profile, get_profile, list_profiles, rename_profile
 from .runs import (cost_summary, editor_notes, failure_counts, log_run, recent_failures, run_totals, spent_usd,
                    unpriced_calls)
+from .scripts import (foreshadow_ids_by_key, get_scripted_outline, list_scripted_outlines, max_scripted_idx,
+                      save_scripted_outlines)
 from .volumes import (active_volume, create_volume, get_volume, list_volumes, seal_volume, set_volume_arc,
                       set_volume_budget, set_volume_status)
 
@@ -29,4 +31,6 @@ __all__ = [
     "editor_notes",
     "active_volume", "create_volume", "get_volume", "list_volumes", "seal_volume", "set_volume_arc", "set_volume_status",
     "set_volume_budget",
+    "save_scripted_outlines", "get_scripted_outline", "list_scripted_outlines", "max_scripted_idx",
+    "foreshadow_ids_by_key",
 ]
