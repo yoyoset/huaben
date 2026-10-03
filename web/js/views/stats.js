@@ -29,6 +29,7 @@ export async function statsView(bookId) {
           : `开书 ${fmtUSD(s.cost_breakdown_usd.opening)}`),
         canonTile(s.canon)),
       foreshadowSection(fr),
+      editorNotesSection(s.editor_notes),
       h('h2', {}, '问题记录'),
       failures.length
         ? h('ul', {}, failures.map(([step, n]) => h('li', {}, `${STEP_LABELS[step] ?? step}:${n} 次`)))
@@ -50,6 +51,16 @@ function canonTile(c) {
   return h('div', { class: c.too_long ? 'stat warn' : 'stat' },
     h('div', { class: 'stat-value' }, `${c.chars} 字`), h('div', { class: 'muted' }, '世界设定定本'),
     h('div', { class: 'stat-hint' }, hint));
+}
+
+/** 编辑的软观察:拿不准的疑点、建议、逐字重复——不影响定稿,但读者可据此在写法补充里加要求。 */
+function editorNotesSection(notes) {
+  if (!notes || !notes.length) return null;
+  return h('section', {},
+    h('h2', {}, '编辑的观察'),
+    h('p', { class: 'muted' }, '这些没有影响定稿,只是编辑顺手记下的疑点/建议;觉得有道理,就去「✍ 写法」的补充要求里写一句。'),
+    h('ul', {}, notes.map((n) => h('li', {},
+      `${n.chapter_idx ? `第${n.chapter_idx}章:` : ''}${n.note.replace('编辑观察(未打回):', '')}`))));
 }
 
 /** 伏笔回收:全书汇总 + 每卷"计划收 / 实际收 / 没收"(验收项:卷内伏笔有回收记录)。 */

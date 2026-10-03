@@ -11,7 +11,7 @@ from ..craft import from_book, novelty_rule, render_craft
 from ..devices import avoid_rule, from_rows, known_list
 from ..foreshadow_scale import planting_rule
 from ..render import due_foreshadow_ids, handoff_text, recent_text, render_bible, render_memory, render_style_samples
-from .rules import (PAYOFF_RULE, REPETITION_RULE, SIGNATURE_RULE, SPEECH_RULE,  # noqa: F401  (对外仍从 prompts 取)
+from .rules import (BOND_RULE, PAYOFF_RULE, REPETITION_RULE, SIGNATURE_RULE, SPEECH_RULE,  # noqa: F401
                     consistency_rule, pacing_rule)
 
 OUTLINE_SCHEMA = """{
@@ -75,7 +75,7 @@ def outline_messages(ctx: StoryContext) -> list[dict]:
         f"{render_bible(ctx.bible)}\n\n{render_craft(from_book(ctx.book))}\n\n{render_memory(ctx)}\n\n"
         f"【最近原文(用于衔接)】\n{recent_text(ctx)}\n\n"
         f"请为第 {ctx.next_idx} 章写章纲工单。要求:紧扣本卷目标与节拍;伏笔该推进的推进、该收的收;"
-        f"结尾留钩子;不得与账本冲突(除非明确写进 planned_reversals)。\n{PAYOFF_RULE}\n{SIGNATURE_RULE}\n{SPEECH_RULE}\n{REPETITION_RULE}\n{pacing_rule(ctx)}\n"
+        f"结尾留钩子;不得与账本冲突(除非明确写进 planned_reversals)。\n{PAYOFF_RULE}\n{BOND_RULE}\n{SIGNATURE_RULE}\n{SPEECH_RULE}\n{REPETITION_RULE}\n{pacing_rule(ctx)}\n"
         f"{planting_rule(ctx.foreshadows, due_foreshadow_ids(ctx))}\n{recent_hooks(ctx)}"
         f"{novelty_rule(from_book(ctx.book))}\n{avoid_rule(from_rows(ctx.recent))}\n"
         f"只输出如下结构的 JSON:\n{OUTLINE_SCHEMA}"
@@ -140,6 +140,7 @@ def write_messages(ctx: StoryContext, outline: dict, words: int, feedback: list[
         + SIGNATURE_RULE + "\n"
         + SPEECH_RULE + "\n"
         + REPETITION_RULE + "\n"
+        + BOND_RULE + "\n"
         "6. 结尾落在工单指定的钩子上。"
     )
     return [{"role": "system", "content": system}, {"role": "user", "content": "\n\n".join(parts)}]
@@ -155,7 +156,7 @@ def ledger_messages(ctx: StoryContext, outline: dict, body: str) -> list[dict]:
         f"【第 {ctx.next_idx} 章正文】\n{body}\n\n"
         f"【最近用过的手段】{known_list(from_rows(ctx.recent))}\n\n"
         "请完成入账与核对:提取摘要;更新出场人物的现状(生死/位置/能力/关系/知情);登记新伏笔与伏笔进展;"
-        "重要角色在本章首次显露招牌能力、或招牌能力进阶时,在 signature 里登记(有名有姓、一句话规则与代价、当前形态);"
+        "反复出场的人物在本章首次显露招牌能力、或招牌能力进阶时,在 signature 里登记(有名有姓、一句话规则与代价、当前形态);"
         "登记新确立的世界事实——正文里出现、后文可能再用到的具体数字(数量、价格、比例、日期)也作为事实登记,写清它指什么;"
         "并核对正文是否与账本冲突(人名、生死、能力、知情范围、世界事实、已登记的数字),"
         "以及正文内部:同一个数前后是否一致、算术是否算对(例如\"一瓶十粒,三瓶九十粒\"就是算错——"

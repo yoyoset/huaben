@@ -4,6 +4,7 @@ from ..context import StoryContext
 from ..craft import from_book, render_craft
 from ..render import render_bible, render_foreshadow, render_memory
 from ..rival import advance_rule, from_bible as rivals_from_bible
+from .rules import BOND_RULE
 
 PLAN_SCHEMA = """{
   "goal": "本卷要达成的目标,1~2 句",
@@ -44,7 +45,8 @@ def foreshadow_backlog(ctx: StoryContext, carried_ids=()) -> str:
 ARC_RULE = ("这一卷是一段征战(arc):一个有自己道理的对手、一个具体的赌注、一种打法;"
             "节拍里要有一次把主角逼到最低处的谷底,翻盘要靠主角的本事挣来、并且付出代价;卷末必须有东西变了;"
             "顺手推进一条长线或超长线伏笔,让读者离全书的大谜团近一步;"
-            "world 写出本卷把读者的世界坐标推到哪一格——只升不降(更大的舞台、更高的势力层级,或这个世界更核心的真相)。")
+            "world 写出本卷把读者的世界坐标推到哪一格——只升不降(更大的舞台、更高的势力层级,或这个世界更核心的真相)。"
+            + BOND_RULE)
 
 
 def plan_messages(ctx: StoryContext, idx: int, carried_ids=(), used_modes=(), used_worlds=(), used_rivals=()) -> list[dict]:

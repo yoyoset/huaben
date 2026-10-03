@@ -48,3 +48,14 @@ def test_rewrites_audio_and_failures(conn, book):
 def test_empty_book_has_zeroes_not_division_errors(conn):
     s = book_stats(conn, repo.create_book(conn, "空"))
     assert s["chapters"] == 0 and s["avg_cost_usd"] == 0 and s["rewrite_rate"] == 0 and s["failures"] == {}
+
+
+def test_editor_notes_are_surfaced_but_not_counted_as_failures(conn, book):
+    """软观察写进运行记录、进统计(路线 67);它 ok=1,不能混进失败。"""
+    repo.log_run(conn, book, "ledger", chapter_idx=2, note="编辑观察(未打回):招牌能力进阶要写成爽点")
+    repo.log_run(conn, book, "ledger", chapter_idx=1, note="正常入账")  # 不是软观察,不该出现
+    s = book_stats(conn, book)
+    assert len(s["editor_notes"]) == 1
+    assert s["editor_notes"][0]["chapter_idx"] == 2
+    assert "编辑观察(未打回):" in s["editor_notes"][0]["note"]
+    assert s["failures"].get("ledger") is None  # ok=1,不算失败

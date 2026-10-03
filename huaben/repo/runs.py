@@ -53,6 +53,13 @@ def recent_failures(conn, book_id: int, limit: int = 5) -> list[dict]:
         "ORDER BY id DESC LIMIT ?", (book_id, limit))]
 
 
+def editor_notes(conn, book_id: int, limit: int = 20) -> list[dict]:
+    """编辑的软观察(拿不准的疑点/建议/逐字重复;不打回定稿)。写库时前缀固定,见 ledger_apply。"""
+    return [dict(r) for r in conn.execute(
+        "SELECT chapter_idx, note, created_at FROM pipeline_runs WHERE book_id=? AND step='ledger' "
+        "AND note LIKE '编辑观察(未打回):%' ORDER BY id DESC LIMIT ?", (book_id, limit))]
+
+
 def unpriced_calls(conn, book_id: int | None = None, hours: int | None = None) -> int:
     """用了 token 却没有记到费用的模型调用次数。
 
