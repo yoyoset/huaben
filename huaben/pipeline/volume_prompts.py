@@ -4,6 +4,7 @@ from ..context import StoryContext
 from ..craft import from_book, render_craft
 from ..render import render_bible, render_foreshadow, render_memory
 from ..rival import advance_rule, from_bible as rivals_from_bible
+from ..theme import advance_rule as theme_advance_rule
 from .rules import BOND_RULE
 
 PLAN_SCHEMA = """{
@@ -56,13 +57,15 @@ def plan_messages(ctx: StoryContext, idx: int, carried_ids=(), used_modes=(), us
     ladder = (world_ladder_rule(list(used_worlds)) + "\n") if used_worlds else ""
     rivals = advance_rule(rivals_from_bible(ctx.bible), list(used_rivals))
     rival_line = (rivals + "\n") if rivals else ""
+    theme = theme_advance_rule(bool((ctx.bible or {}).get("theme") or (ctx.bible or {}).get("central_mystery")))
+    theme_line = (theme + "\n") if theme else ""
     user = (
         f"{render_bible(ctx.bible)}\n\n{render_craft(from_book(ctx.book))}\n\n{render_memory(ctx)}\n\n"
         f"{foreshadow_backlog(ctx, carried_ids)}\n\n"
         f"请规划第 {idx} 卷。要求:有清晰的卷内目标和起承转合;未回收的伏笔要有计划地收,"
         f"同时埋下新的;与已有人物现状和世界事实自洽;符合雷点与风格设定;节奏紧凑,每个节拍都能撑起爽点或悬念;"
         f"叙事结构与伏笔布局按【写法设定】安排(例如多线交织就规划好各条线在哪些节拍汇合)。\n"
-        f"{ARC_RULE}\n{modes}{ladder}{rival_line}"
+        f"{ARC_RULE}\n{modes}{ladder}{rival_line}{theme_line}"
         f"只输出如下结构的 JSON:\n{PLAN_SCHEMA}"
     )
     return [{"role": "system", "content": _SYSTEM}, {"role": "user", "content": user}]
@@ -75,11 +78,14 @@ def arc_messages(ctx: StoryContext, volume: dict, summaries: list[str], used_mod
     ladder = (world_ladder_rule(list(used_worlds)) + "\n") if used_worlds else ""
     rivals = advance_rule(rivals_from_bible(ctx.bible), list(used_rivals))
     rival_line = (rivals + "\n") if rivals else ""
+    theme = theme_advance_rule(bool((ctx.bible or {}).get("theme") or (ctx.bible or {}).get("central_mystery")))
+    theme_line = (theme + "\n") if theme else ""
     user = (
         f"{render_bible(ctx.bible)}\n\n{render_craft(from_book(ctx.book))}\n\n"
         f"【本卷(第{volume['idx']}卷)目标】{volume['goal']}\n【本卷节拍】\n{beats}\n\n"
         f"【本卷已写章节】\n{chr(10).join(summaries) or '(还没有)'}\n\n"
-        f"这一卷已经开始写,但还没有明确征战结构。{ARC_RULE}请在不改节拍、不与已写章节矛盾的前提下补出来。\n{modes}{ladder}{rival_line}"
+        f"这一卷已经开始写,但还没有明确征战结构。{ARC_RULE}请在不改节拍、不与已写章节矛盾的前提下补出来。\n"
+        f"{modes}{ladder}{rival_line}{theme_line}"
         f"只输出如下结构的 JSON:\n{ARC_SCHEMA}"
     )
     return [{"role": "system", "content": _SYSTEM}, {"role": "user", "content": user}]

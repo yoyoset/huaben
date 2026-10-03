@@ -69,4 +69,8 @@ UPDATE books SET profile_id = (SELECT id FROM profiles WHERE name = '我') WHERE
     "CREATE INDEX IF NOT EXISTS idx_facts_book_ch ON ledger_facts(book_id, established_ch);"
     "CREATE INDEX IF NOT EXISTS idx_messages_book ON opening_messages(book_id, id);"
     "CREATE INDEX IF NOT EXISTS idx_audio_chapter ON audio(chapter_id);",
+    # 17: 故事的主题与核心谜团(路线 69)。2026-10-03 用户:要能写出《海贼王》《火影》《死神》那种故事——
+    #     它们的长线最后都指向一个"这本书到底在讲什么"的核心。旧书为空,不影响;见 theme.py
+    "ALTER TABLE bibles ADD COLUMN theme TEXT NOT NULL DEFAULT '';"
+    "ALTER TABLE bibles ADD COLUMN central_mystery TEXT NOT NULL DEFAULT '';",
 ]

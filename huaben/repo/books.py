@@ -43,7 +43,7 @@ def update_book(conn, book_id: int, *, commit: bool = True, **fields) -> None:
 
 
 _BIBLE_JSON = {"characters", "style_samples", "taboos"}
-_BIBLE_SCALAR = {"world", "style_fingerprint", "canon", "extracted_msgs"}
+_BIBLE_SCALAR = {"world", "style_fingerprint", "canon", "extracted_msgs", "theme", "central_mystery"}
 
 
 def get_bible(conn, book_id: int) -> dict | None:

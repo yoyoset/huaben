@@ -3,6 +3,7 @@ from .arc import render_arc
 from .context import StoryContext, select_foreshadows, select_ledger
 from .foreshadow_scale import due_state, tag
 from .signature import render as render_signature
+from .theme import render as theme_text
 
 
 def _lines(items: list[str]) -> str:
@@ -33,10 +34,11 @@ def render_bible(bible: dict) -> str:
     chars = bible.get("characters") or []
     char_lines = [f"- {c.get('name', '?')}:{c.get('role', '')} {c.get('traits', '')}".rstrip()
                   + ("(长期对手)" if c.get("rival") else "") for c in chars]
-    parts = [
-        f"【世界观与规则】\n{bible.get('world') or '(未设定)'}",
-        f"【人物卡】\n{_lines(char_lines)}",
-    ]
+    parts = [f"【世界观与规则】\n{bible.get('world') or '(未设定)'}"]
+    thematic = theme_text(bible.get("theme", ""), bible.get("central_mystery", ""))
+    if thematic:
+        parts.insert(0, thematic)
+    parts.append(f"【人物卡】\n{_lines(char_lines)}")
     if bible.get("style_fingerprint"):
         parts.append(f"【风格指纹】\n{bible['style_fingerprint']}")
     if bible.get("taboos"):

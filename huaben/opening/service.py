@@ -109,6 +109,7 @@ def _extract_bible(conn, llm: LLM, book_id: int, messages: list[dict]) -> None:
                          synopsis=bible["synopsis"], commit=False)
         repo.save_bible(conn, book_id, world=bible["world"], style_fingerprint=bible["style_fingerprint"],
                         characters=bible["characters"], taboos=[str(t) for t in bible["taboos"]],
+                        theme=str(bible.get("theme") or ""), central_mystery=str(bible.get("central_mystery") or ""),
                         style_samples=style_samples_from(messages), extracted_msgs=len(messages), commit=False)
         repo.clear_characters(conn, book_id, commit=False)  # 重新整理时,旧圣经里的人物不能残留在账本
         for c in bible["characters"]:
