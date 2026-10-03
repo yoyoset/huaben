@@ -10,6 +10,7 @@ from ..budget import WINDOW_HOURS, spend_status, spent_recently
 from ..db import connect
 from ..migrate import current_version
 from ..migrations import MIGRATIONS
+from ..llm_config import is_subscription
 from .deps import llm_settings
 
 router = APIRouter(prefix="/api", tags=["system"])
@@ -36,7 +37,8 @@ def health(request: Request):
                 "model": eff.llm_model, "base_url": eff.openrouter_base_url},
         "tts": type(st.tts).__name__ if st.tts else None,
         # unpriced_calls > 0:上游没报费用,spent_usd 偏低、提醒与上限可能失灵(见 repo.unpriced_calls)
-        "spend_24h": spend_status(spent, st.settings.spend_remind_usd_24h, st.settings.spend_limit_usd_24h, unpriced),
+        "spend_24h": spend_status(spent, st.settings.spend_remind_usd_24h, st.settings.spend_limit_usd_24h, unpriced,
+                                  is_subscription(eff.openrouter_base_url)),
     }
 
 
@@ -47,6 +49,7 @@ def spend(request: Request):
     conn = connect(st.db_path, check_same_thread=False)
     try:
         return spend_status(spent_recently(conn), st.spend_remind_usd_24h, st.spend_limit_usd_24h,
-                            repo.unpriced_calls(conn, hours=WINDOW_HOURS))
+                            repo.unpriced_calls(conn, hours=WINDOW_HOURS),
+                            is_subscription(llm_settings(request.app.state).openrouter_base_url))
     finally:
         conn.close()

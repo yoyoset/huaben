@@ -91,7 +91,8 @@ def test_openrouter_requests_avoid_fp4_hosts_and_record_who_served():
 
 
 def test_requests_identify_themselves_for_opencode_go():
-    """OpenCode Go 不带 x-opencode-session 直接拒(MissingSessionID),并要求用自己的 UA;同一客户端会话号稳定。"""
+    """OpenCode Go 不带 x-opencode-session 直接拒(MissingSessionID),文档要求"每个对话一个稳定的号"、用自己的 UA。
+    同一本书(系统提示相同)连续调用落在同一个会话上,好让服务商复用提示词缓存;换一本书就是另一个会话。"""
     import httpx
     from huaben.llm import OpenRouterClient
     seen = []
@@ -101,7 +102,21 @@ def test_requests_identify_themselves_for_opencode_go():
         return httpx.Response(200, json={"choices": [{"message": {"content": "好"}, "finish_reason": "stop"}]})
     st = Settings(openrouter_api_key="k", openrouter_base_url="https://opencode.ai/zen/go/v1", _env_file=None)
     c = OpenRouterClient(st, transport=httpx.MockTransport(handler))
-    c.chat([{"role": "user", "content": "x"}])
-    c.chat([{"role": "user", "content": "y"}])
+    book_a = [{"role": "system", "content": "圣经甲"}, {"role": "user", "content": "第1章"}]
+    c.chat(book_a)
+    c.chat([book_a[0], {"role": "user", "content": "第2章"}])
+    c.chat([{"role": "system", "content": "圣经乙"}, {"role": "user", "content": "第1章"}])
     assert seen[0]["user-agent"].startswith("huaben/")
-    assert seen[0]["x-opencode-session"] and seen[0]["x-opencode-session"] == seen[1]["x-opencode-session"]
+    ids = [h["x-opencode-session"] for h in seen]
+    assert ids[0] and ids[0] == ids[1] != ids[2]
+
+
+def test_subscription_billing_is_not_reported_as_unreliable():
+    """Go 是包月:上游不报费用(cost=0),不能因此一直提示"实际花费可能更高"。"""
+    from huaben.budget import spend_status
+    from huaben.llm_config import is_subscription
+    assert is_subscription("https://opencode.ai/zen/go/v1") and not is_subscription("https://opencode.ai/zen/v1")
+    assert not is_subscription("https://openrouter.ai/api/v1")
+    s = spend_status(0.0, 2.0, 0.0, unpriced_calls=40, subscription=True)
+    assert s["reliable"] and not s["over_remind"] and s["billing"] == "subscription"
+    assert not spend_status(0.0, 2.0, 0.0, unpriced_calls=40)["reliable"]

@@ -31,6 +31,12 @@ def is_openrouter(base_url: str) -> bool:
     return host == "openrouter.ai" or host.endswith(".openrouter.ai")
 
 
+def is_subscription(base_url: str) -> bool:
+    """OpenCode Go 是包月订阅:不按次计费,上游也不回报费用(实测 cost=0)——"金额不可信"的提醒对它没有意义。"""
+    u = urlparse(base_url)
+    return (u.hostname or "") == "opencode.ai" and u.path.startswith("/zen/go")
+
+
 def key_tail(key: str) -> str:
     """页面上只显示密钥末 4 位,完整密钥从不回传。"""
     return f"…{key[-4:]}" if len(key) >= 8 else ("已设置" if key else "")

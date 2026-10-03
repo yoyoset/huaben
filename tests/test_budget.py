@@ -74,4 +74,4 @@ def test_real_client_is_wrapped_and_health_reports_spend(tmp_path):
     assert isinstance(ensure_llm(SimpleNamespace(settings=s, llm=None)), BudgetGuard)
     body = TestClient(create_app(s)).get("/api/health").json()
     assert body["spend_24h"] == {"spent_usd": 0, "remind_usd": 2.0, "limit_usd": 5, "over_remind": False,
-                                 "unpriced_calls": 0, "reliable": True}
+                                 "unpriced_calls": 0, "reliable": True, "billing": "metered"}

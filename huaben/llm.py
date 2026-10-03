@@ -5,8 +5,8 @@
 - 显式关思考(思考模型会把 max_tokens 烧在思考上,正文为空):OpenRouter 发 reasoning.effort,别家发 reasoning_effort
 - 正文为空 / 被截断要显式报错,不能让上层以为成功
 """
+import hashlib
 import time
-import uuid
 from dataclasses import dataclass
 from typing import Callable, Protocol
 
@@ -113,6 +113,14 @@ def parse_response(data: dict, duration_ms: int) -> LLMResult:
 _RETRY_STATUS = {408, 429, 500, 502, 503, 504}
 
 
+def session_id(model: str, messages: list[dict]) -> str:
+    """x-opencode-session:OpenCode Go 拒收不带它的请求(2026-10-02 实测 MissingSessionID),文档要求"每个对话一个稳定的号",
+    服务商据此路由并做提示词缓存。我们的"对话"= 同一本书的同一类步骤:系统提示(圣经、样章)对一本书是稳定的,
+    所以按 模型 + 系统提示 取哈希——同一本书连续写几十章都落在同一个会话上、共享缓存。纯函数;对别家服务商无害。"""
+    system = messages[0]["content"] if messages and messages[0].get("role") == "system" else ""
+    return hashlib.sha1(f"{model}|{system}".encode()).hexdigest()[:32]
+
+
 class OpenRouterClient:
     def __init__(self, settings: Settings, *, transport: httpx.BaseTransport | None = None,
                  retries: int = 2, sleep: Callable[[float], None] = time.sleep):
@@ -123,11 +131,9 @@ class OpenRouterClient:
         self._sleep = sleep
         self._http = httpx.Client(
             base_url=settings.openrouter_base_url,
-            # OpenCode Go 拒收不带 x-opencode-session 的请求(2026-10-02 实测 MissingSessionID),并要求客户端用自己的 UA
-            # 如实自报,不用通用 HTTP 库名。会话号每个客户端一个:服务商按它做路由与提示词缓存。对其它服务商无害。
+            # OpenCode Go 要求客户端用自己的 UA 如实自报(不用通用 HTTP 库名);会话号见 session_id
             headers={"Authorization": f"Bearer {settings.openrouter_api_key}",
-                     "User-Agent": f"huaben/{__version__} (personal serial-novel app)",
-                     "x-opencode-session": uuid.uuid4().hex},
+                     "User-Agent": f"huaben/{__version__} (personal serial-novel app)"},
             timeout=settings.llm_timeout_s,
             transport=transport,
         )
@@ -145,7 +151,8 @@ class OpenRouterClient:
                 self._sleep(2 ** attempt)
             t0 = time.monotonic()
             try:
-                r = self._http.post("/chat/completions", json=payload)
+                r = self._http.post("/chat/completions", json=payload,
+                                    headers={"x-opencode-session": session_id(self._s.llm_model, messages)})
             except httpx.TransportError as e:  # 超时/连接失败:可重试
                 last = LLMError(f"network error: {type(e).__name__}: {e}", kind="network")
                 continue
