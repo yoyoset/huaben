@@ -12,3 +12,8 @@ pc_worker/logs/
 pc_worker/.venv-*/
 samples/
 pc_worker/HuabenVoice*.ini
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.kotlin/

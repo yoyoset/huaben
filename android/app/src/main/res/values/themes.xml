@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.Huaben" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#14110f</item>
+        <item name="android:statusBarColor">#14110f</item>
+        <item name="android:navigationBarColor">#14110f</item>
+    </style>
+</resources>

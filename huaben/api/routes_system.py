@@ -3,7 +3,8 @@
 - 只要服务和数据库能用就返回 200(docker healthcheck 依赖它);LLM 没配置不算"不健康",但要报告出来。
 - 绝不回显密钥本身,只报告"配了没有"。
 """
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import FileResponse
 
 from .. import __version__, repo
 from ..budget import WINDOW_HOURS, spend_status, spent_recently
@@ -53,3 +54,13 @@ def spend(request: Request):
                             is_subscription(llm_settings(request.app.state).openrouter_base_url))
     finally:
         conn.close()
+
+
+@router.get("/app/huaben.apk", include_in_schema=False)
+def android_app(request: Request):
+    """安卓 App 安装包(2026-10-03 用户要 APK:跑步前把章节 MP3 下到手机离线听)。
+    包由 scripts/publish_apk.sh 放进 data/app/:它是构建产物,不进 git、也不打进镜像——更新 App 不必重建服务。"""
+    path = request.app.state.settings.data_dir / "app" / "huaben.apk"
+    if not path.is_file():
+        raise HTTPException(404, "服务器上还没有安卓安装包")
+    return FileResponse(path, media_type="application/vnd.android.package-archive", filename="huaben.apk")

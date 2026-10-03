@@ -34,3 +34,13 @@ def test_prepare_api_sets_target_and_lists_downloadable_audio(tmp_path):
     assert v["audio_ready"] == 1 and v["chapters"][0]["audio_url"].startswith(f"/api/books/{a}/chapters/2/audio?v=")
     assert c.get(v["chapters"][0]["audio_url"]).content == mp3
     assert c.post(f"/api/books/{a}/prepare", json={"count": 0}).status_code == 422
+
+
+def test_android_app_is_served_from_data_dir(tmp_path):
+    s, conn, books, c = setup(tmp_path)
+    assert c.get("/api/app/huaben.apk").status_code == 404          # 还没发布:说清楚,不是 500
+    (s.data_dir / "app").mkdir()
+    (s.data_dir / "app" / "huaben.apk").write_bytes(b"PK\x03\x04apk")
+    r = c.get("/api/app/huaben.apk")
+    assert r.status_code == 200 and r.content == b"PK\x03\x04apk"
+    assert r.headers["content-type"] == "application/vnd.android.package-archive"

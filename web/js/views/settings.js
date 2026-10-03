@@ -55,8 +55,12 @@ function render(box, s) {
     h('h2', {}, '模型'),
     field('服务', preset),
     field('接口地址', baseUrl, '以 /v1 结尾的 OpenAI 兼容地址'),
-    field('模型名', model, 'OpenRouter 写 deepseek/deepseek-v4.1-flash;OpenCode Zen 写 deepseek-v4.1-flash'),
+    field('模型名', model, 'OpenRouter 写 deepseek/deepseek-v4.1-flash;OpenCode(Zen / Go)写 deepseek-v4.1-flash'),
     field('密钥', key, s.key_from === 'env' ? '当前用的是服务器 .env 里的密钥;在这里填写会覆盖它' : ''),
     h('div', { class: 'row' }, h('button', { class: 'primary', onclick: save }, '保存'), h('button', { onclick: test }, '测试连接')),
-    msg);
+    msg,
+    // 跑步离线听:网页走 http 做不了离线缓存,由安卓 App 把 MP3 下到手机(在手机浏览器里点这个链接安装)
+    h('h2', {}, '安卓 App'),
+    h('p', { class: 'muted' }, '出门前在 App 里"备 10 章 / 20 章"并下载,没网也能听;锁屏、耳机按键都能控制。'),
+    h('a', { class: 'btn', href: '/api/app/huaben.apk', download: 'huaben.apk' }, '📱 下载安装包(huaben.apk)'));
 }
