@@ -74,3 +74,18 @@ def test_editor_sees_recent_hooks_and_is_told_to_vary(conn):
         repo.update_chapter(conn, cid, body="b", summary="s", status="accepted")
     user = outline_messages(load_context(conn, bid))[1]["content"]
     assert "- 第1章:残片发烫,浮现一行字" in user and "不要再靠同一个道具或同一种异象收尾" in user
+
+
+def test_original_settings_must_show_up_in_chapters(conn):
+    """2026-10-03 实测:补充了原创设定后,第 11 章两个模型都没用上——章纲从没被要求"本章用哪一样"。"""
+    from huaben.pipeline.normalize import normalize_outline
+    from huaben.pipeline.prompts import work_order
+    bid = repo.create_book(conn, "x")
+    repo.create_volume(conn, bid, 1, status="active")
+    repo.update_book(conn, bid, craft=json.dumps({"imagination": "wild"}))
+    assert "novelty 必填" in outline_messages(load_context(conn, bid))[1]["content"]
+    repo.update_book(conn, bid, craft=json.dumps({"imagination": "conventional"}))
+    assert "novelty 可以留空" in outline_messages(load_context(conn, bid))[1]["content"]
+    o = normalize_outline({**OUTLINE, "novelty": "借据到期,天地来平账"})
+    assert "本章的新奇之处" in work_order(5, o) and "借据到期" in work_order(5, o)
+    assert normalize_outline(OUTLINE)["novelty"] == "" and "新奇之处" not in work_order(5, normalize_outline(OUTLINE))

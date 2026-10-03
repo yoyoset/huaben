@@ -8,7 +8,7 @@ import json
 
 from ..arc import arc_pacing
 from ..context import StoryContext
-from ..craft import from_book, render_craft
+from ..craft import from_book, novelty_rule, render_craft
 from ..foreshadow_scale import planting_rule
 from ..render import due_foreshadow_ids, handoff_text, recent_text, render_bible, render_memory, render_style_samples
 
@@ -18,6 +18,7 @@ OUTLINE_SCHEMA = """{
   "characters": ["本章出场的人物名,须与账本/人物卡完全一致"],
   "foreshadows": [伏笔编号(整数),本章要推进或回收的],
   "planned_reversals": ["本章有意为之、会打破账本既有设定的反转;没有就留空数组"],
+  "novelty": "本章读者没见过的东西:用到世界观里哪一项原创设定(或按其规则新造一个),它在本章怎么起作用、怎么改变人物处境",
   "hook": "结尾钩子"
 }"""
 
@@ -82,6 +83,7 @@ def outline_messages(ctx: StoryContext) -> list[dict]:
         f"请为第 {ctx.next_idx} 章写章纲工单。要求:紧扣本卷目标与节拍;伏笔该推进的推进、该收的收;"
         f"结尾留钩子;不得与账本冲突(除非明确写进 planned_reversals)。\n{pacing_rule(ctx)}\n"
         f"{planting_rule(ctx.foreshadows, due_foreshadow_ids(ctx))}\n{recent_hooks(ctx)}"
+        f"{novelty_rule(from_book(ctx.book))}\n"
         f"只输出如下结构的 JSON:\n{OUTLINE_SCHEMA}"
     )
     return [{"role": "system", "content": _SYSTEM_EDITOR}, {"role": "user", "content": user}]
@@ -102,6 +104,8 @@ def work_order(idx: int, outline: dict, open_foreshadows: list[dict] = ()) -> st
     if threads:
         lines.append("本章要推进或回收的伏笔(要在情节里落到实处):")
         lines += [f"- #{f['id']} {f['content']}(第{f['planted_ch']}章埋)" for f in threads]
+    if outline.get("novelty"):
+        lines.append(f"本章的新奇之处(写成读者看得见、摸得着的画面,让它推动情节;不要写成解释设定):{outline['novelty']}")
     if outline.get("planned_reversals"):
         lines.append("本章计划好的有意反转(必须写出来,并写得像伏笔回收、让读者恍然大悟,而不是像笔误):")
         lines += [f"- {r}" for r in outline["planned_reversals"]]

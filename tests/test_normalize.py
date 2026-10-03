@@ -68,7 +68,7 @@ def test_outline_normalization():
     o = normalize_outline({"title": " T ", "outline": "事", "characters": "沈照", "foreshadows": ["#3", 4],
                            "planned_reversals": None})
     assert o == {"title": "T", "outline": "事", "hook": "", "characters": ["沈照"], "foreshadows": [3, 4],
-                 "planned_reversals": []}
+                 "planned_reversals": [], "novelty": ""}
     with pytest.raises(ParseError):
         normalize_outline({"title": "", "outline": "x"})
 

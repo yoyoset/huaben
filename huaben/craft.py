@@ -96,3 +96,17 @@ def world_brief(craft) -> tuple[str, float]:
     """(写进"定稿圣经"指令的世界观要求, 采样温度)。类型惯例档不加要求。"""
     level = normalize_craft(craft)["imagination"]
     return ("" if level == "conventional" else WORLD_RULE), WORLD_TEMPERATURE[level]
+
+
+# 章纲的 novelty 一栏要填到什么程度。2026-10-03 实测:《算尽仙朝》补充了"道枢/借据/平账"等原创设定后,
+# 两个模型写第 11 章都没用上——想象力只写进了世界观,章纲从没被要求"本章用哪一样",正文就继续在档柜和簿子里打转。
+NOVELTY_RULE = {
+    "conventional": "novelty 可以留空。",
+    "fresh": "novelty 大约每三章填一次;填的时候优先用世界观里已经定下、但正文还没出现过的原创设定。",
+    "wild": "novelty 必填:每章都要有一样读者没见过的东西,优先用世界观里已经定下、但正文还没出现过的原创设定"
+            "(核心机制、地方、势力),让它在本章真正起作用,而不是被提一句。",
+}
+
+
+def novelty_rule(craft) -> str:
+    return NOVELTY_RULE[normalize_craft(craft)["imagination"]]
