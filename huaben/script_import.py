@@ -13,6 +13,7 @@ from .db import tx
 from .opening.parsing import parse_bible
 from .opening.save_bible import save_parsed_bible
 from .pipeline.volume import seal_volume
+from .rhythm import rhythm_problems, rhythm_warnings
 
 
 class ScriptImportError(Exception):
@@ -96,6 +97,7 @@ def check_volume_script(data: dict, known_keys: set[str], room: int | None = Non
             keys.add(k)
     titles = [str(ch.get("title") or "").strip() for ch in chapters]
     problems += [f"章节标题重复:{t}" for t in sorted({t for t in titles if t and titles.count(t) > 1})]
+    problems += rhythm_problems(chapters)  # 节奏标记不合法是硬问题(T012)
     return problems
 
 
@@ -142,12 +144,14 @@ def import_volume(conn, llm, settings, book_id: int, data: dict) -> dict:
     if problems:
         raise ScriptImportError("; ".join(problems), problems)
     chapters = data["chapters"]
+    warnings = rhythm_warnings(chapters)
     max_idx = repo.max_scripted_idx(conn, book_id)
     start = max_idx + 1 if max_idx else repo.next_chapter_idx(conn, book_id)
     outlines = {start + i: ch for i, ch in enumerate(chapters)}
     if "volume" not in data:
         _save(conn, book_id, outlines)
-        return {"volume_idx": vol["idx"], "chapters": [start, start + len(chapters) - 1]}
+        return {"volume_idx": vol["idx"], "chapters": [start, start + len(chapters) - 1],
+                "rhythm_warnings": warnings}
     v = data["volume"]
     budget = [int(n) for n in v["beat_chapters"]]
     ids_by_key = repo.foreshadow_ids_by_key(conn, book_id)
@@ -164,4 +168,25 @@ def import_volume(conn, llm, settings, book_id: int, data: dict) -> dict:
                            commit=False)
         repo.save_scripted_outlines(conn, book_id, outlines, commit=False)
         repo.update_book(conn, book_id, gen_error="", commit=False)
-    return {"volume_idx": idx, "chapters": [start, start + len(chapters) - 1]}
+    return {"volume_idx": idx, "chapters": [start, start + len(chapters) - 1], "rhythm_warnings": warnings}
+
+
+def review_volume_script(conn, book_id: int, data: dict) -> dict:
+    """只检查不写库(dry_run):返回 {"problems", "rhythm_warnings"}。问题非空时仍返回。"""
+    book = repo.get_book(conn, book_id)
+    if not book or not book.get("scripted"):
+        return {"problems": ["不是剧本书:不能用卷剧本导入"], "rhythm_warnings": []}
+    vol = repo.active_volume(conn, book_id)
+    problems = []
+    if "volume" in data:
+        if vol is not None and repo.count_accepted(conn, book_id, vol["id"]) < vol["target_chapters"]:
+            problems.append("当前这一卷还没写完,续章纲请去掉 volume")
+        room = None
+    elif vol is None:
+        problems.append("没有进行中的卷,开新卷请带上 volume")
+        room = None
+    else:
+        room = _room(conn, book_id, vol)
+    problems += check_volume_script(data, _known_keys(conn, book_id), room)
+    warnings = [] if problems else rhythm_warnings(data.get("chapters") or [])
+    return {"problems": problems, "rhythm_warnings": warnings}

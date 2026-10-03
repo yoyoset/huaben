@@ -61,7 +61,7 @@ def test_import_volume_opens_a_volume(conn):
     repo.create_profile(conn, "我")
     bid = import_book(conn, BOOK)
     r = import_volume(conn, FakeLLM([]), S, bid, vol([ch(1), ch(2)]))
-    assert r == {"volume_idx": 1, "chapters": [1, 2]}
+    assert r == {"volume_idx": 1, "chapters": [1, 2], "rhythm_warnings": []}
     v = repo.active_volume(conn, bid)
     assert v["beat_chapters"] == [1, 1] and v["target_chapters"] == 2
     assert repo.get_scripted_outline(conn, bid, 1)["title"] == "第1章标题"
