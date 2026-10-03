@@ -157,5 +157,6 @@ def normalize_outline(d: dict) -> dict:
         "characters": to_text_list(d.get("characters"), "characters"),
         "foreshadows": [to_int(x, "foreshadows") for x in _list(d, "foreshadows")],
         "planned_reversals": to_text_list(d.get("planned_reversals"), "planned_reversals"),
+        "payoff": to_text(d.get("payoff"), "payoff"),  # 提示里要求必填;解析时不因缺它打回整份章纲,工单里有就交给作者
         "novelty": to_text(d.get("novelty"), "novelty"),  # 可空:"类型惯例"档不要求
     }

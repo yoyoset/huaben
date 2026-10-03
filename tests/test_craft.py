@@ -89,3 +89,15 @@ def test_original_settings_must_show_up_in_chapters(conn):
     o = normalize_outline({**OUTLINE, "novelty": "借据到期,天地来平账"})
     assert "本章的新奇之处" in work_order(5, o) and "借据到期" in work_order(5, o)
     assert normalize_outline(OUTLINE)["novelty"] == "" and "新奇之处" not in work_order(5, normalize_outline(OUTLINE))
+
+
+def test_every_chapter_must_pay_something_off(conn):
+    """2026-10-03 读生产书:相邻几章只有新谜题、没有兑现,主角被动收纸条。章纲要写本章兑现,作者要写足。"""
+    from huaben.pipeline.normalize import normalize_outline
+    from huaben.pipeline.prompts import work_order
+    bid = repo.create_book(conn, "x")
+    repo.create_volume(conn, bid, 1, status="active")
+    user = outline_messages(load_context(conn, bid))[1]["content"]
+    assert "payoff 必填" in user and "不要让他只是被动地收到信息" in user
+    o = normalize_outline({**OUTLINE, "payoff": "王师兄当众出丑,周小满白赚两瓶丹"})
+    assert "本章兑现(要写足" in work_order(5, o) and "白赚两瓶丹" in work_order(5, o)

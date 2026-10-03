@@ -19,6 +19,7 @@ OUTLINE_SCHEMA = """{
   "characters": ["本章出场的人物名,须与账本/人物卡完全一致"],
   "foreshadows": [伏笔编号(整数),本章要推进或回收的],
   "planned_reversals": ["本章有意为之、会打破账本既有设定的反转;没有就留空数组"],
+  "payoff": "本章兑现:读者在这一章拿到什么——主角赢下了什么、谁吃了亏、哪里好笑、揭开了什么、关系往前走了哪一步;要具体,'获得新线索'不算",
   "novelty": "本章读者没见过的东西:用到世界观里哪一项原创设定(或按其规则新造一个),它在本章怎么起作用、怎么改变人物处境",
   "hook": "结尾钩子"
 }"""
@@ -61,6 +62,13 @@ def pacing_rule(ctx: StoryContext) -> str:
     return "\n".join(x for x in (base, arc) if x)
 
 
+# 2026-10-03 读生产书:《杂役仙尊》13~14 章零笑点零算计,主角被动收纸条、比刮痕;《算尽仙朝》9~10 章一个人查账——
+# 只留问题不兑现,读者就不追了。每章都要"兑现一点 + 留一个问题",而且转折要由主角自己的选择或计谋推动。
+PAYOFF_RULE = ("每章都要有兑现(payoff 必填):读者追更是因为每章都能拿到一点东西,只有新谜题的一章是欠账;"
+               "兑现要符合这本书对读者的承诺(风格指纹里的幽默/热血/阴冷比例、读者开书时要的爽点)。"
+               "本章的转折由主角自己的选择、计谋或行动推动,不要让他只是被动地收到信息(纸条、传话、偷听到)。")
+
+
 def recent_hooks(ctx: StoryContext) -> str:
     """最近几章的结尾钩子。2026-10-03《算尽仙朝》实测:第 1、3、5 章都以"算盘残片发烫、浮现一行字"收尾——
     编辑看不到自己前几章用过什么钩子,就会反复用同一招。纯函数;章纲解析不了的跳过。"""
@@ -83,7 +91,7 @@ def outline_messages(ctx: StoryContext) -> list[dict]:
         f"{render_bible(ctx.bible)}\n\n{render_craft(from_book(ctx.book))}\n\n{render_memory(ctx)}\n\n"
         f"【最近原文(用于衔接)】\n{recent_text(ctx)}\n\n"
         f"请为第 {ctx.next_idx} 章写章纲工单。要求:紧扣本卷目标与节拍;伏笔该推进的推进、该收的收;"
-        f"结尾留钩子;不得与账本冲突(除非明确写进 planned_reversals)。\n{pacing_rule(ctx)}\n"
+        f"结尾留钩子;不得与账本冲突(除非明确写进 planned_reversals)。\n{PAYOFF_RULE}\n{pacing_rule(ctx)}\n"
         f"{planting_rule(ctx.foreshadows, due_foreshadow_ids(ctx))}\n{recent_hooks(ctx)}"
         f"{novelty_rule(from_book(ctx.book))}\n{avoid_rule(from_rows(ctx.recent))}\n"
         f"只输出如下结构的 JSON:\n{OUTLINE_SCHEMA}"
@@ -106,6 +114,8 @@ def work_order(idx: int, outline: dict, open_foreshadows: list[dict] = ()) -> st
     if threads:
         lines.append("本章要推进或回收的伏笔(要在情节里落到实处):")
         lines += [f"- #{f['id']} {f['content']}(第{f['planted_ch']}章埋)" for f in threads]
+    if outline.get("payoff"):
+        lines.append(f"本章兑现(要写足、写在读者能感到痛快或好笑的地方,不能一笔带过):{outline['payoff']}")
     if outline.get("novelty"):
         lines.append(f"本章的新奇之处(写成读者看得见、摸得着的画面,让它推动情节;不要写成解释设定):{outline['novelty']}")
     if outline.get("planned_reversals"):
