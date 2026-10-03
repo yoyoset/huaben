@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 
 from .. import foreshadow_report, repo, stats
+from ..prep import book_buffer_target
 from ..tts.store import best_playable, index_paths
 from ..voice_queue import unplayable_count
 from .deps import book_or_404, get_conn
@@ -19,7 +20,7 @@ class NewBook(BaseModel):
 def book_view(conn, b: dict, settings) -> dict:
     """generating = 后台还会继续补货(缓冲没满),前端据此决定要不要自动刷新。"""
     buffered = repo.buffered_ahead(conn, b["id"])
-    buffer_target = settings.buffer_chapters
+    buffer_target = book_buffer_target(b, settings.buffer_chapters)
     return {
         "id": b["id"], "title": b["title"], "genre": b["genre"], "status": b["status"],
         "profile_id": b["profile_id"],

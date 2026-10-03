@@ -11,6 +11,7 @@ import threading
 from dataclasses import dataclass
 
 from . import repo
+from .prep import book_buffer_target
 from .config import Settings
 from .human_errors import explain
 from .logs import log_context
@@ -62,7 +63,8 @@ def _voice(conn, tts: TTS, settings: Settings, book_id: int, limit: int) -> tupl
 def _fill(conn, llm: LLM, settings: Settings, book_id: int, max_chapters: int | None, tts: TTS | None,
           res: TopUpResult, text: bool) -> TopUpResult:
     audio_budget = audio_round_limit(settings)
-    while repo.buffered_ahead(conn, book_id) < settings.buffer_chapters:
+    # 目标每一轮都重新算:读者在这期间往下读了,或预备的章已经写够了,目标会跟着变
+    while repo.buffered_ahead(conn, book_id) < book_buffer_target(repo.get_book(conn, book_id), settings.buffer_chapters):
         if max_chapters is not None and res.generated >= max_chapters:
             break
         try:

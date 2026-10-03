@@ -49,4 +49,6 @@ UPDATE books SET profile_id = (SELECT id FROM profiles WHERE name = '我') WHERE
     # 11: 每本书的写法设定(叙事结构/文笔/伏笔布局/节奏/补充要求,JSON)。2026-10-03 用户:开书时要给模板选,
     #     不然叙事方式、伏笔长度这些基础的东西读者想不到去提。旧书为空 = 默认,见 craft.py
     "ALTER TABLE books ADD COLUMN craft TEXT NOT NULL DEFAULT '';",
+    # 12: 出门前"预备到第几章"(2026-10-03 用户:跑步前下好 10 章、20 章离线听)。0 = 没有预备,按默认缓冲,见 prep.py
+    "ALTER TABLE books ADD COLUMN prep_until INTEGER NOT NULL DEFAULT 0;",
 ]

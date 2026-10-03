@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from typing import Callable
 
 from . import repo
+from .prep import book_buffer_target
 from .api.deps import auto_tts, ensure_llm
 from .db import connect
 from .human_errors import explain
@@ -91,7 +92,7 @@ class Worker:
         try:
             for b in repo.list_books(conn):
                 if (b["status"] == "serializing" and b["gen_error"] != reason
-                        and repo.buffered_ahead(conn, b["id"]) < self._state.settings.buffer_chapters):
+                        and repo.buffered_ahead(conn, b["id"]) < book_buffer_target(b, self._state.settings.buffer_chapters)):
                     repo.update_book(conn, b["id"], gen_error=reason)
         except Exception:  # noqa: BLE001 —— 写提示失败不能让后台线程死掉
             log.exception("写入'模型不可用'提示失败")

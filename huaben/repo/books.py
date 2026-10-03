@@ -30,7 +30,7 @@ def list_books(conn, profile_id: int | None = None) -> list[dict]:
 
 
 def update_book(conn, book_id: int, *, commit: bool = True, **fields) -> None:
-    allowed = {"title", "genre", "synopsis", "status", "read_pos", "last_opened", "gen_error", "audio_error", "craft"}
+    allowed = {"title", "genre", "synopsis", "status", "read_pos", "last_opened", "gen_error", "audio_error", "craft", "prep_until"}
     bad = set(fields) - allowed
     if bad:
         raise ValueError(f"unknown book fields: {bad}")

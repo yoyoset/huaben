@@ -7,6 +7,7 @@ import { bookHome, chapterAvailability, nextChapter, paragraphs, prevChapter } f
 import { play } from '../player.js';
 import { poll } from '../poll.js';
 import { prefsToolbar } from '../reading_prefs.js';
+import { prepBox } from './prep.js';
 import { voiceNoteEl } from './voice_note.js';
 
 const go = (bookId, idx) => { location.hash = `#/read/${bookId}/${idx}`; };
@@ -56,6 +57,7 @@ export async function readerView(bookId, idxParam) {
           h('a', { class: 'btn', href: `#/stats/${bookId}`, 'aria-label': '本书运行统计' }, '📊 统计')),
         prefsToolbar()),
       autoScrollControls(body, onEnd),
+      prepBox(bookId),
       h('h1', { class: 'chapter-title' }, `第${idx}章 ${ch.title}`),
       h('div', { class: 'row' },
         h('button', { class: 'primary', onclick: () => listen(bookId, idx, book.title, note) }, '🎧 听这一章'),
