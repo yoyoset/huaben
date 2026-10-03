@@ -118,6 +118,9 @@ def work_order(idx: int, outline: dict, open_foreshadows: list[dict] = ()) -> st
     if outline.get("planned_reversals"):
         lines.append("本章计划好的有意反转(必须写出来,并写得像伏笔回收、让读者恍然大悟,而不是像笔误):")
         lines += [f"- {r}" for r in outline["planned_reversals"]]
+    if outline.get("lines"):
+        lines.append("下面这些句子是定好的原话,必须一字不改地出现在正文里(可以配上说话人和动作,句子本身不许增删改):")
+        lines += [f"- {s}" for s in outline["lines"]]
     lines.append(f"结尾钩子:{outline['hook']}")
     return "\n".join(lines)
 

@@ -1,0 +1,24 @@
+"""章纲里的"原话":必须一字不改地出现在正文里。纯函数。
+
+为什么(`docs/story-craft.md` 九·5):分量最重的句子(那句真心话、宣告的动作、触发反转的那一句、
+新形态的解放语)不能交给写作模型现场发挥——它会把"我不跑了。"改写成"我不会再逃避了!",分量就没了。
+所以这些句子由架构方在章纲里写死,写作模型必须原样用;没用上的,打回重写。
+"""
+import re
+
+_IGNORED = re.compile(r"[\s\"'“”‘’「」『』]")  # 比对时不计空白与引号:模型常把直引号换成弯引号、在句中换行
+
+
+def _squash(text: str) -> str:
+    return _IGNORED.sub("", text)
+
+
+def missing_lines(body: str, lines: list[str]) -> list[str]:
+    """章纲要求原样出现、正文里却找不到的句子。空白与引号的差异不算。"""
+    hay = _squash(body)
+    return [ln for ln in lines if _squash(ln) and _squash(ln) not in hay]
+
+
+def lines_feedback(missing: list[str]) -> list[str]:
+    """打回重写时给作者的话。"""
+    return [f"工单要求原样写出的这句话没有出现在正文里,必须一字不改地写进去:{ln}" for ln in missing]

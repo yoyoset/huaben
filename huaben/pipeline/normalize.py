@@ -179,4 +179,5 @@ def normalize_outline(d: dict) -> dict:
         "novelty": to_text(d.get("novelty"), "novelty"),  # 可空:"类型惯例"档不要求
         "when": to_text(d.get("when"), "when"),  # 本章发生在什么时候;可空,不因缺它打回章纲
         "plant": normalize_plant(d.get("plant")),  # 本章计划要埋的伏笔;缺 content/truth 就是 None
+        "lines": to_text_list(d.get("lines"), "lines"),  # 必须原样出现在正文里的句子;可空
     }
