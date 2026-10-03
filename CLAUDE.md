@@ -4,6 +4,7 @@ AI 私人连载 + 听书(PWA)。先读 `README.md`,再按需读 `docs/`:
 
 - `docs/architecture.md` — 已定的架构决策和理由;改决策要连同理由一起改
 - `docs/v0-scope.md` — 第一版做/不做/验收标准;不在范围内的东西先不做
+- `docs/story-craft.md` — 标杆作品(海贼王/火影/死神)的设定规律与话本的设计规范;**写全书设计和章纲前必读、逐项对照**
 - `docs/lessons-from-sillytavern.md` — 前身实测踩坑,**写 LLM/TTS 相关代码前必读**
 
 ## 项目约定
