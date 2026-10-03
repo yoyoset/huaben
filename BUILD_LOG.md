@@ -18,6 +18,7 @@
 - [docs/build-log/2026-10-02-review-fixes.md](docs/build-log/2026-10-02-review-fixes.md) — 逻辑完整性审查 14 项修复
 - [docs/build-log/2026-10-02-polish.md](docs/build-log/2026-10-02-polish.md) — 持续完善(loop)
 - [docs/build-log/2026-10-02-user-direction.md](docs/build-log/2026-10-02-user-direction.md) — 用户改定方向:每人一个书架、配音以电脑为主、花费只提醒
+- [docs/build-log/2026-10-03-master-foundation.md](docs/build-log/2026-10-03-master-foundation.md) — 大师级基底(招牌能力/世界阶梯/对白辨识度/宿敌)+人物志+调用时长上限+热路径索引(路线 58~64)
 
 ## 持续完善路线(loop 每轮取最上面一项未完成的)
 
