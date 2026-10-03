@@ -11,6 +11,7 @@ from ..config import Settings
 from ..context import load_context
 from ..db import tx
 from ..llm import LLM
+from ..rival import advanced_by, from_bible as rivals_from_bible
 from . import volume_prompts
 from .errors import ChapterFailed
 from .llm_step import call_step
@@ -40,7 +41,8 @@ def plan_volume(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
     idx = len(volumes) + 1
     carried = unresolved_targets(conn, book_id, volumes[-1]) if volumes else []
     plan = _ask(conn, llm, book_id, "volume_plan",
-                volume_prompts.plan_messages(ctx, idx, carried, past_modes(volumes), past_worlds(volumes)),
+                volume_prompts.plan_messages(ctx, idx, carried, past_modes(volumes), past_worlds(volumes),
+                                             advanced_by(volumes, rivals_from_bible(ctx.bible))),
                 parse_volume_plan)
     open_ids = {f["id"] for f in ctx.foreshadows}
     resolve = [i for i in plan["resolve"] if i in open_ids]
@@ -63,7 +65,8 @@ def fill_arc(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
     summaries = [f"第{c['idx']}章《{c['title']}》:{c['summary']}" for c in repo.chapter_index(conn, book_id, volume["id"])]
     earlier = [v for v in repo.list_volumes(conn, book_id) if v["idx"] < volume["idx"]]
     arc = _ask(conn, llm, book_id, "volume_arc",
-               volume_prompts.arc_messages(ctx, volume, summaries, past_modes(earlier), past_worlds(earlier)),
+               volume_prompts.arc_messages(ctx, volume, summaries, past_modes(earlier), past_worlds(earlier),
+                                           advanced_by(earlier, rivals_from_bible(ctx.bible))),
                lambda text: normalize_arc(extract_json(text), len(volume["beats"])) or _missing())
     repo.set_volume_arc(conn, volume["id"], arc)
     return arc

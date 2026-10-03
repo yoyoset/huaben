@@ -31,7 +31,8 @@ def render_character(c: dict, with_profile: bool = True) -> str:
 
 def render_bible(bible: dict) -> str:
     chars = bible.get("characters") or []
-    char_lines = [f"- {c.get('name', '?')}:{c.get('role', '')} {c.get('traits', '')}".rstrip() for c in chars]
+    char_lines = [f"- {c.get('name', '?')}:{c.get('role', '')} {c.get('traits', '')}".rstrip()
+                  + ("(长期对手)" if c.get("rival") else "") for c in chars]
     parts = [
         f"【世界观与规则】\n{bible.get('world') or '(未设定)'}",
         f"【人物卡】\n{_lines(char_lines)}",

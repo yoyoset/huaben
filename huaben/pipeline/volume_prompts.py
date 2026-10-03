@@ -3,6 +3,7 @@ from ..arc import ARC_SCHEMA, world_ladder_rule
 from ..context import StoryContext
 from ..craft import from_book, render_craft
 from ..render import render_bible, render_foreshadow, render_memory
+from ..rival import advance_rule, from_bible as rivals_from_bible
 
 PLAN_SCHEMA = """{
   "goal": "本卷要达成的目标,1~2 句",
@@ -46,33 +47,37 @@ ARC_RULE = ("这一卷是一段征战(arc):一个有自己道理的对手、一�
             "world 写出本卷把读者的世界坐标推到哪一格——只升不降(更大的舞台、更高的势力层级,或这个世界更核心的真相)。")
 
 
-def plan_messages(ctx: StoryContext, idx: int, carried_ids=(), used_modes=(), used_worlds=()) -> list[dict]:
+def plan_messages(ctx: StoryContext, idx: int, carried_ids=(), used_modes=(), used_worlds=(), used_rivals=()) -> list[dict]:
     """used_modes:往卷用过的打法(arc.past_modes),本卷换一种——连载腻人往往就是每段都一个打法。
-    used_worlds:往卷的世界坐标(arc.past_worlds),本卷只升不降。"""
+    used_worlds:往卷的世界坐标(arc.past_worlds),本卷只升不降。used_rivals:往卷已推进的长期对手。"""
     modes = f"往卷的打法:{';'.join(used_modes)}。本卷换一种打法。\n" if used_modes else ""
     ladder = (world_ladder_rule(list(used_worlds)) + "\n") if used_worlds else ""
+    rivals = advance_rule(rivals_from_bible(ctx.bible), list(used_rivals))
+    rival_line = (rivals + "\n") if rivals else ""
     user = (
         f"{render_bible(ctx.bible)}\n\n{render_craft(from_book(ctx.book))}\n\n{render_memory(ctx)}\n\n"
         f"{foreshadow_backlog(ctx, carried_ids)}\n\n"
         f"请规划第 {idx} 卷。要求:有清晰的卷内目标和起承转合;未回收的伏笔要有计划地收,"
         f"同时埋下新的;与已有人物现状和世界事实自洽;符合雷点与风格设定;节奏紧凑,每个节拍都能撑起爽点或悬念;"
         f"叙事结构与伏笔布局按【写法设定】安排(例如多线交织就规划好各条线在哪些节拍汇合)。\n"
-        f"{ARC_RULE}\n{modes}{ladder}"
+        f"{ARC_RULE}\n{modes}{ladder}{rival_line}"
         f"只输出如下结构的 JSON:\n{PLAN_SCHEMA}"
     )
     return [{"role": "system", "content": _SYSTEM}, {"role": "user", "content": user}]
 
 
-def arc_messages(ctx: StoryContext, volume: dict, summaries: list[str], used_modes=(), used_worlds=()) -> list[dict]:
+def arc_messages(ctx: StoryContext, volume: dict, summaries: list[str], used_modes=(), used_worlds=(), used_rivals=()) -> list[dict]:
     """给已经在写的卷补征战结构(旧书升级用):节拍不改、已写的不改,只把这一段征战的骨架说清楚。"""
     beats = "\n".join(f"{i}. {b}" for i, b in enumerate(volume["beats"], 1))
     modes = f"往卷的打法:{';'.join(used_modes)}。本卷换一种打法。\n" if used_modes else ""
     ladder = (world_ladder_rule(list(used_worlds)) + "\n") if used_worlds else ""
+    rivals = advance_rule(rivals_from_bible(ctx.bible), list(used_rivals))
+    rival_line = (rivals + "\n") if rivals else ""
     user = (
         f"{render_bible(ctx.bible)}\n\n{render_craft(from_book(ctx.book))}\n\n"
         f"【本卷(第{volume['idx']}卷)目标】{volume['goal']}\n【本卷节拍】\n{beats}\n\n"
         f"【本卷已写章节】\n{chr(10).join(summaries) or '(还没有)'}\n\n"
-        f"这一卷已经开始写,但还没有明确征战结构。{ARC_RULE}请在不改节拍、不与已写章节矛盾的前提下补出来。\n{modes}{ladder}"
+        f"这一卷已经开始写,但还没有明确征战结构。{ARC_RULE}请在不改节拍、不与已写章节矛盾的前提下补出来。\n{modes}{ladder}{rival_line}"
         f"只输出如下结构的 JSON:\n{ARC_SCHEMA}"
     )
     return [{"role": "system", "content": _SYSTEM}, {"role": "user", "content": user}]
