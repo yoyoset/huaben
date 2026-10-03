@@ -60,4 +60,13 @@ UPDATE books SET profile_id = (SELECT id FROM profiles WHERE name = '我') WHERE
     # 15: 角色的招牌能力与成长阶段(JSON)。2026-10-03 用户:要能写出《海贼王》《火影》《死神》那种故事——
     #     那三部里每个重要角色都有招牌能力(恶魔果实/忍术/斩魄刀),有名字与规则、随剧情进阶。旧数据为空,见 signature.py
     "ALTER TABLE ledger_characters ADD COLUMN signature TEXT NOT NULL DEFAULT '{}';",
+    # 16: 热路径索引(路线 63)。此前一张索引都没有:书架每本书计数、缓冲判断、封卷范围、花费汇总
+    #     都在全表扫描;几千章时明显变慢。SQLite 只自动为 PK/UNIQUE 建索引,其余要显式加。
+    "CREATE INDEX IF NOT EXISTS idx_chapters_book_status ON chapters(book_id, status);"
+    "CREATE INDEX IF NOT EXISTS idx_chapters_book_status_idx ON chapters(book_id, status, idx);"
+    "CREATE INDEX IF NOT EXISTS idx_runs_book_created ON pipeline_runs(book_id, created_at);"
+    "CREATE INDEX IF NOT EXISTS idx_foreshadows_book_status ON ledger_foreshadows(book_id, status);"
+    "CREATE INDEX IF NOT EXISTS idx_facts_book_ch ON ledger_facts(book_id, established_ch);"
+    "CREATE INDEX IF NOT EXISTS idx_messages_book ON opening_messages(book_id, id);"
+    "CREATE INDEX IF NOT EXISTS idx_audio_chapter ON audio(chapter_id);",
 ]

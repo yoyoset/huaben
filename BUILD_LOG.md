@@ -54,7 +54,8 @@
 
 62. [x] **模型调用总时长上限**(同 33):OpenRouter 长请求发保活字节,"两字节之间"的超时永不触发;一次挂住卡住唯一的后台线程
     ——`HUABEN_LLM_CALL_DEADLINE_S`(默认 600)给整个 chat() 一个墙钟上限(含重试与退避),到点报 `timeout` 并交给退避
-63. [ ] **查询性能**:计数走 COUNT 全表扫描、章节目录 N+1;几千章时仍要快(加 (book_id,status) 索引等)
+63. [x] **查询性能**:计数走 COUNT 全表扫描、章节目录 N+1;几千章时仍要快(加 (book_id,status) 索引等)
+    ——迁移 16 加 7 个热路径索引;5000 章实测 count_accepted 24.85ms → 0.35ms(约 70×),目录/缓冲查询本就单条 JOIN
 
 1. [x] **运维可见性**:`/api/health` 报告版本、数据库迁移版本、worker 是否在跑、LLM 是否已配置(不泄露密钥);`huaben.__version__`
 2. [x] **配置校验**:Settings 对数值范围做校验(buffer_chapters、chapter_words、退避等),启动时给出人话错误而非运行中崩溃
