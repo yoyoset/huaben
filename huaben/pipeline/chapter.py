@@ -115,7 +115,9 @@ def _imported_text(conn, llm: LLM, settings: Settings, book_id: int, ctx: StoryC
     prev = ctx.recent[-1]["body"] if ctx.recent else ""
     for p in (draft_problems(body, settings.chapter_words) + copy_problems(body, [c["body"] for c in ctx.recent])
               + restage_problems(body, prev, [c["name"] for c in ctx.characters])
-              + chop_problems(body)):
+              + chop_problems(body)
+              + lines_feedback(missing_lines(body, outline.get("lines") or []))
+              + ending_problem(body, outline.get("ending") or "")):
         repo.log_run(conn, book_id, "write", chapter_idx=idx, note=f"导入正文的提醒(未打回):{p}")
     ledger = _record(conn, llm, book_id, idx, prompts.ledger_messages(ctx, outline, body))
     if ledger is None:
