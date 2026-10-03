@@ -53,6 +53,8 @@ def apply_ledger(conn, book_id: int, chapter_id: int, idx: int, ledger: dict) ->
                                    resolved_ch=idx if status == "resolved" else None, commit=False)
         for fact in ledger["facts"]:
             repo.add_fact(conn, book_id, fact, idx, commit=False)
+        for note in ledger.get("editor_notes", []):
+            warnings.append(f"编辑观察(未打回):{note}")
         repo.update_chapter(conn, chapter_id, summary=ledger["summary"], status="accepted",
                             devices=dumps(ledger.get("devices", [])), commit=False)
     return warnings

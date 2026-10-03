@@ -34,7 +34,8 @@ LEDGER_SCHEMA = """{
                        "scale": "short / medium / long / epic 四选一:short 短线 3~5 章内收(眼前的约定、小谜);medium 中线本卷内收;long 长线跨几卷(身世、主线谜团);epic 超长线全书级,终局才揭开"}],
   "foreshadows_update": [{"id": 伏笔编号(整数), "status": "progressing 或 resolved"}],
   "facts": ["本章新确立的世界事实"],
-  "contradictions": [{"what": "与账本哪一条冲突、怎么冲突", "planned": 是否属于章纲 planned_reversals 里的有意反转(true/false)}],
+  "contradictions": [{"what": "读者当场能指出'这不可能/前后矛盾'的硬伤:与账本哪一条冲突,或正文内部哪个数字算错/前后不一;拿不准的不要写进来", "planned": 是否属于章纲 planned_reversals 里的有意反转(true/false)}],
+  "editor_notes": ["供编辑参考、不影响定稿的观察:拿不准的疑点、建议、读感;不要写进 contradictions"],
   "devices": ["本章用来推动情节或制造悬念的手段(道具显灵、密信传话、偷听、异象等),每条 2~8 字;和【最近用过的手段】相同的沿用原名"]
 }"""
 
@@ -156,7 +157,10 @@ def write_messages(ctx: StoryContext, outline: dict, words: int, feedback: list[
         "1. 只输出正文,不要标题、不要解释、不要状态栏、不要任何前后缀;\n"
         + _consistency_rule(outline) +
         "3. 按【写法设定】写,保持风格指纹与样章的语感;全文使用完整的中文标点;\n"
-        "4. 结尾落在工单指定的钩子上。"
+        # 2026-10-03 读生产书:《算尽仙朝》整屏抽成数字,读者跟不上,且第 9 章说等比、第 10 章说等差
+        "4. 推理、算账写给读者看得懂:一处推理只亮一两个关键数字,结论用一句人话点破(谁在搞鬼、怎么搞的),不要整屏罗列数字;"
+        "账本里已有的数字照用,不要改;\n"
+        "5. 结尾落在工单指定的钩子上。"
     )
     return [{"role": "system", "content": system}, {"role": "user", "content": "\n\n".join(parts)}]
 
@@ -171,8 +175,15 @@ def ledger_messages(ctx: StoryContext, outline: dict, body: str) -> list[dict]:
         f"【第 {ctx.next_idx} 章正文】\n{body}\n\n"
         f"【最近用过的手段】{known_list(from_rows(ctx.recent))}\n\n"
         "请完成入账与核对:提取摘要;更新出场人物的现状(生死/位置/能力/关系/知情);登记新伏笔与伏笔进展;"
-        "登记新确立的世界事实;并核对正文是否与账本冲突(人名、生死、能力、知情范围、世界事实)。"
-        "与账本冲突但属于章纲 planned_reversals 的,planned 填 true;其余冲突 planned 填 false。\n"
+        "登记新确立的世界事实——正文里出现、后文可能再用到的具体数字(数量、价格、比例、日期)也作为事实登记,写清它指什么;"
+        "并核对正文是否与账本冲突(人名、生死、能力、知情范围、世界事实、已登记的数字),"
+        "以及正文内部:同一个数前后是否一致、算术是否算对(例如\"一瓶十粒,三瓶九十粒\"就是算错——"
+        "它自称一瓶十粒,却又说三瓶九十粒,前后对不上,是硬伤,不是\"拿不准\")。"
+        "只报本章正文造成的问题;账本里早就存在的不一致不是本章的错,不要报(否则重写多少稿也改不掉)。"
+        "判断标准:读者当场能指出\"这不可能/前后矛盾\"的硬伤(含正文自己声明的数乘不上、加减不上)写进 contradictions"
+        "(与账本冲突但属于章纲 planned_reversals 的,planned 填 true;其余含正文内部数字错误的,planned 填 false)。"
+        "拿不准的疑点、建议、读感、时间线略不顺、需要后续澄清的,写进 editor_notes,不要写进 contradictions"
+        "(不影响定稿,只供编辑参考)。\n"
         f"只输出如下结构的 JSON:\n{LEDGER_SCHEMA}"
     )
     return [{"role": "system", "content": _SYSTEM_EDITOR}, {"role": "user", "content": user}]

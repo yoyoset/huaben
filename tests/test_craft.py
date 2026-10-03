@@ -101,3 +101,16 @@ def test_every_chapter_must_pay_something_off(conn):
     assert "payoff 必填" in user and "不要让他只是被动地收到信息" in user
     o = normalize_outline({**OUTLINE, "payoff": "王师兄当众出丑,周小满白赚两瓶丹"})
     assert "本章兑现(要写足" in work_order(5, o) and "白赚两瓶丹" in work_order(5, o)
+
+
+def test_numbers_must_be_readable_logged_and_checked(conn):
+    """《算尽仙朝》整屏数字、两章说法打架;MiMo Pro 稿里"一瓶十粒,三瓶九十粒"。写的时候要读得懂,入账要登记数字、核对算术。"""
+    from huaben.pipeline.prompts import ledger_messages
+    bid = repo.create_book(conn, "x")
+    repo.create_volume(conn, bid, 1, status="active")
+    ctx = load_context(conn, bid)
+    assert "一处推理只亮一两个关键数字" in write_messages(ctx, OUTLINE, 1000)[1]["content"]
+    ledger = ledger_messages(ctx, OUTLINE, "正文")[1]["content"]
+    assert "具体数字(数量、价格、比例、日期)也作为事实登记" in ledger and "算术是否算对" in ledger
+    # 2026-10-03:软观察(拿不准/建议/读感)走 editor_notes,不打回;只有"读者当场能指出"的硬伤进 contradictions
+    assert "editor_notes" in ledger and "拿不准的" in ledger and "不要写进 contradictions" in ledger

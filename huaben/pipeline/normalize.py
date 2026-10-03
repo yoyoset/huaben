@@ -115,6 +115,16 @@ def normalize_foreshadow_update(u) -> dict | None:
     return {"id": to_int(u.get("id"), "foreshadows_update.id"), "status": status}
 
 
+# 2026-10-03 实测:让入账同时核对"正文内部的数字和算术"后,模型会把核对通过的结果也写进 contradictions
+# ("……属策略性话术,不构成数字冲突""……正文承继一致")——而非有意的冲突会打回整章。一条干净的章被报了 2 条。
+# 明说"不是冲突"的条目丢掉;只认明确的否定说法,"不一致""前后不一"之类的真冲突不受影响。
+_NOT_A_CONFLICT = ("不冲突", "不算冲突", "无冲突", "没有冲突", "不构成", "不矛盾", "无矛盾", "并无矛盾", "核对通过", "无需登记", "承继一致")
+
+
+def _says_no_conflict(text: str) -> bool:
+    return any(p in text for p in _NOT_A_CONFLICT)
+
+
 def normalize_contradiction(c) -> dict:
     if isinstance(c, str):
         c = {"what": c}
@@ -143,7 +153,9 @@ def normalize_ledger(d: dict) -> dict:
         "foreshadows_new": [normalize_foreshadow_new(f) for f in _list(d, "foreshadows_new")],
         "foreshadows_update": [x for x in map(normalize_foreshadow_update, _list(d, "foreshadows_update")) if x],
         "facts": to_text_list(_list(d, "facts"), "facts"),
-        "contradictions": [normalize_contradiction(c) for c in _list(d, "contradictions")],
+        "contradictions": [c for c in map(normalize_contradiction, _list(d, "contradictions")) if not _says_no_conflict(c["what"])],
+        # 2026-10-03:编辑器"拿不准/建议/只提示"的观察放这里,不进 contradictions、不打回,只写运行记录供排查
+        "editor_notes": to_text_list(_list(d, "editor_notes"), "editor_notes"),
         "devices": normalize_devices(d.get("devices")),
     }
 

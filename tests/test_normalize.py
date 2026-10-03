@@ -7,6 +7,7 @@ from huaben import repo
 from huaben.config import Settings
 from huaben.llm_fake import FakeLLM
 from huaben.pipeline.normalize import normalize_ledger, normalize_outline, to_bool
+from huaben.pipeline.ledger_apply import apply_ledger
 from huaben.pipeline.parsing import ParseError
 from huaben.scheduler import top_up
 
@@ -115,3 +116,31 @@ def test_real_run_ledger_shapes_are_tolerated():
     assert d["foreshadows_update"] == [{"id": 2, "status": "resolved"}, {"id": 3, "status": "progressing"}]
     one = normalize_ledger(ledger(foreshadows_update={"id": 4, "status": "resolved"}, characters={"name": "周小满"}))
     assert one["foreshadows_update"] == [{"id": 4, "status": "resolved"}] and one["characters"][0]["name"] == "周小满"
+
+
+def test_checked_ok_notes_are_not_treated_as_contradictions():
+    """实测:模型把核对通过的结果也写进 contradictions,干净的章因此被打回。明说"不是冲突"的丢掉,真冲突保留。"""
+    out = normalize_ledger(ledger(contradictions=[
+        "正文说孙承赔三粒与账面一致,属策略性话术,不构成数字冲突",
+        "账本载孙承五个跟班,正文承继一致",
+        "一瓶十粒,三瓶却写成九十粒,算术错误",
+        "同一铺位两章数字前后不一致",
+    ]))
+    assert [c["what"][:6] for c in out["contradictions"]] == ["一瓶十粒,三", "同一铺位两章"]
+
+
+def test_soft_observations_go_to_editor_notes_not_contradictions(conn):
+    """2026-10-03:入账会顺手把"拿不准/只提示/时间线略不顺"也写进 contradictions,干净的章被打回。
+    这些软观察填到 editor_notes:不打回、只进运行记录供排查;真正的硬伤仍在 contradictions。"""
+    out = normalize_ledger(ledger(
+        contradictions=[{"what": "一瓶十粒,三瓶却写成九十粒", "planned": False}],
+        editor_notes=["王师兄抵债五粒未在前文铺垫,建议后续补一笔", "时间线略不顺,不影响主线"],
+    ))
+    assert [c["what"] for c in out["contradictions"]] == ["一瓶十粒,三瓶却写成九十粒"]
+    assert len(out["editor_notes"]) == 2 and "建议后续补一笔" in out["editor_notes"][0]
+
+    bid = repo.create_book(conn, "x")
+    vid = repo.create_volume(conn, bid, 1, status="active")
+    cid = repo.create_chapter(conn, bid, vid, 1)
+    warnings = apply_ledger(conn, bid, cid, 1, out)
+    assert any("编辑观察(未打回)" in w and "王师兄抵债五粒" in w for w in warnings)
