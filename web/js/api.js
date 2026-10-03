@@ -41,6 +41,7 @@ export const api = {
   around: (id, idx) => call('GET', `/api/books/${id}/chapters${rangeQuery(Math.max(1, idx - 1), idx + 1)}`),
   chapter: (id, idx) => call('GET', `/api/books/${id}/chapters/${idx}`),
   foreshadows: (id) => call('GET', `/api/books/${id}/foreshadows`),
+  cast: (id) => call('GET', `/api/books/${id}/cast`),
   craftOptions: () => call('GET', '/api/craft/options'),
   expandWorld: (id) => call('POST', `/api/books/${id}/world/expand`),
   prepare: (id, count) => call('POST', `/api/books/${id}/prepare`, { count }),

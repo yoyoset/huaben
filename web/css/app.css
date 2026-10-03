@@ -76,6 +76,17 @@ button:focus-visible, a:focus-visible, textarea:focus-visible { outline: 2px sol
 .stat.warn .stat-value { color: var(--danger); }
 .mono { font-family: ui-monospace, Consolas, monospace; font-size: 12px; word-break: break-all; }
 
+/* 人物志(路线 61) */
+.cast { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cast-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; }
+.cast-card.core { border-color: var(--accent); }
+.cast-card h3 { margin: 0 0 4px; display: flex; align-items: center; gap: 6px; }
+.cast-card p { margin: 6px 0; }
+.cast-line { margin-top: 4px; font-size: 14px; }
+.cast-label { display: inline-block; min-width: 34px; color: var(--muted); margin-right: 6px; }
+.cast-signature { margin-top: 6px; font-size: 14px; }
+.cast .tag { font-size: 11px; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 0 6px; }
+
 .player { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--line);
   padding: 8px 16px calc(8px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 6px; }
 .player[hidden] { display: none; }

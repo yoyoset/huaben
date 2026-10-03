@@ -10,6 +10,7 @@ import { readerView } from './views/reader.js';
 import { shelfView } from './views/shelf.js';
 import { statsView } from './views/stats.js';
 import { tocView } from './views/toc.js';
+import { castView } from './views/cast.js';
 import { craftView } from './views/craft.js';
 import { settingsView } from './views/settings.js';
 import { whoView } from './views/who.js';
@@ -18,6 +19,7 @@ const routes = [
   [/^#\/opening\/(\d+)$/, (m) => openingView(+m[1])],
   [/^#\/read\/(\d+)(?:\/(\d+))?$/, (m) => readerView(+m[1], m[2] ? +m[2] : undefined)],
   [/^#\/stats\/(\d+)$/, (m) => statsView(+m[1])],
+  [/^#\/cast\/(\d+)$/, (m) => castView(+m[1])],
   [/^#\/craft\/(\d+)$/, (m) => craftView(+m[1])],
   [/^#\/toc\/(\d+)(?:\/(\d+))?$/, (m) => tocView(+m[1], m[2] ? +m[2] : undefined)],
   [/^#\/who$/, () => whoView()],

@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 
-from .. import foreshadow_report, repo, stats
+from .. import cast, foreshadow_report, repo, stats
 from ..prep import book_buffer_target
 from ..tts.store import best_playable, index_paths
 from ..voice_queue import unplayable_count
@@ -71,3 +71,10 @@ def foreshadows(book_id: int, conn=Depends(get_conn)):
     """伏笔回收报告:按卷的计划/实收/未收 + 全书汇总(v0 验收:"卷内伏笔有回收记录")。"""
     book_or_404(conn, book_id)
     return foreshadow_report.load(conn, book_id)
+
+
+@router.get("/{book_id}/cast")
+def cast_view(book_id: int, conn=Depends(get_conn)):
+    """人物志:账本里的人物现状(招牌能力/阶段、关系、知情)整理成一页可读的列表(路线 61)。"""
+    book_or_404(conn, book_id)
+    return {"characters": cast.build(repo.list_characters(conn, book_id), repo.get_bible(conn, book_id))}

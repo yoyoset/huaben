@@ -54,6 +54,7 @@ export async function readerView(bookId, idxParam) {
       voiceNoteEl(book, voice),
       h('div', { class: 'row', style: 'justify-content:space-between' },
         h('div', { class: 'row' }, tocLink(bookId, book), h('a', { class: 'btn', href: `#/craft/${bookId}` }, '✍ 写法'),
+          h('a', { class: 'btn', href: `#/cast/${bookId}`, 'aria-label': '本书人物志' }, '👥 人物'),
           h('a', { class: 'btn', href: `#/stats/${bookId}`, 'aria-label': '本书运行统计' }, '📊 统计')),
         prefsToolbar()),
       autoScrollControls(body, onEnd),
