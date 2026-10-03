@@ -4,6 +4,8 @@
 - 关键约束放在 user 消息**末尾**(紧贴输出位置),关思考后远处的要求容易被丢;
 - 示例里只用占位词("角色名"),不放任何专名 —— 示例文本也是 prompt,会被当成指令串进正文。
 """
+import json
+
 from ..context import StoryContext
 from ..craft import from_book, render_craft
 from ..foreshadow_scale import planting_rule
@@ -52,13 +54,30 @@ def pacing_rule(ctx: StoryContext) -> str:
     return f"节奏:按进度,本章大约应推进第 {i}/{len(beats)} 个节拍「{beats[i - 1]}」。"
 
 
+def recent_hooks(ctx: StoryContext) -> str:
+    """最近几章的结尾钩子。2026-10-03《算尽仙朝》实测:第 1、3、5 章都以"算盘残片发烫、浮现一行字"收尾——
+    编辑看不到自己前几章用过什么钩子,就会反复用同一招。纯函数;章纲解析不了的跳过。"""
+    hooks = []
+    for c in ctx.recent:
+        try:
+            hook = json.loads(c.get("outline") or "{}").get("hook", "")
+        except ValueError:
+            hook = ""
+        if hook:
+            hooks.append(f"- 第{c['idx']}章:{hook}")
+    if not hooks:
+        return ""
+    return ("最近几章的结尾钩子:\n" + "\n".join(hooks)
+            + "\n本章结尾换一种钩子:不同的悬念来源、不同的人物或物件,不要再靠同一个道具或同一种异象收尾。\n")
+
+
 def outline_messages(ctx: StoryContext) -> list[dict]:
     user = (
         f"{render_bible(ctx.bible)}\n\n{render_craft(from_book(ctx.book))}\n\n{render_memory(ctx)}\n\n"
         f"【最近原文(用于衔接)】\n{recent_text(ctx)}\n\n"
         f"请为第 {ctx.next_idx} 章写章纲工单。要求:紧扣本卷目标与节拍;伏笔该推进的推进、该收的收;"
         f"结尾留钩子;不得与账本冲突(除非明确写进 planned_reversals)。\n{pacing_rule(ctx)}\n"
-        f"{planting_rule(ctx.foreshadows, due_foreshadow_ids(ctx))}\n"
+        f"{planting_rule(ctx.foreshadows, due_foreshadow_ids(ctx))}\n{recent_hooks(ctx)}"
         f"只输出如下结构的 JSON:\n{OUTLINE_SCHEMA}"
     )
     return [{"role": "system", "content": _SYSTEM_EDITOR}, {"role": "user", "content": user}]

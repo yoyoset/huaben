@@ -8,6 +8,7 @@ from contextlib import contextmanager
 
 from .. import repo
 from ..config import Settings
+from ..craft import from_book, render_craft, world_brief
 from ..db import tx
 from ..llm import LLM
 from ..pipeline.errors import ChapterFailed
@@ -86,11 +87,13 @@ def _opening_turn(conn, llm: LLM, book_id: int, user_text: str) -> dict:
 
 def _extract_bible(conn, llm: LLM, book_id: int, messages: list[dict]) -> None:
     last = ""
+    craft = from_book(repo.get_book(conn, book_id))
+    world_rule, temperature = world_brief(craft)
     for _ in range(2):
         res = call_step(conn, llm, book_id, None, "finalize", [
             {"role": "system", "content": prompts.FINALIZE_SYSTEM},
-            {"role": "user", "content": prompts.finalize_user(transcript(messages))},
-        ], json_mode=True, temperature=0.5)
+            {"role": "user", "content": prompts.finalize_user(transcript(messages), render_craft(craft), world_rule)},
+        ], json_mode=True, temperature=temperature)
         try:
             bible = parse_bible(res.text)
             break

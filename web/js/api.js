@@ -42,6 +42,7 @@ export const api = {
   chapter: (id, idx) => call('GET', `/api/books/${id}/chapters/${idx}`),
   foreshadows: (id) => call('GET', `/api/books/${id}/foreshadows`),
   craftOptions: () => call('GET', '/api/craft/options'),
+  expandWorld: (id) => call('POST', `/api/books/${id}/world/expand`),
   prepare: (id, count) => call('POST', `/api/books/${id}/prepare`, { count }),
   prepStatus: (id) => call('GET', `/api/books/${id}/prepare`),
   craft: (id) => call('GET', `/api/books/${id}/craft`),

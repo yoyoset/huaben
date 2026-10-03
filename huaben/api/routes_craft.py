@@ -1,11 +1,15 @@
 """每本书的写法设定:开书时选模板,开书后随时改(下一章起生效)。选项与默认值见 huaben/craft.py。"""
 import json
 
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Body, Depends, HTTPException
 
 from .. import repo
 from ..craft import from_book, normalize_craft, options_view
-from .deps import book_or_404, get_conn
+from ..human_errors import explain
+from ..llm import LLMError
+from ..pipeline.jsonout import ParseError
+from ..pipeline.world_expand import expand_world
+from .deps import book_or_404, get_conn, get_llm
 
 router = APIRouter(tags=["craft"])
 
@@ -27,3 +31,15 @@ def save_craft(book_id: int, body: dict = Body(...), conn=Depends(get_conn)):
     craft = normalize_craft(body)
     repo.update_book(conn, book_id, craft=json.dumps(craft, ensure_ascii=False))
     return craft
+
+
+@router.post("/api/books/{book_id}/world/expand")
+def expand(book_id: int, conn=Depends(get_conn), llm=Depends(get_llm)):
+    """给已开书的书补充原创设定(只加不改,见 pipeline/world_expand.py)。一次模型调用,通常十几秒。"""
+    book = book_or_404(conn, book_id)
+    if book["status"] == "drafting":
+        raise HTTPException(409, "还没开书:开书时会按「想象力」设定直接搭世界观,不用补充")
+    try:
+        return expand_world(conn, llm, book_id)
+    except (LLMError, ParseError) as e:
+        raise HTTPException(502, explain(e, auto_retry=False)) from e

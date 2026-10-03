@@ -28,10 +28,13 @@ FINALIZE_SCHEMA = """{
 }"""
 
 
-def finalize_user(transcript: str) -> str:
+def finalize_user(transcript: str, craft_text: str = "", world_rule: str = "") -> str:
+    """craft_text:读者选的写法设定(开书页上选的);world_rule:按想象力档位对世界观的硬要求(见 craft.world_brief)。"""
     return (
         f"以下是开书对话记录:\n\n{transcript}\n\n"
-        "请据此定稿故事圣经。人物与设定必须忠于对话里读者表达的意愿,读者没说的地方由你补全但要自洽;"
+        + (f"{craft_text}\n\n" if craft_text else "")
+        + "请据此定稿故事圣经。人物与设定必须忠于对话里读者表达的意愿,读者没说的地方由你补全但要自洽;"
         "不要沿用对话里没出现过的专有名词当作既定事实。\n"
-        f"只输出如下结构的 JSON:\n{FINALIZE_SCHEMA}"
+        + (f"{world_rule}\n" if world_rule else "")
+        + f"只输出如下结构的 JSON:\n{FINALIZE_SCHEMA}"
     )
