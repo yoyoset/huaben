@@ -22,3 +22,19 @@ def missing_lines(body: str, lines: list[str]) -> list[str]:
 def lines_feedback(missing: list[str]) -> list[str]:
     """打回重写时给作者的话。"""
     return [f"工单要求原样写出的这句话没有出现在正文里,必须一字不改地写进去:{ln}" for ln in missing]
+
+
+ENDING_WINDOW = 200  # 结尾原话必须落在正文最后这么多字里
+
+
+def ending_problem(body: str, ending: str) -> list[str]:
+    """章纲指定了结尾原话,正文却没有停在那里(没出现,或出现之后又往下写了一大段)。"""
+    want = _squash(ending or "")
+    if not want:
+        return []
+    hay = _squash(body)
+    if want not in hay:
+        return [f"正文没有写到工单指定的结尾。最后一句必须是(一字不改):{ending}"]
+    if want not in hay[-ENDING_WINDOW:]:
+        return [f"正文写过头了:工单指定的结尾“{ending}”出现之后又往下写了一大段。写到这句就停,后面的事留给下一章,把多出来的全部删掉。"]
+    return []

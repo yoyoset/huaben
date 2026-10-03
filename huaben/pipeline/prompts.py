@@ -122,6 +122,8 @@ def work_order(idx: int, outline: dict, open_foreshadows: list[dict] = ()) -> st
         lines.append("下面这些句子是定好的原话,必须一字不改地出现在正文里(可以配上说话人和动作,句子本身不许增删改):")
         lines += [f"- {s}" for s in outline["lines"]]
     lines.append(f"结尾钩子:{outline['hook']}")
+    if outline.get("ending"):
+        lines.append(f"本章最后一句必须是(一字不改),写到这句就停,不要再往下写——后面的事是下一章的:{outline['ending']}")
     return "\n".join(lines)
 
 

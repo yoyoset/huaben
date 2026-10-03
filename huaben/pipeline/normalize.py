@@ -180,4 +180,5 @@ def normalize_outline(d: dict) -> dict:
         "when": to_text(d.get("when"), "when"),  # 本章发生在什么时候;可空,不因缺它打回章纲
         "plant": normalize_plant(d.get("plant")),  # 本章计划要埋的伏笔;缺 content/truth 就是 None
         "lines": to_text_list(d.get("lines"), "lines"),  # 必须原样出现在正文里的句子;可空
+        "ending": to_text(d.get("ending"), "ending"),  # 必须落在正文最后 200 字里的结尾原话;可空
     }

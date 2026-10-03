@@ -21,7 +21,7 @@ from .parsing import ParseError, parse_ledger, parse_outline, unplanned_contradi
 from ..planting import to_register
 from ..repetition import repetition_note
 from ..script_import import resolve_keys
-from ..verbatim import lines_feedback, missing_lines
+from ..verbatim import ending_problem, lines_feedback, missing_lines
 
 log = logging.getLogger("huaben.chapter")
 
@@ -151,7 +151,8 @@ def _draft_until_accepted(conn, llm: LLM, settings: Settings, book_id: int, ctx:
         prev = ctx.recent[-1]["body"] if ctx.recent else ""
         problems = (draft_problems(body, settings.chapter_words) + copy_problems(body, [c["body"] for c in ctx.recent])
                     + restage_problems(body, prev, [c["name"] for c in ctx.characters])
-                    + lines_feedback(missing_lines(body, outline.get("lines") or [])))
+                    + lines_feedback(missing_lines(body, outline.get("lines") or []))
+                    + ending_problem(body, outline.get("ending") or ""))
         if problems:  # 机械底线不过:不花入账的钱,直接带理由重写
             _reject(conn, book_id, idx, "draft: " + "; ".join(problems))
             feedback = problems
