@@ -8,4 +8,5 @@ APK="$(dirname "$0")/../android/app/build/outputs/apk/debug/app-debug.apk"
 ssh root@10.1.1.13 'mkdir -p /opt/huaben/data/app'
 scp -q "$APK" root@10.1.1.13:/opt/huaben/data/app/huaben.apk.tmp
 ssh root@10.1.1.13 'mv /opt/huaben/data/app/huaben.apk.tmp /opt/huaben/data/app/huaben.apk && ls -la /opt/huaben/data/app/'
-curl -sI http://10.1.1.13:8210/api/app/huaben.apk | head -3
+curl -s -o /dev/null -w "下载检查:HTTP %{http_code},%{size_download} 字节
+" http://10.1.1.13:8210/api/app/huaben.apk
