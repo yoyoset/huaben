@@ -28,6 +28,7 @@ import kotlin.concurrent.thread
 class BookActivity : Activity() {
     private lateinit var prefs: Prefs
     private lateinit var downloads: Downloads
+    private lateinit var texts: Texts
     private var book = 0
     private var bookTitle = ""
     private var controller: MediaController? = null
@@ -45,6 +46,7 @@ class BookActivity : Activity() {
         super.onCreate(savedInstanceState)
         prefs = Prefs(this)
         downloads = Downloads(this)
+        texts = Texts(this)
         book = intent.getIntExtra("book", 0)
         bookTitle = intent.getStringExtra("title") ?: ""
         val root = Ui.column(this)
@@ -67,12 +69,13 @@ class BookActivity : Activity() {
         root.addView(Ui.button(this, "下载已备好的到手机", primary = true) { download() })
         dlStatus = Ui.text(this, "", 14f, Ui.MUTED)
         root.addView(dlStatus)
+        root.addView(Ui.button(this, "接着看", primary = true) { continueReading() })
         root.addView(Ui.button(this, "在线阅读(网页版)") {
             startActivity(Intent(this, WebActivity::class.java).putExtra("url", "${prefs.server}/#/read/$book"))
         })
 
         root.addView(Ui.gap(this))
-        root.addView(Ui.text(this, "手机上已下载的章(点一下从这章开始播,自动接下一章)", 14f, Ui.MUTED))
+        root.addView(Ui.text(this, "手机上已下载的章(点章名看正文;点「▶ 听」从这章开始播,自动接下一章)", 14f, Ui.MUTED))
         list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(list)
         root.addView(Ui.gap(this, 24))
@@ -188,14 +191,22 @@ class BookActivity : Activity() {
         }
     }
 
-    /** 把服务器上已配好音的章下到手机;已经下过同一版本的跳过,换了音色的重下。 */
+    /** 把服务器上备好范围内的正文下到手机(有配好音的顺带下);已经下过的跳过,换了音色的重下。 */
     private fun download() {
         dlStatus.text = "查看服务器上备好的章…"
         thread {
             val msg = try {
                 val api = Api(prefs.server)
                 val chapters = api.prepStatus(book).getJSONArray("chapters")
-                val ready = (0 until chapters.length()).map { chapters.getJSONObject(it) }.filter { !it.isNull("audio_url") }
+                val all = (0 until chapters.length()).map { chapters.getJSONObject(it) }
+                for (ch in all) {
+                    val idx = ch.getInt("idx")
+                    if (texts.has(book, idx)) continue
+                    runOnUiThread { dlStatus.text = "下载正文:第 $idx 章" }
+                    val j = api.chapter(book, idx)
+                    texts.save(book, idx, j.optString("title"), j.optString("body"))
+                }
+                val ready = all.filter { !it.isNull("audio_url") }
                 var done = 0
                 for (ch in ready) {
                     val idx = ch.getInt("idx")
@@ -209,8 +220,8 @@ class BookActivity : Activity() {
                     }
                     done++
                 }
-                if (ready.isEmpty()) "还没有配好音的章:先点「备 10 章」,等电脑配好"
-                else "已下载 ${ready.size} 章,共 ${downloads.bytes(book) / 1_000_000} MB"
+                if (all.isEmpty()) "还没有备好的章:先点「备 10 章」"
+                else "已下载:正文 ${all.size} 章,音频 ${ready.size} 章,共 ${downloads.bytes(book) / 1_000_000} MB"
             } catch (e: Exception) {
                 "下载失败:${e.message ?: e.javaClass.simpleName}(已下好的不受影响,再点一次接着下)"
             }
@@ -221,20 +232,58 @@ class BookActivity : Activity() {
         }
     }
 
+    /** 列"有正文或有音频"的章:两样都有给"看 + 听",只有一样就给那一个。 */
     private fun renderList() {
         list.removeAllViews()
-        val chapters = downloads.list(book)
-        if (chapters.isEmpty()) list.addView(Ui.text(this, "(还没有)", 14f, Ui.MUTED))
-        chapters.forEach { ch -> list.addView(Ui.button(this, "第${ch.idx}章 ${ch.title}") { play(ch.idx) }) }
+        val textIdx = texts.list(book)
+        val audio = downloads.list(book).associateBy { it.idx }
+        val all = (textIdx + audio.keys).toSortedSet()
+        if (all.isEmpty()) {
+            list.addView(Ui.text(this, "(还没有)", 14f, Ui.MUTED))
+            return
+        }
+        for (idx in all) {
+            val hasText = idx in textIdx
+            val audioCh = audio[idx]
+            when {
+                hasText && audioCh != null -> {
+                    val name = texts.title(book, idx).ifEmpty { audioCh.title }
+                    list.addView(Ui.row(this,
+                        Ui.button(this, "第${idx}章 $name") { openRead(idx) },
+                        Ui.button(this, "▶ 听") { play(idx) }))
+                }
+                hasText -> {
+                    val name = texts.title(book, idx)
+                    list.addView(Ui.button(this, "第${idx}章 $name") { openRead(idx) })
+                }
+                audioCh != null -> list.addView(Ui.button(this, "第${idx}章 ${audioCh.title}") { play(idx) })
+            }
+        }
+    }
+
+    private fun openRead(idx: Int) {
+        startActivity(Intent(this, ReadActivity::class.java)
+            .putExtra("book", book).putExtra("idx", idx).putExtra("title", bookTitle))
+    }
+
+    /** 「接着看」:接着这本书上次读到的那章;不在已下正文里就用第一章。一章正文都没有就提示先下载。 */
+    private fun continueReading() {
+        val chapters = texts.list(book)
+        if (chapters.isEmpty()) {
+            dlStatus.text = "还没有下载正文:先点「下载已备好的到手机」"
+            return
+        }
+        openRead(if (prefs.lastRead(book) in chapters) prefs.lastRead(book) else chapters.first())
     }
 
     private fun confirmDelete() {
         AlertDialog.Builder(this)
-            .setMessage("删除这本书下载到手机上的所有音频?(服务器上的不受影响,随时可以再下)")
+            .setMessage("删除这本书下载到手机上的所有正文和音频?(服务器上的不受影响,随时可以再下)")
             .setPositiveButton("删除") { _, _ ->
                 controller?.stop()
                 controller?.clearMediaItems()
                 downloads.deleteAll(book)
+                texts.deleteAll(book)
                 renderList()
                 dlStatus.text = "已删除"
             }

@@ -19,6 +19,15 @@ class Prefs(ctx: Context) {
         get() = p.getString("profile_name", "") ?: ""
         set(v) = p.edit().putString("profile_name", v).apply()
 
+    /** 阅读字号(sp)。全 App 一套设置,不分书。 */
+    var fontSize: Float
+        get() = p.getFloat("font_size", 19f)
+        set(v) = p.edit().putFloat("font_size", v).apply()
+
+    /** 这本书上次读到第几章:书页上的「接着看」从这里接。没有返回 0。 */
+    fun lastRead(book: Int): Int = p.getInt("read_$book", 0)
+    fun setLastRead(book: Int, idx: Int) = p.edit().putInt("read_$book", idx).apply()
+
     /** 离线时听到的章:等联网再告诉服务器,好让它接着往后写、往后配。每本书只记最远的一章。 */
     fun pendingProgress(): Map<Int, Int> =
         p.all.filterKeys { it.startsWith("pending_") }.mapNotNull { (k, v) ->
@@ -79,6 +88,47 @@ class Downloads(ctx: Context) {
         }.sortedBy { it.first }
 
     fun bytes(book: Int): Long = (dir(book).listFiles() ?: emptyArray()).sumOf { it.length() }
+
+    fun deleteAll(book: Int) = dir(book).deleteRecursively()
+}
+
+/** 下到手机上的正文:filesDir/text/<书>/<章>.json = {"title": 章名, "body": 正文}。离线也能看。 */
+class Texts(ctx: Context) {
+    private val root = File(ctx.filesDir, "text")
+
+    private fun dir(book: Int) = File(root, book.toString())
+    private fun fileFor(book: Int, idx: Int) = File(dir(book), "$idx.json")
+
+    fun has(book: Int, idx: Int): Boolean = fileFor(book, idx).isFile
+
+    /** 先写 .part 再改名:写到一半被中断时,读到的要么是上一份要么没有,不会是坏文件。 */
+    fun save(book: Int, idx: Int, title: String, body: String) {
+        dir(book).mkdirs()
+        val dest = fileFor(book, idx)
+        val tmp = File(dest.path + ".part")
+        tmp.writeText(JSONObject().put("title", title).put("body", body).toString())
+        if (!tmp.renameTo(dest)) {
+            dest.delete()
+            tmp.renameTo(dest)
+        }
+    }
+
+    /** (章名, 正文);没有或文件读坏了都返回 null,界面据此去服务器取。 */
+    fun load(book: Int, idx: Int): Pair<String, String>? =
+        try {
+            val j = JSONObject(fileFor(book, idx).readText())
+            j.optString("title") to j.optString("body")
+        } catch (e: Exception) {
+            null
+        }
+
+    fun list(book: Int): List<Int> =
+        (dir(book).listFiles() ?: emptyArray())
+            .filter { it.isFile && it.name.endsWith(".json") }
+            .mapNotNull { it.name.removeSuffix(".json").toIntOrNull() }
+            .sorted()
+
+    fun title(book: Int, idx: Int): String = load(book, idx)?.first ?: ""
 
     fun deleteAll(book: Int) = dir(book).deleteRecursively()
 }

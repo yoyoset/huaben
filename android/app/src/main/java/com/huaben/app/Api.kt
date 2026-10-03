@@ -47,6 +47,7 @@ class Api(base: String) {
     fun profiles() = JSONArray(send("/api/profiles", "GET"))
     fun books(profile: Int) = JSONArray(send("/api/books?profile=$profile", "GET"))
     fun prepStatus(book: Int) = JSONObject(send("/api/books/$book/prepare", "GET"))
+    fun chapter(book: Int, idx: Int) = JSONObject(send("/api/books/$book/chapters/$idx", "GET"))
     fun prepare(book: Int, count: Int) = JSONObject(send("/api/books/$book/prepare", "POST", JSONObject().put("count", count)))
     fun progress(book: Int, chapter: Int) {
         send("/api/books/$book/progress", "PUT", JSONObject().put("chapter", chapter))
