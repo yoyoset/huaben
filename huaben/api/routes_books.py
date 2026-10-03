@@ -21,13 +21,15 @@ def book_view(conn, b: dict, settings) -> dict:
     """generating = 后台还会继续补货(缓冲没满),前端据此决定要不要自动刷新。"""
     buffered = repo.buffered_ahead(conn, b["id"])
     buffer_target = book_buffer_target(b, settings.buffer_chapters)
+    ready = repo.count_accepted(conn, b["id"])
     return {
         "id": b["id"], "title": b["title"], "genre": b["genre"], "status": b["status"],
         "profile_id": b["profile_id"],
         "read_pos": b["read_pos"],        # 读到的最远章
         "last_opened": b["last_opened"],  # 续读位置(最后打开/播放的章)
         "synopsis": b["synopsis"],
-        "ready_chapters": repo.count_accepted(conn, b["id"]),
+        "ready_chapters": ready,
+        "pending_drafts": repo.count_pending_bodies(conn, b["id"], ready),  # 导入了正文、还没放出的章数
         "buffered_ahead": buffered,
         "generating": b["status"] == "serializing" and buffered < buffer_target,
         "gen_error": b["gen_error"],      # 非空 = 后台写文字遇到问题,界面应提示

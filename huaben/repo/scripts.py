@@ -40,3 +40,8 @@ def save_scripted_bodies(conn, book_id: int, bodies: dict, commit: bool = True) 
 def get_scripted_body(conn, book_id: int, idx: int) -> str | None:
     r = conn.execute("SELECT body FROM scripted_bodies WHERE book_id=? AND idx=?", (book_id, idx)).fetchone()
     return r[0] if r else None
+
+
+def count_pending_bodies(conn, book_id: int, after_idx: int) -> int:
+    """导入了正文、章号大于 after_idx 的章数(= 备好了稿、还没定稿放出的)。"""
+    return conn.execute("SELECT COUNT(*) FROM scripted_bodies WHERE book_id=? AND idx>?", (book_id, after_idx)).fetchone()[0]

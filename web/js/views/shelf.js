@@ -11,7 +11,7 @@ const STATUS = { drafting: '开书中', serializing: '连载中' };
 function card(b, voice) {
   const href = bookHome(b);
   const progress = b.status === 'serializing'
-    ? ` · 已写 ${b.ready_chapters} 章 · 读到第 ${b.read_pos} 章 · 备好 ${b.buffered_ahead} 章${b.generating ? (b.gen_error ? ' · 暂停中' : ' · 正在写…') : ''}`
+    ? ` · 已写 ${b.ready_chapters} 章${b.pending_drafts ? `(另有 ${b.pending_drafts} 章已备稿,读到附近或点「预备」就放出)` : ''} · 读到第 ${b.read_pos} 章 · 备好 ${b.buffered_ahead} 章${b.generating ? (b.gen_error ? ' · 暂停中' : ' · 正在写…') : ''}`
     : '';
   return h('a', { class: 'card', href },
     h('h3', {}, b.title, ' ', h('span', { class: `chip ${b.status === 'serializing' ? 'live' : ''}` }, STATUS[b.status] ?? b.status)),
