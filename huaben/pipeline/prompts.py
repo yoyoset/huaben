@@ -109,11 +109,6 @@ def work_order(idx: int, outline: dict, open_foreshadows: list[dict] = ()) -> st
     return "\n".join(lines)
 
 
-def _consistency_rule(outline: dict) -> str:
-    exception = "除工单列出的有意反转外," if outline.get("planned_reversals") else ""
-    return f"2. {exception}严格遵守账本里的人物现状与世界事实,人名与设定不得漂移,死者不得复活;\n"
-
-
 def write_messages(ctx: StoryContext, outline: dict, words: int, feedback: list[str] | None = None) -> list[dict]:
     system = (
         "你是长篇连载小说的作者,为一位读者私人连载。读者只读不参与,所以每章必须自成一个完整、好看的剧情节拍。\n\n"
@@ -130,7 +125,8 @@ def write_messages(ctx: StoryContext, outline: dict, words: int, feedback: list[
     parts = [p for p in parts if p]
     if feedback:
         parts.append("【上一稿被编辑打回,以下问题必须修正】\n" + "\n".join(f"- {f}" for f in feedback))
-    parts.append(  # 后置指令:紧贴输出位置
+    opening = opening_rule(ctx.next_idx)
+    hard = (  # 后置指令:紧贴输出位置
         f"现在写第 {ctx.next_idx} 章正文,约 {words} 字。硬性要求:\n"
         "1. 只输出正文,不要标题、不要解释、不要状态栏、不要任何前后缀;\n"
         + consistency_rule(outline) +
@@ -138,13 +134,15 @@ def write_messages(ctx: StoryContext, outline: dict, words: int, feedback: list[
         # 2026-10-03 读生产书:《算尽仙朝》整屏抽成数字,读者跟不上,且第 9 章说等比、第 10 章说等差
         "4. 推理、算账写给读者看得懂:一处推理只亮一两个关键数字,结论用一句人话点破(谁在搞鬼、怎么搞的),不要整屏罗列数字;"
         "账本里已有的数字照用,不要改;\n"
-        + SIGNATURE_RULE + "\n"
-        + SPEECH_RULE + "\n"
-        + REPETITION_RULE + "\n"
-        + BOND_RULE + "\n"
-        + opening_rule(ctx.next_idx) + "\n"
-        "6. 结尾落在工单指定的钩子上。"
+        "5. " + SIGNATURE_RULE + "\n"
+        "6. " + SPEECH_RULE + "\n"
+        "7. " + REPETITION_RULE + "\n"
+        "8. " + BOND_RULE + "\n"
     )
+    if opening:
+        hard += f"【开篇要求】{opening}\n"
+    hard += "9. 结尾落在工单指定的钩子上。"
+    parts.append(hard)
     return [{"role": "system", "content": system}, {"role": "user", "content": "\n\n".join(parts)}]
 
 

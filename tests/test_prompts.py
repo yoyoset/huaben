@@ -149,3 +149,22 @@ def test_bible_characters_do_not_repeat_profile(conn):
     repo.upsert_character(conn, bid, "沈照", core=True, profile="主角 腹黑")
     w = write_messages(load_context(conn, bid), outline(), 2500)[-1]["content"]
     assert "沈照(存活)" in w and "人设:主角 腹黑" not in w  # 人物卡里已有,账本只带现状
+
+
+def test_hard_requirements_are_numbered_consecutively_without_blank_lines(ctx):
+    """关思考的模型对编号列表更听话;编号断了会把后面几条降级。"""
+    hard = write_messages(ctx, outline(), 2500)[-1]["content"].split("硬性要求:")[1]
+    pos = [hard.index(f"{i}.") for i in range(1, 10)]
+    assert pos == sorted(pos)          # 1. 到 9. 依次出现,没有跳号
+    assert "\n\n" not in hard          # 没有连续两个空行
+
+
+def test_no_opening_block_or_double_blank_after_the_first_three_chapters(conn):
+    later = write_messages(_ctx_at(conn, 0), outline(), 2500)[-1]["content"]  # next_idx = 11
+    hard = later.split("硬性要求:")[1]
+    assert "【开篇要求】" not in hard and "\n\n" not in hard
+
+
+def test_title_rule_says_this_book():
+    from huaben.pipeline.rules import title_rule
+    assert title_rule(["甲"]).startswith("本书已有章节标题")

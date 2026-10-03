@@ -49,7 +49,7 @@ def title_rule(titles: list[str] | None) -> str:
         return ""
     shown = "、".join(titles[-40:])
     more = "…" if len(titles) > 40 else ""
-    return (f"书名已有章节标题(新章标题不得与这些重复,也不要只改一两个字):{shown}{more}。")
+    return (f"本书已有章节标题(新章标题不得与这些重复,也不要只改一两个字):{shown}{more}。")
 
 
 # 2026-10-03 用户:要能写出《海贼王》《火影》《死神》那种故事。网文的"黄金三章"——前几章决定读者留不留:

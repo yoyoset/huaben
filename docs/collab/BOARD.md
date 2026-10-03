@@ -7,7 +7,7 @@
 |---|---|---|---|---|
 | [T001](tasks/T001-voice-chunks.md) | 配音:跨段落合并,不再几秒几秒地生成 | 无 | 待审 | |
 | [T003](tasks/T003-beat-budget.md) | 节奏:每个节拍给不同的章数 | 无 | 待审 | |
-| [T005](tasks/T005-review-leftovers.md) | 上一轮审查留下的三处小修 | 无 | 待做 | |
+| [T005](tasks/T005-review-leftovers.md) | 上一轮审查留下的三处小修 | 无 | 待审 | |
 | [T002](tasks/T002-voice-bench.md) | 配音:在显卡上实测"一块多长最稳"(要用户先关掉话本配音) | T001 | 待做 | |
 | [T004](tasks/T004-rebudget-active-volume.md) | 节奏:给已经在写的卷补章数预算 | T003 | 待做 | |
 
