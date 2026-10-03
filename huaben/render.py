@@ -141,4 +141,5 @@ def handoff_text(ctx: StoryContext, tail_chars: int = HANDOFF_TAIL_CHARS) -> str
     tail = last["body"][-tail_chars:]
     cut = "……" if len(last["body"]) > tail_chars else ""
     return ("【紧接前情(章摘要)】\n" + "\n".join(lines)
+            + "\n(以上几章已经演过的场景、已经说出的信息,本章不要再演一遍)"
             + f"\n\n【第{last['idx']}章结尾原文(本章从这里之后接着写;不要复述、不要改写这段)】\n{cut}{tail}")

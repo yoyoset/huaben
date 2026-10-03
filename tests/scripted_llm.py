@@ -2,14 +2,20 @@
 返回确定性的内容。这样跑的是**真实的 prompt 组装**,断言才能覆盖"记忆/账本有没有被带进 prompt"。
 """
 import json
+import random
 import re
 
 from huaben.llm import LLMResult
 
+_POOL = ("山门灯火竹林古井石阶铜钟药炉账册长廊月色旧剑雨声茶棚渡口城楼柳岸雪夜残碑酒肆云海松涛寒潭烽烟书斋"
+         "白马青衫红烛黄沙黑水紫烟金铃银针玉佩铁锁木桥纸伞布衣麻绳草鞋花轿鱼灯鸟笼虎符龙纹")
+
+
 def body_for(n: int) -> str:
-    """约 700 字,让"原文是否被带进 prompt"在体量上可观察;每章各不相同(否则会被"照抄前文"检查打回):
-    每个 12 字窗口里都带章号。"""
-    return "".join(f"第{n}章第{i}夜,风过{n}号竹林。" for i in range(45))
+    """约 700 字,让"原文是否被带进 prompt"在体量上可观察;每章各不相同——
+    照抄前文与"重演上一章"检查只看汉字,所以章与章之间换的必须是汉字(按章号做种子随机取字),不能只换数字。"""
+    rnd = random.Random(n)
+    return "".join(f"第{n}章第{i}夜," + "".join(rnd.choice(_POOL) for _ in range(8)) + "。" for i in range(45))
 
 
 def _j(d) -> str:

@@ -80,10 +80,16 @@ def recent_hooks(ctx: StoryContext) -> str:
             hook = ""
         if hook:
             hooks.append(f"- 第{c['idx']}章:{hook}")
-    if not hooks:
-        return ""
-    return ("最近几章的结尾钩子:\n" + "\n".join(hooks)
-            + "\n本章结尾换一种钩子:不同的悬念来源、不同的人物或物件,不要再靠同一个道具或同一种异象收尾。\n")
+    # 开场也列出来:《杂役仙尊》13、14 章开场几乎一样(雾、飞檐、枣树下练气),编辑看不到前几章怎么开的场
+    openings = [f"- 第{c['idx']}章:{(c.get('body') or '').strip()[:40]}…" for c in ctx.recent if c.get("body")]
+    out = ""
+    if openings:
+        out += ("最近几章的开场:\n" + "\n".join(openings)
+                + "\n本章开场换一个时间、地点或动作;最近几章已经演过的场景、已经说出的信息不要再演一遍。\n")
+    if hooks:
+        out += ("最近几章的结尾钩子:\n" + "\n".join(hooks)
+                + "\n本章结尾换一种钩子:不同的悬念来源、不同的人物或物件,不要再靠同一个道具或同一种异象收尾。\n")
+    return out
 
 
 def outline_messages(ctx: StoryContext) -> list[dict]:

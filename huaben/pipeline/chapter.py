@@ -13,6 +13,7 @@ from ..llm import LLM
 from ..logs import log_context
 from . import prompts
 from .draft_check import clean_draft, copy_problems, draft_problems
+from .restage import restage_problems
 from .errors import ChapterFailed, NoActiveVolume
 from .ledger_apply import apply_ledger
 from .llm_step import call_step
@@ -97,7 +98,9 @@ def _draft_until_accepted(conn, llm: LLM, settings: Settings, book_id: int, ctx:
             _reject(conn, book_id, idx, "truncated")
             continue
         body = clean_draft(draft.text)
-        problems = draft_problems(body, settings.chapter_words) + copy_problems(body, [c["body"] for c in ctx.recent])
+        prev = ctx.recent[-1]["body"] if ctx.recent else ""
+        problems = (draft_problems(body, settings.chapter_words) + copy_problems(body, [c["body"] for c in ctx.recent])
+                    + restage_problems(body, prev, [c["name"] for c in ctx.characters]))
         if problems:  # 机械底线不过:不花入账的钱,直接带理由重写
             _reject(conn, book_id, idx, "draft: " + "; ".join(problems))
             feedback = problems
