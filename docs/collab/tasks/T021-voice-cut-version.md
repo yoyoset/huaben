@@ -78,3 +78,8 @@ def test_voice_id_carries_the_cut_version_for_qwen():
 - 不改服务器、不重启配音程序、不碰显卡。
 
 ## 审核记录
+
+通过 2026-10-03。这张卡同时让四个模型各做了一遍(各自的工作副本,互不干扰),四份代码改动一字不差,497 项全过;采用 deepseek-v4.1-flash 的那一份。
+架构方重跑:`python -m pytest -q` 497 全过。用时:muse-spark-1.3 148 秒、deepseek-v4.1-flash 160 秒、glm-5.3-flash 175 秒、mimo-v2.6-flash 500 秒。
+差别只在报告和看板:mimo 多改了看板的"当前"一行(那一行归架构方,它在偏差里如实写了);deepseek 和 glm 都注意到命令输出的乱码并说明了原因。
+这张卡太小、方案写得太死,分不出模型高下;T020 再比一次。
