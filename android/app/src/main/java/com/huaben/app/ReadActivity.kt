@@ -62,11 +62,15 @@ class ReadActivity : Activity() {
         show()
     }
 
-    private fun show() {
+    private fun updateNav() {
         val chapters = texts.list(book)
         val pos = chapters.indexOf(idx)
         prevBtn.isEnabled = pos > 0
         nextBtn.isEnabled = pos in 0 until chapters.size - 1
+    }
+
+    private fun show() {
+        updateNav()
         scroll.scrollTo(0, 0)
         prefs.setLastRead(book, idx)
         PlaybackService.report(prefs, book, idx)
@@ -90,7 +94,7 @@ class ReadActivity : Activity() {
                 val title = j.optString("title")
                 val body = j.optString("body")
                 texts.save(book, want, title, body)
-                runOnUiThread { if (want == idx) render(title, body) }
+                runOnUiThread { if (want == idx) { updateNav(); render(title, body) } }
             } catch (e: ApiError) {
                 runOnUiThread { if (want == idx) bodyView.text = e.message ?: "取这一章失败" }
             } catch (e: Exception) {

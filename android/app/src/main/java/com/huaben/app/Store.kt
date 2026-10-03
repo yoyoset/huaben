@@ -128,6 +128,27 @@ class Texts(ctx: Context) {
             .mapNotNull { it.name.removeSuffix(".json").toIntOrNull() }
             .sorted()
 
+    /** 存书名:离线书架要用。存在 filesDir/text/<书>/book.json = {"title": 书名}。 */
+    fun saveBookTitle(book: Int, title: String) {
+        dir(book).mkdirs()
+        File(dir(book), "book.json").writeText(JSONObject().put("title", title).toString())
+    }
+
+    /** 下过正文的书:(书号, 书名),按书号排序。读不到书名的用 "第 $id 本书"。 */
+    fun books(): List<Pair<Int, String>> =
+        (root.listFiles() ?: emptyArray()).mapNotNull { d ->
+            val id = d.name.toIntOrNull() ?: return@mapNotNull null
+            if (list(id).isEmpty()) null else id to bookTitle(id)
+        }.sortedBy { it.first }
+
+    private fun bookTitle(book: Int): String =
+        try {
+            val t = JSONObject(File(dir(book), "book.json").readText()).optString("title")
+            if (t.isEmpty()) "第 $book 本书" else t
+        } catch (e: Exception) {
+            "第 $book 本书"
+        }
+
     fun title(book: Int, idx: Int): String = load(book, idx)?.first ?: ""
 
     fun deleteAll(book: Int) = dir(book).deleteRecursively()

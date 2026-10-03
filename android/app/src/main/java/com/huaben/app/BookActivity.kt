@@ -85,6 +85,7 @@ class BookActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
+        renderList()
         val token = SessionToken(this, ComponentName(this, PlaybackService::class.java))
         val future = MediaController.Builder(this, token).buildAsync()
         future.addListener({
@@ -199,6 +200,7 @@ class BookActivity : Activity() {
                 val api = Api(prefs.server)
                 val chapters = api.prepStatus(book).getJSONArray("chapters")
                 val all = (0 until chapters.length()).map { chapters.getJSONObject(it) }
+                texts.saveBookTitle(book, bookTitle)
                 for (ch in all) {
                     val idx = ch.getInt("idx")
                     if (texts.has(book, idx)) continue

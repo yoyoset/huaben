@@ -15,12 +15,14 @@ import kotlin.concurrent.thread
 class MainActivity : Activity() {
     private lateinit var prefs: Prefs
     private lateinit var downloads: Downloads
+    private lateinit var texts: Texts
     private lateinit var root: LinearLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = Prefs(this)
         downloads = Downloads(this)
+        texts = Texts(this)
         root = Ui.column(this)
         setContentView(ScrollView(this).apply { setBackgroundColor(Ui.BG); addView(root) })
         // 安卓 13 起,播放通知(锁屏上的播放控制)要用户允许
@@ -95,7 +97,9 @@ class MainActivity : Activity() {
                 }
             } catch (e: Exception) {
                 runOnUiThread {
-                    val local = downloads.books()
+                    val audio = downloads.books().toMap()
+                    val text = texts.books().toMap()
+                    val local = (audio.keys + text.keys).sorted().map { id -> id to (audio[id] ?: text[id] ?: "第 $id 本书") }
                     status.text = if (local.isEmpty()) "连不上服务器,手机上也还没有下载的章" else "连不上服务器(在外面很正常),下面是已下载的:"
                     local.forEach { (id, title) -> list.addView(bookButton(id, title)) }
                 }
