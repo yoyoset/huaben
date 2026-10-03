@@ -108,3 +108,9 @@ fun setLastRead(book: Int, idx: Int)
 - 不引新的依赖。
 
 ## 审核记录
+
+通过 2026-10-04。采用 deepseek-v4.1-flash 的一份(另有 muse、mimo 各做完一份、glm 没做完被停掉;用户指出同一张卡让几个模型都做是浪费,以后一张卡只给一个模型)。
+架构方重跑:在主仓库 `gradle assembleDebug` → BUILD SUCCESSFUL,安装包 5.3 MB;`python -m pytest -q` 497 全过。读了 `ReadActivity.kt`、`Texts`、`BookActivity` 的改动,与方案一致。
+已发布安装包(`scripts/publish_apk.sh`)。**没有在真机上点过**,要用户装上试。
+已知小毛病(不打回):阅读页现场取到一章并存下后,"上一章/下一章"按钮的可用状态不会立刻刷新,换一次章就好。
+用时:deepseek 396 秒、muse 457 秒、mimo 863 秒。
