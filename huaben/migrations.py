@@ -57,4 +57,7 @@ UPDATE books SET profile_id = (SELECT id FROM profiles WHERE name = '我') WHERE
     # 14: 本章用来推动情节/制造悬念的手段(JSON 列表,入账时登记)。2026-10-03 实测《算尽仙朝》10 章章章"残片发烫",
     #     《杂役仙尊》14 章里 12 章靠"枕下纸条"——规划下一章时据此点名"别再用",见 devices.py
     "ALTER TABLE chapters ADD COLUMN devices TEXT NOT NULL DEFAULT '[]';",
+    # 15: 角色的招牌能力与成长阶段(JSON)。2026-10-03 用户:要能写出《海贼王》《火影》《死神》那种故事——
+    #     那三部里每个重要角色都有招牌能力(恶魔果实/忍术/斩魄刀),有名字与规则、随剧情进阶。旧数据为空,见 signature.py
+    "ALTER TABLE ledger_characters ADD COLUMN signature TEXT NOT NULL DEFAULT '{}';",
 ]

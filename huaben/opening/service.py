@@ -15,6 +15,7 @@ from ..pipeline.errors import ChapterFailed
 from ..pipeline.llm_step import call_step
 from ..pipeline.parsing import ParseError
 from ..pipeline.volume import ensure_active_volume
+from ..signature import normalize_signature
 from . import prompts
 from .parsing import parse_bible, parse_guide
 
@@ -113,7 +114,9 @@ def _extract_bible(conn, llm: LLM, book_id: int, messages: list[dict]) -> None:
         for c in bible["characters"]:
             name = str(c["name"]).strip()
             profile = " ".join(str(c.get(k, "")).strip() for k in ("role", "traits")).strip()
-            repo.upsert_character(conn, book_id, name, core=name in core, profile=profile, commit=False)
+            sig = normalize_signature(c.get("signature"))
+            repo.upsert_character(conn, book_id, name, core=name in core, profile=profile, commit=False,
+                                  signature=sig)
 
 
 def finalize_book(conn, llm: LLM, settings: Settings, book_id: int) -> dict:

@@ -2,6 +2,7 @@
 from .arc import render_arc
 from .context import StoryContext, select_foreshadows, select_ledger
 from .foreshadow_scale import due_state, tag
+from .signature import render as render_signature
 
 
 def _lines(items: list[str]) -> str:
@@ -18,6 +19,9 @@ def render_character(c: dict, with_profile: bool = True) -> str:
         parts.append(f"位置:{c['location']}")
     if c["abilities"]:
         parts.append(f"能力:{c['abilities']}")
+    sig = render_signature(c.get("signature") or {})
+    if sig:
+        parts.append(sig)
     if c["relations"]:
         parts.append(f"关系:{c['relations']}")
     if c["knows"]:

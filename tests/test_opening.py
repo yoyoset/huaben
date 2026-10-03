@@ -15,7 +15,9 @@ S = Settings(openrouter_api_key="x", chapter_words=1, _env_file=None)
 
 BIBLE = json.dumps({
     "title": "夜行录", "genre": "古代恐怖", "synopsis": "少年夜巡人的故事。", "world": "灵气枯竭的王朝",
-    "characters": [{"name": "沈照", "role": "主角", "traits": "腹黑"}, {"name": "阿蘅", "role": "药师", "traits": "冷"}],
+    "characters": [{"name": "沈照", "role": "主角", "traits": "腹黑",
+                    "signature": {"name": "听风耳", "rule": "听见三里内的私语", "stage": "初开", "next": "辨心音"}},
+                   {"name": "阿蘅", "role": "药师", "traits": "冷"}],
     "core_characters": ["沈照"], "style_fingerprint": "短句,冷幽默", "taboos": ["现代梗"],
 }, ensure_ascii=False)
 PLAN = json.dumps({"goal": "入门", "beats": ["a"], "plant": [], "resolve": [], "target_chapters": 30}, ensure_ascii=False)
@@ -85,6 +87,9 @@ def test_finalize_builds_bible_ledger_volume_and_goes_live(conn, book):
     assert bible["style_samples"] == [sample]
     chars = {c["name"]: c for c in repo.list_characters(conn, book)}
     assert chars["沈照"]["core"] is True and chars["阿蘅"]["core"] is False
+    # 开书时定的招牌能力要落到账本(路线 58):否则章纲/正文看不到,模型又会临时给万能能力
+    assert chars["沈照"]["signature"]["name"] == "听风耳" and chars["沈照"]["signature"]["stage"] == "初开"
+    assert chars["阿蘅"]["signature"] == {}
     assert repo.active_volume(conn, book)["goal"] == "入门"
 
 

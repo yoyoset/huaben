@@ -6,6 +6,7 @@
 """
 from ..devices import normalize_devices
 from ..foreshadow_scale import normalize_scale
+from ..signature import normalize_signature
 from .jsonout import ParseError
 
 _TRUE = {"true", "yes", "y", "1", "是", "存活", "活", "活着", "对"}
@@ -87,6 +88,10 @@ def normalize_character(c) -> dict:
             out[k] = to_bool(c[k], f"characters.{k}")
     if "knows" in c:
         out["knows"] = to_text_list(c["knows"], "characters.knows")
+    if "signature" in c:
+        sig = normalize_signature(c["signature"])
+        if sig:  # 空招牌不覆盖已有(模型给空对象当"没变化")
+            out["signature"] = sig
     return out
 
 

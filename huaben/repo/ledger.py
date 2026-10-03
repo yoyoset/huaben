@@ -1,16 +1,20 @@
 """账本:人物现状、伏笔、世界事实。"""
 from ..db import dumps, loads
+from ..signature import from_json, to_json
 
 
 def upsert_character(conn, book_id: int, name: str, *, alive=True, location="", abilities="",
-                     relations="", knows=None, core=False, profile="", updated_ch=0, commit: bool = True) -> None:
+                     relations="", knows=None, core=False, profile="", signature="{}", updated_ch=0,
+                     commit: bool = True) -> None:
+    sig = to_json(signature) if isinstance(signature, dict) else signature
     conn.execute(
-        "INSERT INTO ledger_characters(book_id,name,alive,location,abilities,relations,knows,core,profile,updated_ch) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(book_id,name) DO UPDATE SET "
+        "INSERT INTO ledger_characters(book_id,name,alive,location,abilities,relations,knows,core,profile,signature,updated_ch) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(book_id,name) DO UPDATE SET "
         "alive=excluded.alive, location=excluded.location, abilities=excluded.abilities, "
         "relations=excluded.relations, knows=excluded.knows, core=excluded.core, profile=excluded.profile, "
-        "updated_ch=excluded.updated_ch",
-        (book_id, name, int(alive), location, abilities, relations, dumps(knows or []), int(core), profile, updated_ch),
+        "signature=excluded.signature, updated_ch=excluded.updated_ch",
+        (book_id, name, int(alive), location, abilities, relations, dumps(knows or []), int(core), profile,
+         sig, updated_ch),
     )
     if commit:
         conn.commit()
@@ -30,6 +34,7 @@ def list_characters(conn, book_id: int) -> list[dict]:
         d["alive"] = bool(d["alive"])
         d["core"] = bool(d["core"])
         d["knows"] = loads(d["knows"])
+        d["signature"] = from_json(d.get("signature") or "{}")
         out.append(d)
     return out
 
