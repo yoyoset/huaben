@@ -93,6 +93,21 @@ def arc_messages(ctx: StoryContext, volume: dict, summaries: list[str], used_mod
     return [{"role": "system", "content": _SYSTEM}, {"role": "user", "content": user}]
 
 
+def budget_messages(volume: dict, summaries: list[str]) -> list[dict]:
+    """给已经在写的卷补章数预算:编辑看节拍与已写摘要,回答走完了几个节拍、剩下每个节拍还要几章。"""
+    beats = "\n".join(f"{i}. {b}" for i, b in enumerate(volume["beats"], 1))
+    user = (
+        f"【本卷(第{volume['idx']}卷)目标】{volume['goal']}\n【本卷节拍】\n{beats}\n\n"
+        f"【本卷已写章节】\n{chr(10).join(summaries) or '(还没有)'}\n\n"
+        f"这一卷已经写了 {len(summaries)} 章。请对照节拍判断:已经完整走完了前几个节拍(done_beats,没有走完的那个不算);\n"
+        f"然后给剩下的每个节拍分配还需要几章(remaining,按顺序,第一个是正在进行的那个节拍还需要几章)。\n"
+        f"{BUDGET_RULE}\n"
+        f"已经拖得太久的节拍,remaining 里只给 1 章,让它下一章就收掉。\n"
+        f'只输出如下结构的 JSON:\n{{"done_beats": 已完整走完的节拍数(整数), "remaining": [剩下每个节拍还需要几章(整数)]}}'
+    )
+    return [{"role": "system", "content": _SYSTEM}, {"role": "user", "content": user}]
+
+
 def seal_messages(ctx: StoryContext, volume: dict, chapters: list[dict]) -> list[dict]:
     summaries = "\n".join(f"第{c['idx']}章《{c['title']}》:{c['summary']}" for c in chapters)
     facts = "\n".join(f"- {f['fact']}" for f in ctx.facts) or "(无)"

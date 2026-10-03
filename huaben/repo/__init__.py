@@ -12,7 +12,7 @@ from .profiles import create_profile, get_profile, list_profiles, rename_profile
 from .runs import (cost_summary, editor_notes, failure_counts, log_run, recent_failures, run_totals, spent_usd,
                    unpriced_calls)
 from .volumes import (active_volume, create_volume, get_volume, list_volumes, seal_volume, set_volume_arc,
-                      set_volume_status)
+                      set_volume_budget, set_volume_status)
 
 __all__ = [
     "get_app_settings", "set_app_settings",
@@ -28,4 +28,5 @@ __all__ = [
     "cost_summary", "failure_counts", "log_run", "recent_failures", "run_totals", "spent_usd", "unpriced_calls",
     "editor_notes",
     "active_volume", "create_volume", "get_volume", "list_volumes", "seal_volume", "set_volume_arc", "set_volume_status",
+    "set_volume_budget",
 ]

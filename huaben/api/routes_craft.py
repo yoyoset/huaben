@@ -9,6 +9,7 @@ from ..human_errors import explain
 from ..llm import LLMError
 from ..pipeline.errors import ChapterFailed
 from ..pipeline.jsonout import ParseError
+from ..pipeline.rebudget import rebudget
 from ..pipeline.volume import fill_arc
 from ..pipeline.world_expand import expand_world
 from .deps import book_or_404, get_conn, get_llm
@@ -53,5 +54,15 @@ def volume_arc(book_id: int, request: Request, conn=Depends(get_conn), llm=Depen
     book_or_404(conn, book_id)
     try:
         return fill_arc(conn, llm, request.app.state.settings, book_id)
+    except (LLMError, ChapterFailed) as e:
+        raise HTTPException(502, explain(e, auto_retry=False)) from e
+
+
+@router.post("/api/books/{book_id}/volume/budget")
+def volume_budget(book_id: int, request: Request, conn=Depends(get_conn), llm=Depends(get_llm)):
+    """给进行中的卷补每个节拍的章数预算(旧书升级用;新卷规划时就带着)。一次模型调用,下一章起生效。"""
+    book_or_404(conn, book_id)
+    try:
+        return rebudget(conn, llm, request.app.state.settings, book_id)
     except (LLMError, ChapterFailed) as e:
         raise HTTPException(502, explain(e, auto_retry=False)) from e

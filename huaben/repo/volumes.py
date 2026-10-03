@@ -53,3 +53,9 @@ def set_volume_status(conn, volume_id: int, status: str) -> None:
 def set_volume_arc(conn, volume_id: int, arc: dict) -> None:
     conn.execute("UPDATE volumes SET arc=? WHERE id=?", (dumps(arc), volume_id))
     conn.commit()
+
+
+def set_volume_budget(conn, volume_id: int, beat_chapters: list[int], target_chapters: int) -> None:
+    conn.execute("UPDATE volumes SET beat_chapters=?, target_chapters=? WHERE id=?",
+                 (dumps(beat_chapters), target_chapters, volume_id))
+    conn.commit()
