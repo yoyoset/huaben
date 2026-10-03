@@ -23,10 +23,12 @@ def _j(d) -> str:
 
 
 class ScriptedLLM:
-    def __init__(self, vol_chapters: int = 10, contradiction_at: int | None = None):
+    def __init__(self, vol_chapters: int = 10, contradiction_at: int | None = None, choppy=()):
         self.vol_chapters = vol_chapters
         self.contradiction_at = contradiction_at
+        self.choppy = set(choppy)  # 这些章的第一稿是切碎的(逗号密度超标,测打回用),默认关闭
         self._ledger_calls: dict[int, int] = {}
+        self._write_calls: dict[int, int] = {}
         self.write_prompts: dict[int, str] = {}   # 章序号 → 正文步骤的完整 prompt(取最后一次)
         self.steps: list[str] = []
 
@@ -62,6 +64,9 @@ class ScriptedLLM:
             self.steps.append("write")
             n = int(m[1])
             self.write_prompts[n] = text
+            self._write_calls[n] = self._write_calls.get(n, 0) + 1
+            if n in self.choppy and self._write_calls[n] == 1:
+                return self._r(f"（第{n}章）" + "他的手，停了。" * 100)  # 逗号密度约 14,第一稿被打回
             return self._r(f"（第{n}章）{body_for(n)}" + ("重写稿" if self._ledger_calls.get(n) else ""))
         if m := re.search(r"【第 (\d+) 章正文】", user):
             self.steps.append("ledger")

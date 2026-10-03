@@ -12,6 +12,7 @@ from ..db import dumps
 from ..llm import LLM
 from ..logs import log_context
 from . import prompts
+from .chop import chop_problems
 from .draft_check import clean_draft, copy_problems, draft_problems
 from .restage import restage_problems
 from .errors import ChapterFailed, NoActiveVolume
@@ -113,7 +114,8 @@ def _imported_text(conn, llm: LLM, settings: Settings, book_id: int, ctx: StoryC
     repo.log_run(conn, book_id, "write", chapter_idx=idx, note="write: 来自导入的正文")
     prev = ctx.recent[-1]["body"] if ctx.recent else ""
     for p in (draft_problems(body, settings.chapter_words) + copy_problems(body, [c["body"] for c in ctx.recent])
-              + restage_problems(body, prev, [c["name"] for c in ctx.characters])):
+              + restage_problems(body, prev, [c["name"] for c in ctx.characters])
+              + chop_problems(body)):
         repo.log_run(conn, book_id, "write", chapter_idx=idx, note=f"导入正文的提醒(未打回):{p}")
     ledger = _record(conn, llm, book_id, idx, prompts.ledger_messages(ctx, outline, body))
     if ledger is None:
@@ -152,7 +154,8 @@ def _draft_until_accepted(conn, llm: LLM, settings: Settings, book_id: int, ctx:
         problems = (draft_problems(body, settings.chapter_words) + copy_problems(body, [c["body"] for c in ctx.recent])
                     + restage_problems(body, prev, [c["name"] for c in ctx.characters])
                     + lines_feedback(missing_lines(body, outline.get("lines") or []))
-                    + ending_problem(body, outline.get("ending") or ""))
+                    + ending_problem(body, outline.get("ending") or "")
+                    + chop_problems(body))
         if problems:  # 机械底线不过:不花入账的钱,直接带理由重写
             _reject(conn, book_id, idx, "draft: " + "; ".join(problems))
             feedback = problems
