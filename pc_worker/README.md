@@ -38,6 +38,7 @@ uv pip install --python .venv/Scripts/python.exe -r requirements-kokoro.txt
 - `--token`:服务器设了 `HUABEN_VOICE_WORKER_TOKEN` 时必填。
 - 一次只取一章,做完再问下一章;服务器按"谁接下来要听哪章"排好顺序,多本书轮流。
 - 出错(服务器重启、网络抖动、单章合成失败)只记一行日志,指数退避后继续,不退出。
+- 改了配音程序的代码(包括切块办法)之后要点「重新启动」才生效;启动后日志里有一行"音色标签 qwen3-zh:女声:c200",末尾的 c200 是切法版本。
 
 ## 引擎
 

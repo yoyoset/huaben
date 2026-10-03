@@ -13,6 +13,8 @@
 """
 from .kokoro_zh import segments
 
+CUT_VERSION = "c200"  # 切法的版本:改了切块办法或默认块长,就改它——服务器据此把旧切法配的、读者还没听的章重配
+
 
 def chunks(text: str, target: int = 200, ceiling: int = 300, floor: int = 60) -> list[str]:
     units = [s for para in segments(text, target) for s in para]

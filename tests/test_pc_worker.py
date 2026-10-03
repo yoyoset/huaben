@@ -99,3 +99,12 @@ def test_runaway_generation_is_capped_and_detected():
     assert token_cap(seg) == 1200         # 40 秒 × 2.5 × 12 token/秒,远低于默认 2048
     assert token_cap("好。") == 72        # 很短的段至少给 6 秒
     assert not runaway(seg, 45) and runaway(seg, 161) and runaway(seg, 99)  # 99 秒 ≈ 顶到上限
+
+
+def test_voice_id_carries_the_cut_version_for_qwen():
+    from huaben_voice.__main__ import voice_id
+    from huaben_voice.chunks import CUT_VERSION
+    assert voice_id("qwen3-zh", "女声") == f"qwen3-zh:女声:{CUT_VERSION}"
+    assert voice_id("kokoro-zh", "zf_001") == "kokoro-zh:zf_001"
+    assert voice_id("qwen3-zh", "女声", "慢一点").endswith(f":{CUT_VERSION}")
+    assert voice_id("qwen3-zh", "女声", "慢一点") != voice_id("qwen3-zh", "女声")

@@ -4,15 +4,17 @@ import hashlib
 import logging
 import os
 
+from .chunks import CUT_VERSION
 from .client import VoiceClient
 from .engines import ENGINES, create_engine
 from .loop import run_forever
 
 
 def voice_id(engine: str, voice: str, instruct: str = "") -> str:
-    """报给服务器的"这是哪种声音":引擎、音色、朗读指令任一变了,都算新音色(读者还没听的章会换成新的)。"""
+    """报给服务器的"这是哪种声音":引擎、音色、朗读指令任一变了,都算新音色(读者还没听的章会换成新的);qwen3-zh 的切法版本变了也算。"""
     tag = f":{hashlib.sha1(instruct.encode()).hexdigest()[:6]}" if instruct else ""
-    return f"{engine}:{voice}{tag}"[:120]
+    cut = f":{CUT_VERSION}" if engine == "qwen3-zh" else ""
+    return f"{engine}:{voice}{tag}{cut}"[:120]
 
 
 def main() -> None:
@@ -33,6 +35,7 @@ def main() -> None:
     log.info("加载引擎 %s(音色 %s)……首次运行会下载模型", args.engine, args.voice)
     opts = {"voice": args.voice, "speed": args.speed, **({"instruct": args.instruct} if args.instruct else {})}
     engine = create_engine(args.engine, **opts)
+    log.info("音色标签 %s", voice_id(args.engine, args.voice, args.instruct))
     log.info("引擎就绪,开始向 %s 取配音任务", args.server)
     run_forever(VoiceClient.connect(args.server, args.token), engine, idle_s=args.idle,
                 voice=voice_id(args.engine, args.voice, args.instruct))
