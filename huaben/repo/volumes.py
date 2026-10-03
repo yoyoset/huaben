@@ -5,12 +5,12 @@ from ._util import row
 
 def create_volume(conn, book_id: int, idx: int, goal: str = "", beats=None,
                   plant=None, resolve=None, status: str = "planned", target_chapters: int = 30,
-                  commit: bool = True, arc: dict | None = None) -> int:
+                  commit: bool = True, arc: dict | None = None, beat_chapters=None) -> int:
     cur = conn.execute(
-        "INSERT INTO volumes(book_id, idx, goal, beats, plant, resolve, status, target_chapters, arc) "
-        "VALUES (?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO volumes(book_id, idx, goal, beats, plant, resolve, status, target_chapters, arc, beat_chapters) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?)",
         (book_id, idx, goal, dumps(beats or []), dumps(plant or []), dumps(resolve or []), status, target_chapters,
-         dumps(arc or {})),
+         dumps(arc or {}), dumps(beat_chapters or [])),
     )
     if commit:
         conn.commit()
@@ -20,7 +20,7 @@ def create_volume(conn, book_id: int, idx: int, goal: str = "", beats=None,
 def _vol(r) -> dict | None:
     d = row(r)
     if d:
-        for k in ("beats", "plant", "resolve", "arc"):
+        for k in ("beats", "plant", "resolve", "arc", "beat_chapters"):
             d[k] = loads(d[k])
     return d
 

@@ -78,3 +78,18 @@ def test_pre_migration_dev_database_is_stamped_not_rebuilt(tmp_path):
 def test_in_memory_db_migrates_without_backup():
     conn = connect(":memory:")
     assert migrate(conn, MIGRATIONS + [ADD_COVER]) == len(MIGRATIONS) + 1  # 内存库没有文件可备份,也不应报错
+
+
+def test_upgrade_adds_beat_chapters_column_defaulting_to_empty(tmp_path):
+    """迁移 18:旧的 volumes 行升级后拿到 beat_chapters 列,默认 '[]'(旧卷走平均算法)。"""
+    path = tmp_path / "old.db"
+    raw = sqlite3.connect(path)
+    migrate(raw, MIGRATIONS[:-1])  # 升到迁移 18 之前
+    raw.execute("INSERT INTO books(title) VALUES ('旧书')")
+    raw.execute("INSERT INTO volumes(book_id, idx) VALUES (1, 1)")
+    raw.commit()
+    raw.close()
+    conn = connect(path)
+    assert current_version(conn) == len(MIGRATIONS)
+    assert "beat_chapters" in [r[1] for r in conn.execute("PRAGMA table_info(volumes)")]
+    assert conn.execute("SELECT beat_chapters FROM volumes").fetchone()[0] == "[]"

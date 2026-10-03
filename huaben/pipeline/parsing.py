@@ -5,6 +5,7 @@
 import re
 
 from ..arc import normalize_arc
+from ..beat_budget import normalize_budget
 from .jsonout import ParseError, extract_json, need  # noqa: F401  (对外统一从这里取)
 from .normalize import normalize_ledger, normalize_outline, to_text_list
 
@@ -38,14 +39,20 @@ def parse_volume_plan(text: str) -> dict:
         raise ParseError("empty goal")
     d["beats"] = to_text_list(d.get("beats"), "beats")
     d["plant"] = to_text_list(d.get("plant"), "plant")
+    d["beat_chapters"] = normalize_budget(d.get("beat_chapters"), len(d["beats"]))
     resolve = d.get("resolve") or []
     if not isinstance(resolve, list):
         raise ParseError("resolve 不是列表")
     d["resolve"] = list(dict.fromkeys(_foreshadow_ref(x) for x in resolve))
     if not d["beats"]:
         raise ParseError("volume plan has no beats")
-    n = d.get("target_chapters")
-    d["target_chapters"] = n if isinstance(n, int) and 5 <= n <= 200 else None  # 越界交给调用方用默认值
+    if d["beat_chapters"] is not None and 5 <= sum(d["beat_chapters"]) <= 200:
+        d["target_chapters"] = sum(d["beat_chapters"])  # 章数按节拍分量分配,覆盖模型另给的数
+    else:
+        if d["beat_chapters"] is not None:
+            d["beat_chapters"] = None  # 和越界:退回平均算法
+        n = d.get("target_chapters")
+        d["target_chapters"] = n if isinstance(n, int) and 5 <= n <= 200 else None  # 越界交给调用方用默认值
     # 征战结构缺项不打回整份卷规划(节拍与伏笔照用);存 None,下一次写章前由 volume.ensure_arc 单独补
     d["arc"] = normalize_arc(d.get("arc"), len(d["beats"]))
     return d

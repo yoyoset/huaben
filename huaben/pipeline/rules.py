@@ -5,6 +5,7 @@
 - 这些要求同时出现在章纲、正文、入账三处,集中一处避免措辞漂移。
 """
 from ..arc import arc_pacing
+from ..beat_budget import beat_line, locate
 from ..context import StoryContext
 
 
@@ -77,13 +78,17 @@ def pacing_rule(ctx: StoryContext) -> str:
     target, pos = v["target_chapters"], ctx.volume_done + 1
     left = max(target - pos, 0)
     beats = v["beats"] or []
-    i = min(len(beats), ctx.volume_done * len(beats) // target + 1) if beats else 0
+    budget = v.get("beat_chapters") or []
+    if beats and len(budget) == len(beats):
+        i, k, n = locate(budget, ctx.volume_done)
+    else:
+        i, k, n = (min(len(beats), ctx.volume_done * len(beats) // target + 1) if beats else 0), 0, 0
     if pos >= target:
         base = "节奏:本章是本卷最后一章——必须完成本卷目标、回收本卷要收的伏笔,并留下通往下一卷的钩子。"
     elif left <= max(2, target // 5):
         base = f"节奏:本卷进入收尾阶段(本章之后只剩 {left} 章)——推向高潮、开始回收本卷伏笔,不要再开新的大支线。"
     elif beats:
-        base = f"节奏:按进度,本章大约应推进第 {i}/{len(beats)} 个节拍「{beats[i - 1]}」。"
+        base = beat_line(beats, i, k, n)
     else:
         base = ""
     arc = arc_pacing(v.get("arc"), i, left)  # 征战结构里此刻该落地的一项(谷底前/谷底/翻盘/收尾)

@@ -51,7 +51,8 @@ def plan_volume(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
         repo.log_run(conn, book_id, "volume_plan", note=f"resolve 中无效的伏笔编号已忽略: {dropped}")
     vid = repo.create_volume(
         conn, book_id, idx, goal=plan["goal"], beats=plan["beats"], plant=plan["plant"], resolve=resolve,
-        status="active", target_chapters=plan["target_chapters"] or DEFAULT_TARGET_CHAPTERS, arc=plan["arc"])
+        status="active", target_chapters=plan["target_chapters"] or DEFAULT_TARGET_CHAPTERS, arc=plan["arc"],
+        beat_chapters=plan["beat_chapters"])
     return repo.get_volume(conn, vid)
 
 

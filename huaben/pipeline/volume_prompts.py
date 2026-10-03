@@ -1,5 +1,6 @@
 """卷级编辑步骤的指令:卷规划、封卷。约束同 prompts.py:关键要求放末尾,示例不放专名。"""
 from ..arc import ARC_SCHEMA, world_ladder_rule
+from ..beat_budget import BUDGET_RULE
 from ..context import StoryContext
 from ..craft import from_book, render_craft
 from ..render import render_bible, render_foreshadow, render_memory
@@ -10,6 +11,7 @@ from .rules import BOND_RULE
 PLAN_SCHEMA = """{
   "goal": "本卷要达成的目标,1~2 句",
   "beats": ["节拍,按先后顺序,5~10 条,每条一句话"],
+  "beat_chapters": [每个节拍给几章(整数),与 beats 一一对应、等长,不要平均分],
   "plant": ["本卷要新埋的伏笔"],
   "resolve": [本卷要回收的伏笔编号(整数,只能从下面【可回收的伏笔】里选)],
   "target_chapters": 本卷计划章数(整数,通常 20~40),
@@ -65,7 +67,7 @@ def plan_messages(ctx: StoryContext, idx: int, carried_ids=(), used_modes=(), us
         f"请规划第 {idx} 卷。要求:有清晰的卷内目标和起承转合;未回收的伏笔要有计划地收,"
         f"同时埋下新的;与已有人物现状和世界事实自洽;符合雷点与风格设定;节奏紧凑,每个节拍都能撑起爽点或悬念;"
         f"叙事结构与伏笔布局按【写法设定】安排(例如多线交织就规划好各条线在哪些节拍汇合)。\n"
-        f"{ARC_RULE}\n{modes}{ladder}{rival_line}{theme_line}"
+        f"{BUDGET_RULE}\n{ARC_RULE}\n{modes}{ladder}{rival_line}{theme_line}"
         f"只输出如下结构的 JSON:\n{PLAN_SCHEMA}"
     )
     return [{"role": "system", "content": _SYSTEM}, {"role": "user", "content": user}]

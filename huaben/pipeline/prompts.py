@@ -123,6 +123,7 @@ def write_messages(ctx: StoryContext, outline: dict, words: int, feedback: list[
         render_memory(ctx, scope=outline_scope(outline), focus_ids=outline.get("foreshadows", [])),
         handoff_text(ctx),
         work_order(ctx.next_idx, outline, ctx.foreshadows),
+        pacing_rule(ctx),  # 作者也要知道这章是过渡还是重头戏,否则会把过渡也写成一场场戏
         render_craft(from_book(ctx.book)),  # 写法放在工单后、硬性要求前:离输出位置近,关思考的模型才不会丢
         avoid_rule(from_rows(ctx.recent)),  # 作者也要知道:章纲没写的地方,别顺手又让同一个道具出场
     ]

@@ -73,4 +73,7 @@ UPDATE books SET profile_id = (SELECT id FROM profiles WHERE name = '我') WHERE
     #     它们的长线最后都指向一个"这本书到底在讲什么"的核心。旧书为空,不影响;见 theme.py
     "ALTER TABLE bibles ADD COLUMN theme TEXT NOT NULL DEFAULT '';"
     "ALTER TABLE bibles ADD COLUMN central_mystery TEXT NOT NULL DEFAULT '';",
+    # 18: 每个节拍分配几章(JSON 整数列表,与 beats 等长)。2026-10-03 用户:"都四章了,连山门都还没进"——
+    #     旧的平均摊法让小过渡也占 3 章、重头戏被压扁。旧卷为空 = 走原来的平均算法,补预算见 T004,见 beat_budget.py
+    "ALTER TABLE volumes ADD COLUMN beat_chapters TEXT NOT NULL DEFAULT '[]';",
 ]
