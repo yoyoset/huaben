@@ -18,6 +18,7 @@ from .errors import ChapterFailed, NoActiveVolume
 from .ledger_apply import apply_ledger
 from .llm_step import call_step
 from .parsing import ParseError, parse_ledger, parse_outline, unplanned_contradictions
+from ..repetition import repetition_note
 
 log = logging.getLogger("huaben.chapter")
 
@@ -117,6 +118,9 @@ def _draft_until_accepted(conn, llm: LLM, settings: Settings, book_id: int, ctx:
             continue
         for w in apply_ledger(conn, book_id, chapter_id, idx, ledger) + _thread_follow_through(ctx, outline, ledger):
             repo.log_run(conn, book_id, "ledger", chapter_idx=idx, note=w)
+        note = repetition_note(body, [c["name"] for c in ctx.characters])  # 逐字重复:只留痕,不打回(分不清复沓与词穷)
+        if note:
+            repo.log_run(conn, book_id, "check", chapter_idx=idx, note=note)
         repo.log_run(conn, book_id, "check", chapter_idx=idx, note=f"accepted at attempt {attempt}")
         log.info("chapter=accepted attempt=%d title=%s chars=%d", attempt, outline["title"], len(body))
         return repo.get_chapter(conn, book_id, idx)

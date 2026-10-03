@@ -11,8 +11,8 @@ from ..craft import from_book, novelty_rule, render_craft
 from ..devices import avoid_rule, from_rows, known_list
 from ..foreshadow_scale import planting_rule
 from ..render import due_foreshadow_ids, handoff_text, recent_text, render_bible, render_memory, render_style_samples
-from .rules import (PAYOFF_RULE, SIGNATURE_RULE, SPEECH_RULE, consistency_rule,  # noqa: F401  (对外仍从 prompts 取)
-                    pacing_rule)
+from .rules import (PAYOFF_RULE, REPETITION_RULE, SIGNATURE_RULE, SPEECH_RULE,  # noqa: F401  (对外仍从 prompts 取)
+                    consistency_rule, pacing_rule)
 
 OUTLINE_SCHEMA = """{
   "title": "本章标题(4~10 字)",
@@ -40,7 +40,7 @@ LEDGER_SCHEMA = """{
   "foreshadows_update": [{"id": 伏笔编号(整数), "status": "progressing 或 resolved"}],
   "facts": ["本章新确立的世界事实"],
   "contradictions": [{"what": "读者当场能指出'这不可能/前后矛盾'的硬伤:与账本哪一条冲突,或正文内部哪个数字算错/前后不一;拿不准的不要写进来", "planned": 是否属于章纲 planned_reversals 里的有意反转(true/false)}],
-  "editor_notes": ["供编辑参考、不影响定稿的观察:拿不准的疑点、建议、读感;不要写进 contradictions"],
+  "editor_notes": ["供编辑参考、不影响定稿的观察:拿不准的疑点、建议、读感,以及本章里逐字重复的比喻/句子/口头禅(指出原句);不要写进 contradictions"],
   "devices": ["本章用来推动情节或制造悬念的手段(道具显灵、密信传话、偷听、异象等),每条 2~8 字;和【最近用过的手段】相同的沿用原名"]
 }"""
 
@@ -75,7 +75,7 @@ def outline_messages(ctx: StoryContext) -> list[dict]:
         f"{render_bible(ctx.bible)}\n\n{render_craft(from_book(ctx.book))}\n\n{render_memory(ctx)}\n\n"
         f"【最近原文(用于衔接)】\n{recent_text(ctx)}\n\n"
         f"请为第 {ctx.next_idx} 章写章纲工单。要求:紧扣本卷目标与节拍;伏笔该推进的推进、该收的收;"
-        f"结尾留钩子;不得与账本冲突(除非明确写进 planned_reversals)。\n{PAYOFF_RULE}\n{SIGNATURE_RULE}\n{SPEECH_RULE}\n{pacing_rule(ctx)}\n"
+        f"结尾留钩子;不得与账本冲突(除非明确写进 planned_reversals)。\n{PAYOFF_RULE}\n{SIGNATURE_RULE}\n{SPEECH_RULE}\n{REPETITION_RULE}\n{pacing_rule(ctx)}\n"
         f"{planting_rule(ctx.foreshadows, due_foreshadow_ids(ctx))}\n{recent_hooks(ctx)}"
         f"{novelty_rule(from_book(ctx.book))}\n{avoid_rule(from_rows(ctx.recent))}\n"
         f"只输出如下结构的 JSON:\n{OUTLINE_SCHEMA}"
@@ -139,6 +139,7 @@ def write_messages(ctx: StoryContext, outline: dict, words: int, feedback: list[
         "账本里已有的数字照用,不要改;\n"
         + SIGNATURE_RULE + "\n"
         + SPEECH_RULE + "\n"
+        + REPETITION_RULE + "\n"
         "6. 结尾落在工单指定的钩子上。"
     )
     return [{"role": "system", "content": system}, {"role": "user", "content": "\n\n".join(parts)}]
@@ -163,7 +164,7 @@ def ledger_messages(ctx: StoryContext, outline: dict, body: str) -> list[dict]:
         "判断标准:读者当场能指出\"这不可能/前后矛盾\"的硬伤(含正文自己声明的数乘不上、加减不上)写进 contradictions"
         "(与账本冲突但属于章纲 planned_reversals 的,planned 填 true;其余含正文内部数字错误的,planned 填 false)。"
         "拿不准的疑点、建议、读感、时间线略不顺、需要后续澄清的,写进 editor_notes,不要写进 contradictions"
-        "(不影响定稿,只供编辑参考)。\n"
+        "(不影响定稿,只供编辑参考)。本章里逐字重复的比喻/句子/口头禅,也写进 editor_notes 并指出原句。\n"
         f"只输出如下结构的 JSON:\n{LEDGER_SCHEMA}"
     )
     return [{"role": "system", "content": _SYSTEM_EDITOR}, {"role": "user", "content": user}]
