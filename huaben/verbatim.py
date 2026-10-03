@@ -8,9 +8,12 @@ import re
 
 _IGNORED = re.compile(r"[\s\"'“”‘’「」『』]")  # 比对时不计空白与引号:模型常把直引号换成弯引号、在句中换行
 
+# 半角标点 → 全角:章纲是架构方手写的,逗号问号常用半角,而正文是全角;句号不动(半角 . 会出现在数字和省略里)
+_PUNCT_MAP = str.maketrans({",": "，", "?": "？", "!": "！", ":": "：", ";": "；", "(": "（", ")": "）"})
+
 
 def _squash(text: str) -> str:
-    return _IGNORED.sub("", text)
+    return _IGNORED.sub("", text.translate(_PUNCT_MAP))
 
 
 def missing_lines(body: str, lines: list[str]) -> list[str]:

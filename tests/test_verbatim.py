@@ -9,6 +9,13 @@ from huaben.pipeline.normalize import normalize_outline
 from huaben.pipeline.prompts import work_order
 from huaben.verbatim import ending_problem, lines_feedback, missing_lines
 
+
+def test_halfwidth_and_fullwidth_punct_are_the_same():
+    assert missing_lines("他说:戏不错，跟我走一趟？", ['"戏不错,跟我走一趟?"']) == []
+    assert missing_lines('他说:"戏不错,跟我走一趟?"', ["戏不错，跟我走一趟？"]) == []
+    assert missing_lines("他说:戏不赖，跟我走一趟？", ['"戏不错,跟我走一趟?"']) == ['"戏不错,跟我走一趟?"']
+    assert ending_problem("前面。" * 50 + "跟我走一趟？", "跟我走一趟?") == []
+
 S = Settings(openrouter_api_key="x", chapter_words=1, _env_file=None)
 
 
