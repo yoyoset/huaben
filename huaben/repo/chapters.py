@@ -84,6 +84,12 @@ def count_accepted(conn, book_id: int, volume_id: int | None = None) -> int:
     return conn.execute(f"SELECT COUNT(*) FROM chapters c WHERE {where}", args).fetchone()[0]
 
 
+def accepted_titles(conn, book_id: int) -> set[str]:
+    """已定稿章节的标题集合。新章标题不能与它们重复(2026-10-02 生产:第 1、2 章同名"扫地撞破私藏丹")。"""
+    return {r["title"] for r in conn.execute(
+        "SELECT title FROM chapters WHERE book_id=? AND status='accepted' AND title != ''", (book_id,))}
+
+
 def recent_chapters(conn, book_id: int, n: int) -> list[dict]:
     rows = conn.execute(
         "SELECT * FROM chapters WHERE book_id=? AND status='accepted' ORDER BY idx DESC LIMIT ?",

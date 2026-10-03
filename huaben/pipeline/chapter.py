@@ -68,7 +68,8 @@ def generate_chapter(conn, llm: LLM, settings: Settings, book_id: int) -> dict:
 
 
 def _outline(conn, llm: LLM, book_id: int, ctx: StoryContext) -> tuple[int, dict]:
-    """编辑·章纲。解析失败直接重试一次(格式问题多为偶发);两次都不行则本章失败。"""
+    """编辑·章纲。解析失败直接重试一次(格式问题多为偶发);两次都不行则本章失败。
+    标题与已有章重复只留痕、不重出:提示里已列出已有标题做预防,撞名是质量问题、不是停更或多花一次调用的理由。"""
     idx, outline, res = ctx.next_idx, None, None
     for _ in range(2):
         res = call_step(conn, llm, book_id, idx, "outline", prompts.outline_messages(ctx), json_mode=True, temperature=0.7)
@@ -77,6 +78,8 @@ def _outline(conn, llm: LLM, book_id: int, ctx: StoryContext) -> tuple[int, dict
             break
         except ParseError as e:
             repo.log_run(conn, book_id, "outline", chapter_idx=idx, ok=False, note=f"parse: {e}"[:300])
+    if outline is not None and outline["title"] in set(ctx.titles):
+        repo.log_run(conn, book_id, "outline", chapter_idx=idx, note=f"标题与已有章重复: {outline['title']}"[:300])
     chapter_id = repo.create_chapter(conn, book_id, ctx.volume["id"], idx,
                                      outline=res.text if outline is None else dumps(outline),
                                      title=outline["title"] if outline else "")

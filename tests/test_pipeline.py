@@ -43,6 +43,24 @@ def test_happy_path_accepts_and_posts_ledger(conn, book):
     assert repo.cost_summary(conn, book)["chapters"] == 1  # 三步都记了账
 
 
+def test_duplicate_title_is_logged_but_not_fatal(conn, book):
+    """第 1、2 章同名是生产实测过的问题(路线 32):提示里列出已有标题预防;真重名只留痕、不透支调用也不停更。"""
+    first = generate_chapter(conn, FakeLLM([OUTLINE, "正文一。", ledger()]), S, book)
+    assert first["title"] == "夜巡"
+    llm = FakeLLM([OUTLINE, "正文二。", ledger()])  # 第 2 章标题也与第 1 章相同
+    ch = generate_chapter(conn, llm, S, book)
+    assert ch["title"] == "夜巡" and ch["status"] == "accepted"  # 照用,不失败
+    assert len(llm.calls) == 3                                    # 没有为查重多花一次调用
+    note = conn.execute("SELECT note FROM pipeline_runs WHERE book_id=? AND step='outline' "
+                        "AND note LIKE '%标题与已有章重复%'", (book,)).fetchone()
+    assert note is not None and "夜巡" in note["note"]
+    # 写第 3 章时章纲提示里应列出已有标题(预防)
+    from huaben.context import load_context
+    from huaben.pipeline.prompts import outline_messages
+    prompt = outline_messages(load_context(conn, book))[1]["content"]
+    assert "已有章节标题" in prompt and "夜巡" in prompt
+
+
 def test_unplanned_contradiction_rewrites_with_feedback(conn, book):
     bad = ledger([{"what": "老道已死却开口说话", "planned": False}])
     llm = FakeLLM([OUTLINE, "稿一", bad, "稿二", ledger()])
@@ -101,7 +119,9 @@ def test_no_active_volume(conn):
 
 def test_second_chapter_sees_first_in_prompt(conn, book):
     generate_chapter(conn, FakeLLM([OUTLINE, "第一章原文XYZ", ledger()]), S, book)
-    llm = FakeLLM([OUTLINE, "稿二", ledger()])
+    second = json.dumps({"title": "井底第二声", "outline": "事二", "characters": ["沈照"], "foreshadows": [],
+                         "planned_reversals": [], "hook": "钩2"}, ensure_ascii=False)
+    llm = FakeLLM([second, "稿二", ledger()])
     ch = generate_chapter(conn, llm, S, book)
     assert ch["idx"] == 2
     assert "第一章原文XYZ" in llm.calls[1][-1]["content"]  # 写第 2 章时带上了第 1 章原文

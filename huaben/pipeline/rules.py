@@ -42,6 +42,15 @@ def consistency_rule(outline: dict) -> str:
     return f"2. {exception}严格遵守账本里的人物现状与世界事实,人名与设定不得漂移,死者不得复活;\n"
 
 
+# 2026-10-02 生产:《杂役仙尊》第 1、2 章同名("扫地撞破私藏丹")——章纲没查重。这里把已有标题列给编辑。
+def title_rule(titles: list[str] | None) -> str:
+    if not titles:
+        return ""
+    shown = "、".join(titles[-40:])
+    more = "…" if len(titles) > 40 else ""
+    return (f"书名已有章节标题(新章标题不得与这些重复,也不要只改一两个字):{shown}{more}。")
+
+
 def pacing_rule(ctx: StoryContext) -> str:
     """按卷进度给节奏要求:卷在第 target 章自动封存,编辑必须让剧情弧恰好在那里收住。"""
     v = ctx.volume

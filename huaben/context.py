@@ -25,6 +25,7 @@ class StoryContext:
     facts: list[dict]                                 # 本卷新确立的事实(往卷的已并入圣经 canon)
     next_idx: int = 1
     volume_done: int = 0                              # 本卷已定稿章数(卷进度 = volume_done+1 / target)
+    titles: list[str] = None                          # 已定稿章节标题(章纲不许与它们重名)
 
 
 def load_context(conn, book_id: int, recent_n: int = 3) -> StoryContext:
@@ -49,6 +50,7 @@ def load_context(conn, book_id: int, recent_n: int = 3) -> StoryContext:
         facts=_volume_facts(conn, book_id),
         next_idx=repo.next_chapter_idx(conn, book_id),
         volume_done=len(vol_chapters),
+        titles=sorted(repo.accepted_titles(conn, book_id)),
     )
 
 
