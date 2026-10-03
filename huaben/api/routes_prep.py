@@ -1,6 +1,6 @@
 """出门前预备 N 章:正文写好 + 音频配好,手机 App 据此把 MP3 下到本地离线听。规则见 huaben/prep.py。
 
-- POST /api/books/{id}/prepare {"count": 10}  从当前章起预备 count 章,立刻开始补写
+- POST /api/books/{id}/prepare {"count": 10}  在已写好的基础上再往后备 count 章,立刻开始补写
 - GET  /api/books/{id}/prepare                 进度,以及范围内每章的音频地址(App 下载用)
 """
 from fastapi import APIRouter, BackgroundTasks, Depends, Request
@@ -36,7 +36,7 @@ def _view(conn, settings, book: dict) -> dict:
 @router.post("")
 def prepare(book_id: int, body: PrepIn, request: Request, tasks: BackgroundTasks, conn=Depends(get_conn)):
     book = book_or_404(conn, book_id)
-    _, end = prep_range(book["last_opened"], body.count)
+    _, end = prep_range(book["last_opened"], repo.count_accepted(conn, book_id), body.count)
     repo.update_book(conn, book_id, prep_until=end)
     tasks.add_task(topup_in_background, request.app.state, book_id)  # 不等下一次巡检(最长一分钟)
     return _view(conn, request.app.state.settings, repo.get_book(conn, book_id))

@@ -4,10 +4,12 @@ from huaben.prep import book_buffer_target, buffer_target, prep_range, prep_view
 from test_voice_api import setup
 
 
-def test_range_starts_at_current_chapter_and_is_capped():
-    assert prep_range(5, 10) == (5, 14)
-    assert prep_range(0, 10) == (1, 10)       # 还没读过:从第 1 章
-    assert prep_range(1, 999) == (1, 50)      # 一次最多 50 章
+def test_range_adds_n_beyond_what_is_written():
+    assert prep_range(1, 4, 10) == (1, 14)     # 用户实测的情形:写好 4 章,再备 10 章 → 备到第 14 章
+    assert prep_range(5, 8, 10) == (5, 18)
+    assert prep_range(0, 0, 10) == (1, 10)     # 还没写、还没读
+    assert prep_range(1, 4, 999) == (1, 54)    # 一次最多再备 50 章
+    assert prep_range(9, 4, 10) == (9, 18)     # 读者停在已写好之后(不该出现):从他停的那章往后数
 
 
 def test_buffer_target_rises_while_preparing_then_falls_back():
@@ -25,8 +27,8 @@ def test_view_counts_text_and_audio():
 def test_prepare_api_sets_target_and_lists_downloadable_audio(tmp_path):
     s, conn, (a, b), c = setup(tmp_path, buffer_chapters=1)   # 甲 3 章,正在第 2 章
     v = c.post(f"/api/books/{a}/prepare", json={"count": 10}).json()
-    assert (v["start"], v["end"], v["text_ready"], v["active"]) == (2, 11, 2, True)
-    assert repo.get_book(conn, a)["prep_until"] == 11
+    assert (v["start"], v["end"], v["text_ready"], v["active"]) == (2, 13, 2, True)  # 已写好 3 章,再备 10 章 → 备到 13
+    assert repo.get_book(conn, a)["prep_until"] == 13
     assert all(ch["audio_url"] is None for ch in v["chapters"])  # 还没配音:没有可下的
     mp3 = bytes([0xFF, 0xFB, 0x90, 0x00]) + bytes(413)
     c.put(f"/api/voice/jobs/{a}/2", content=mp3)

@@ -23,7 +23,7 @@ export function prepBox(bookId) {
   api.prepStatus(bookId).then((v) => { if (v.active) { status.textContent = text(v); if (!v.done) watch(); } }).catch(() => {});
   return h('div', { class: 'row', style: 'margin:6px 0' },
     h('span', {}, '出门听:'),
-    h('button', { onclick: start(10) }, '备 10 章'),
-    h('button', { onclick: start(20) }, '备 20 章'),
+    h('button', { onclick: start(10) }, '再备 10 章'),
+    h('button', { onclick: start(20) }, '再备 20 章'),
     status);
 }

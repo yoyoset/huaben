@@ -63,7 +63,7 @@ class BookActivity : Activity() {
 
         root.addView(Ui.gap(this))
         root.addView(Ui.text(this, "出门听:先让服务器备好(写正文 + 电脑配音),再下载到手机", 14f, Ui.MUTED))
-        root.addView(Ui.row(this, Ui.button(this, "备 10 章") { prepare(10) }, Ui.button(this, "备 20 章") { prepare(20) }))
+        root.addView(Ui.row(this, Ui.button(this, "再备 10 章") { prepare(10) }, Ui.button(this, "再备 20 章") { prepare(20) }))
         prepStatus = Ui.text(this, "", 14f, Ui.MUTED)
         root.addView(prepStatus)
         root.addView(Ui.button(this, "下载已备好的到手机", primary = true) { download() })
@@ -222,7 +222,7 @@ class BookActivity : Activity() {
                     }
                     done++
                 }
-                if (all.isEmpty()) "还没有备好的章:先点「备 10 章」"
+                if (all.isEmpty()) "还没有备好的章:先点「再备 10 章」"
                 else "已下载:正文 ${all.size} 章,音频 ${ready.size} 章,共 ${downloads.bytes(book) / 1_000_000} MB"
             } catch (e: Exception) {
                 "下载失败:${e.message ?: e.javaClass.simpleName}(已下好的不受影响,再点一次接着下)"
