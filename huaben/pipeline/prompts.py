@@ -12,7 +12,7 @@ from ..devices import avoid_rule, from_rows, known_list
 from ..foreshadow_scale import planting_rule
 from ..render import due_foreshadow_ids, handoff_text, recent_text, render_bible, render_memory, render_style_samples
 from .rules import (BOND_RULE, PAYOFF_RULE, REPETITION_RULE, SIGNATURE_RULE, SPEECH_RULE,  # noqa: F401
-                    consistency_rule, pacing_rule, title_rule)
+                    consistency_rule, opening_rule, pacing_rule, title_rule)
 
 OUTLINE_SCHEMA = """{
   "title": "本章标题(4~10 字)",
@@ -75,7 +75,7 @@ def outline_messages(ctx: StoryContext) -> list[dict]:
         f"{render_bible(ctx.bible)}\n\n{render_craft(from_book(ctx.book))}\n\n{render_memory(ctx)}\n\n"
         f"【最近原文(用于衔接)】\n{recent_text(ctx)}\n\n"
         f"请为第 {ctx.next_idx} 章写章纲工单。要求:紧扣本卷目标与节拍;伏笔该推进的推进、该收的收;"
-        f"结尾留钩子;不得与账本冲突(除非明确写进 planned_reversals)。\n{PAYOFF_RULE}\n{BOND_RULE}\n{SIGNATURE_RULE}\n{SPEECH_RULE}\n{REPETITION_RULE}\n{title_rule(ctx.titles)}\n{pacing_rule(ctx)}\n"
+        f"结尾留钩子;不得与账本冲突(除非明确写进 planned_reversals)。\n{PAYOFF_RULE}\n{BOND_RULE}\n{SIGNATURE_RULE}\n{SPEECH_RULE}\n{REPETITION_RULE}\n{opening_rule(ctx.next_idx)}\n{title_rule(ctx.titles)}\n{pacing_rule(ctx)}\n"
         f"{planting_rule(ctx.foreshadows, due_foreshadow_ids(ctx))}\n{recent_hooks(ctx)}"
         f"{novelty_rule(from_book(ctx.book))}\n{avoid_rule(from_rows(ctx.recent))}\n"
         f"只输出如下结构的 JSON:\n{OUTLINE_SCHEMA}"
@@ -141,6 +141,7 @@ def write_messages(ctx: StoryContext, outline: dict, words: int, feedback: list[
         + SPEECH_RULE + "\n"
         + REPETITION_RULE + "\n"
         + BOND_RULE + "\n"
+        + opening_rule(ctx.next_idx) + "\n"
         "6. 结尾落在工单指定的钩子上。"
     )
     return [{"role": "system", "content": system}, {"role": "user", "content": "\n\n".join(parts)}]

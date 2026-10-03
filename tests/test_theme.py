@@ -54,3 +54,20 @@ def test_volume_plan_asks_to_advance_the_central_mystery(conn):
     bid2 = repo.create_book(conn, "无主题")
     repo.create_volume(conn, bid2, 1, status="active")
     assert "朝【故事的主题与核心谜团】推进一步" not in plan_messages(load_context(conn, bid2), 2)[1]["content"]
+
+
+def test_golden_opening_chapters_get_a_stronger_brief(conn):
+    """路线 70:第 1 章要给"非读下去不可的理由",第 2、3 章仍按黄金三章要求;第 4 章起不再提。"""
+    from huaben.pipeline.prompts import outline_messages, write_messages
+    from huaben.pipeline.rules import opening_rule
+
+    assert "开篇第一章" in opening_rule(1) and "黄金三章" in opening_rule(2) and "黄金三章" in opening_rule(3)
+    assert opening_rule(4) == ""
+    bid = repo.create_book(conn, "书")
+    repo.create_volume(conn, bid, 1, status="active")
+    ctx = load_context(conn, bid)
+    assert ctx.next_idx == 1
+    prompt = write_messages(ctx, {"title": "T", "outline": "事", "characters": [], "foreshadows": [],
+                                  "planned_reversals": [], "hook": "钩"}, 1000)[1]["content"]
+    assert "开篇第一章" in prompt
+    assert "开篇第一章" in outline_messages(ctx)[1]["content"]
