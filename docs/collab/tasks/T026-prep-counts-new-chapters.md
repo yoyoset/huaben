@@ -62,3 +62,6 @@ def test_range_adds_n_beyond_what_is_written():
 - 不改"平时只比读者多备 3 章"的规则,不改 `MAX_PREP`。
 
 ## 审核记录
+
+通过 2026-10-04(执行:glm-5.3-flash,992 秒——这次比它做 T022 慢得多,时间花在安卓构建上)。
+架构方重跑:`python -m pytest -q` 507 全过;主仓库安卓构建 BUILD SUCCESSFUL;diff 与方案一致,`test_prep.py` 里另一处断言(2~11 → 2~13)改得对并在报告里写了。已部署,安装包 0.4 已发布。
