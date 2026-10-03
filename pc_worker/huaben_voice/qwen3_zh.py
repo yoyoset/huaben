@@ -5,7 +5,8 @@
 (不是显存问题,释放显存后实测一样);faster-qwen3-tts 1.8 倍实时,一章 10 分钟音频约 5~6 分钟。
 
 为什么是"克隆参考音"而不是内置音色/一句话设计音色(2026-10-03 用户试听:音色前后不一致,对白被读成评书腔):
-一章要切成几十段分别合成,内置音色和设计音色每一段都是模型现场"想"出来的声音,段与段之间会漂。实测同一段 4 段正文,
+一章要切成几十段分别合成,内置音色和设计音色每一段都是模型现场"想"出来的声音,段与段之间会漂。
+2026-10-03 改为跨段落合并,见 `chunks.py`。实测同一段 4 段正文,
 每段音高中位数:Serena 内置 241/269/204/251 Hz(极差 66),设计的评书男声 87/260/157/180 Hz(极差 173,像换了人);
 改成每段都克隆同一段 10 秒参考音后:女 236~277(41)、男 174~208(34)。
 参考音放在 pc_worker/voices/<名字>.wav,旁边的 <名字>.txt 是参考音里说的话(克隆要用)。
@@ -15,13 +16,14 @@
 import logging
 from pathlib import Path
 
-from .kokoro_zh import encode_mp3, segments  # 切段与编码两个引擎通用
+from .chunks import chunks
+from .kokoro_zh import encode_mp3  # 切块与编码两个引擎通用
 
 log = logging.getLogger("huaben_voice")
 BASE_REPO = "Qwen/Qwen3-TTS-12Hz-1.7B-Base"
 VOICES_DIR = Path(__file__).resolve().parent.parent / "voices"
-MAX_SEG_CHARS = 200          # 太长的一次生成容易语气漂移、偶发吞字;按句拼到 200 字以内
-PARAGRAPH_PAUSE_S = 0.5
+MAX_SEG_CHARS = 200          # 太长的一次生成容易语气漂移、偶发吞字;块长的实测见 T002
+CHUNK_PAUSE_S = 0.35         # 块与块之间的停顿;块内的停顿由模型按标点自己处理
 
 # 防"停不下来":2026-10-03 正式配音第一章,一段不到 200 字的正文生成了 161 秒音频(正常 40 秒左右)——
 # 模型没有收尾、一直生成到默认上限 2048 个 token(12 token/秒 ≈ 170 秒),这一段就是长时间的乱音/重复。
@@ -81,12 +83,11 @@ class Qwen3Zh:
         return best
 
     def synthesize(self, text: str) -> bytes:
-        np, chunks, sr = self._np, [], 24000
-        for para in segments(text, MAX_SEG_CHARS):
-            for seg in para:
-                audio, sr = self._say(seg)
-                chunks.append(audio)
-            chunks.append(np.zeros(int(sr * PARAGRAPH_PAUSE_S), dtype="float32"))
-        if not chunks:
+        np, pieces, sr = self._np, [], 24000
+        for block in chunks(text, MAX_SEG_CHARS):
+            audio, sr = self._say(block)
+            pieces.append(audio)
+            pieces.append(np.zeros(int(sr * CHUNK_PAUSE_S), dtype="float32"))
+        if not pieces:
             raise ValueError("没有可朗读的文本")
-        return encode_mp3(np.concatenate(chunks), sr)
+        return encode_mp3(np.concatenate(pieces), sr)
