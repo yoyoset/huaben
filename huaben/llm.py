@@ -140,10 +140,11 @@ class OpenRouterClient:
 
     def chat(self, messages: list[dict], *, max_tokens: int | None = None,
              temperature: float = 0.9, json_mode: bool = False) -> LLMResult:
-        payload = build_payload(self._s.llm_model, messages,
-                                max_tokens=max_tokens or self._s.chapter_max_tokens,
-                                temperature=temperature, json_mode=json_mode,
-                                openrouter=is_openrouter(self._s.openrouter_base_url))
+        from .llm_responses import chat_request  # 函数体内导入:llm_responses 反过来要用本模块的 build_payload/parse_response
+        path, payload, parse = chat_request(self._s.llm_model, messages,
+                                            max_tokens=max_tokens or self._s.chapter_max_tokens,
+                                            temperature=temperature, json_mode=json_mode,
+                                            openrouter=is_openrouter(self._s.openrouter_base_url))
         last: LLMError | None = None
         wasted = LLMResult(text="")  # 被丢弃但已计费的尝试(空正文):计入最终结果或最终错误,不能凭空消失
         started = time.monotonic()
@@ -158,7 +159,7 @@ class OpenRouterClient:
             timeout = min(self._s.llm_timeout_s, remaining)
             t0 = time.monotonic()
             try:
-                r = self._http.post("/chat/completions", json=payload, timeout=timeout,
+                r = self._http.post(path, json=payload, timeout=timeout,
                                     headers={"x-opencode-session": session_id(self._s.llm_model, messages)})
             except httpx.TransportError as e:  # 超时/连接失败:可重试
                 last = LLMError(f"network error: {type(e).__name__}: {e}", kind="network")
@@ -173,7 +174,7 @@ class OpenRouterClient:
             except ValueError as e:
                 raise LLMError(f"non-JSON response: {r.text[:200]}") from e
             try:
-                res = parse_response(data, int((time.monotonic() - t0) * 1000))
+                res = parse(data, int((time.monotonic() - t0) * 1000))
             except LLMEmptyError as e:  # 空正文偶发:同样重试,但它的费用要留着
                 wasted.tokens_in += e.tokens_in
                 wasted.tokens_out += e.tokens_out
