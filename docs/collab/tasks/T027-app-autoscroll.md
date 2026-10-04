@@ -313,4 +313,9 @@ private fun waitNext(e: ApiError) {
 
 ## 审核记录
 
-(架构方填)
+通过 2026-10-04(执行:opencode · deepseek-v4.1-flash,289 秒,由架构方用 `huaben-trials/run.sh` 派发)。
+架构方在主仓库重跑:`gradle assembleDebug` → BUILD SUCCESSFUL,安装包 5.3 MB;`python -m pytest -q` 507 全过。
+读了 `AutoScroll.kt`、`ReadActivity.kt`、`Store.kt` 的全部改动,与方案逐条一致,没有偏差。
+对照网页版 `web/js/autoscroll.js`:五档速度、点正文暂停/继续、拖动即停、翻章后停 1.5 秒、等下一章的提示文字相同;
+有意不同两处:开关按钮只显示 ▶/⏸(一行五个按钮放不下字)、等下一章每 10 秒问一次(网页 3 秒)。
+安装包 0.5 已发布(`scripts/publish_apk.sh`,下载检查 HTTP 200)。**没有在真机上试过**:滚动手感、拖动暂停、翻章要用户装上试。
