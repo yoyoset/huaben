@@ -109,3 +109,8 @@ def parse_responses(data: dict, duration_ms: int) -> LLMResult:
 - 不做流式。不解析、不保存思考内容。
 - 不给别的模型改思考档位;`deepseek`、`mimo` 照旧走 `/chat/completions`。
 - 不部署,不碰生产。
+
+## 审核记录
+
+通过 2026-10-04。架构方自己重跑:`python -m pytest -q` 517 全过(原 507)。读了 diff:`llm.py` 只改三处(取 路径/请求体/解析函数、发请求的路径、解析),199 行;
+`llm_responses.py` 的字段与卡一致,循环引用按卡在函数体内导入。
