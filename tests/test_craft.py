@@ -19,7 +19,7 @@ def test_unknown_values_fall_back_to_defaults_and_notes_are_capped():
 def test_render_turns_choices_into_concrete_instructions():
     text = render_craft({"narrative": "nonlinear", "foreshadow": "deep", "notes": "主角腹黑"})
     assert "非线性·诺兰式" in text and "信息差" in text and "尾田式" in text and "读者的补充要求:主角腹黑" in text
-    assert [o["key"] for o in options_view()] == ["narrative", "prose", "imagination", "foreshadow", "pacing"]
+    assert [o["key"] for o in options_view()] == ["narrative", "prose", "imagination", "foreshadow", "pacing", "power"]
     assert "不照搬类型默认模板" in render_craft({"imagination": "wild"})
 
 
@@ -42,7 +42,7 @@ def test_craft_api_round_trip(tmp_path):
     saved = c.put(f"/api/books/{a}/craft", json={"narrative": "nonlinear", "pacing": "瞎写", "notes": "要好笑"}).json()
     assert saved["narrative"] == "nonlinear" and saved["pacing"] == DEFAULT["pacing"]
     assert c.get(f"/api/books/{a}/craft").json() == saved
-    assert len(c.get("/api/craft/options").json()) == 5
+    assert len(c.get("/api/craft/options").json()) == 6
     assert c.get("/api/books/999/craft").status_code == 404
 
 
@@ -83,7 +83,7 @@ def test_original_settings_must_show_up_in_chapters(conn):
     bid = repo.create_book(conn, "x")
     repo.create_volume(conn, bid, 1, status="active")
     repo.update_book(conn, bid, craft=json.dumps({"imagination": "wild"}))
-    assert "novelty 必填" in outline_messages(load_context(conn, bid))[1]["content"]
+    assert "novelty 多数章要填" in outline_messages(load_context(conn, bid))[1]["content"]
     repo.update_book(conn, bid, craft=json.dumps({"imagination": "conventional"}))
     assert "novelty 可以留空" in outline_messages(load_context(conn, bid))[1]["content"]
     o = normalize_outline({**OUTLINE, "novelty": "借据到期,天地来平账"})
@@ -114,3 +114,47 @@ def test_numbers_must_be_readable_logged_and_checked(conn):
     assert "具体数字(数量、价格、比例、日期)也作为事实登记" in ledger and "算术是否算对" in ledger
     # 2026-10-03:软观察(拿不准/建议/读感)走 editor_notes,不打回;只有"读者当场能指出"的硬伤进 contradictions
     assert "editor_notes" in ledger and "拿不准的" in ledger and "不要写进 contradictions" in ledger
+
+
+def test_power_category_and_tone_title():
+    """T031:能力与战斗可三档;写法设定是基调,不是全书遵守的定额。"""
+    assert normalize_craft({})["power"] == "core"          # 不填 = 现在的行为
+    assert normalize_craft({"power": "light"})["power"] == "light"
+    assert normalize_craft({"power": "乱填"})["power"] == "core"
+    text = render_craft({"power": "light"})
+    assert "能力与战斗" in text and "点到为止" in text
+    assert "全书的基调" in text and "全书遵守" not in text
+
+
+def test_signature_rule_by_power():
+    from huaben.pipeline.rules import SIGNATURE_LIGHT, SIGNATURE_RULE, signature_rule
+    assert signature_rule({"power": "core"}) == SIGNATURE_RULE
+    assert signature_rule({"power": "light"}) == SIGNATURE_LIGHT
+    assert signature_rule({"power": "none"}) == ""
+
+
+def test_signature_requirement_follows_power_category(conn):
+    """招牌能力按书的档位发:不写的书整条去掉、不留空行;点到为止的只要求前后一致。"""
+    from huaben.pipeline.rules import BOND_RULE, SIGNATURE_LIGHT, SIGNATURE_RULE, SPEECH_RULE
+    bid = repo.create_book(conn, "x")
+    repo.create_volume(conn, bid, 1, status="active")
+    repo.update_book(conn, bid, craft=json.dumps({"power": "none"}))
+    ctx = load_context(conn, bid)
+    outline_none = outline_messages(ctx)[1]["content"]
+    assert SIGNATURE_RULE not in outline_none and "招牌能力" not in outline_none
+    assert f"{BOND_RULE}\n{SPEECH_RULE}" in outline_none  # 空能力档:整行去掉,不留空行
+    assert "招牌能力" not in write_messages(ctx, OUTLINE, 1000)[1]["content"]
+
+    repo.update_book(conn, bid, craft=json.dumps({"power": "light"}))
+    light = write_messages(load_context(conn, bid), OUTLINE, 1000)[1]["content"]
+    assert SIGNATURE_LIGHT in light and "工具人" not in light
+
+    repo.update_book(conn, bid, craft=json.dumps({"power": "core"}))
+    default = write_messages(load_context(conn, bid), OUTLINE, 1000)[1]["content"]
+    assert "工具人" in default  # 默认仍是现状
+
+
+def test_wild_imagination_is_a_tone_not_every_chapter():
+    from huaben.craft import CATEGORIES, novelty_rule
+    assert "日常和过渡的章不必硬塞" in CATEGORIES["imagination"][1]["wild"][1]
+    assert "可以空" in novelty_rule({"imagination": "wild"})

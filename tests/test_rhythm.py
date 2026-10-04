@@ -136,6 +136,17 @@ def test_grip_marker_validation():
     assert rhythm_problems([ch(1)]) == []  # 不填 grip 不报
 
 
+def test_words_marker_validation():
+    """T031:章纲可给本章单独的字数;填了但不是 800~8000 的整数就拦。"""
+    bad = ch(1)
+    bad["words"] = 500
+    assert any("words" in p for p in rhythm_problems([bad]))
+    ok = ch(1)
+    ok["words"] = 2000
+    assert rhythm_problems([ok]) == []
+    assert rhythm_problems([ch(1)]) == []  # 不填 words 不报
+
+
 def test_grip_warnings_only_when_marked():
     tight = [ch(i + 1, mode=MODES[i % 5]) for i in range(5)]
     for c in tight:

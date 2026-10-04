@@ -169,3 +169,16 @@ def test_end_to_end_scripted_book_writes_to_script_then_waits(conn):
     assert ei.value.step == "script"
     assert repo.list_volumes(conn, bid)[0]["status"] == "sealed"
     assert not any("请规划第" in c for c in llm.calls)  # 没有卷规划的模型调用
+
+
+def test_outline_words_override_site_word_count(conn):
+    """T031:章纲填了 words 就用它,不看全站默认;写作提示与篇幅底线都按 1200。
+    正文约 700 字:够 1200 的四成、不够 2500 的四成——不因篇幅被打回即证明用的是 1200。"""
+    repo.create_profile(conn, "我")
+    bid = import_book(conn, BOOK)
+    import_volume(conn, FakeLLM([]), S, bid, {"volume": {"goal": "g", "beats": ["a"], "beat_chapters": [1]},
+                                              "chapters": [{**ch(1), "words": 1200}]})
+    llm = ScriptOnlyLLM()
+    s = Settings(openrouter_api_key="x", chapter_words=2500, _env_file=None)
+    assert generate_chapter(conn, llm, s, bid)["status"] == "accepted"
+    assert "约 1200 字" in llm.write_prompts[1]
