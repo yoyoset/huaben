@@ -132,3 +132,8 @@ def must_block(outline: dict) -> str:
 - 不改导入正文(`_imported_text`)那条路。
 - 不改非剧本书的章纲提示词(模型自己出的章纲不带 `grip`,按"紧")。
 - 不部署,不碰生产,不改 `stories/` 下任何文件。
+
+## 审核记录
+
+通过 2026-10-04。架构方自己重跑:`python -m pytest -q` 532 全过(原 517)。读了 diff:`grip.py` 六个函数的文字与卡一致;`chapter.py` 192 行、`prompts.py` 193 行;
+不带 `grip` 的章纲走原路(现有测试只改了 `test_normalize.py` 一处期望值:章纲规整结果多了三个键)。
