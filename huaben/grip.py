@@ -22,6 +22,12 @@ def grip_of(outline: dict) -> str:
     return grip if grip in GRIPS else "紧"
 
 
+def words_of(outline: dict, default: int) -> int:
+    """这一章的目标字数:章纲填了 words 就用它,否则用全站的 default。"""
+    words = outline.get("words") or 0
+    return words if words else default
+
+
 def grip_lines(outline: dict) -> list[str]:
     """工单里交代松紧的几行;放在工单正文之后。"""
     lines = [_FIRST_LINE[grip_of(outline)]]

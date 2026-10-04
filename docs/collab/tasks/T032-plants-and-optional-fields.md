@@ -58,6 +58,9 @@
   (只是提醒。"中""松"章空着不提醒。)
 
 改完每个 `.py` 仍须 ≤ 200 行。
+**注意**:T031 合并后 `prompts.py` 199 行、`normalize.py` 198 行、`chapter.py` 198 行。这张卡要往前两个文件里加东西,先腾地方:
+把 `prompts.py` 里的 `work_order` 整个函数挪到新模块 `huaben/pipeline/work_order.py`(`prompts.py` 里 `from .work_order import work_order  # noqa: F401` 保留旧路径);
+`normalize.py` 里新加的东西尽量放在 `planting.py`。不要调高上限。
 
 ## 测试
 

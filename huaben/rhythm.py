@@ -19,6 +19,15 @@ RESULTS = ("胜", "负", "平", "无")
 TURNS = ("无", "小", "中", "大")
 
 
+def _words_ok(v) -> bool:
+    """章纲里的本章目标字数是否合法:800~8000 的整数(字符串数字也认);bool 不算整数。"""
+    if isinstance(v, bool):
+        return False
+    if isinstance(v, str) and v.strip().isdigit():
+        v = int(v.strip())
+    return isinstance(v, int) and 800 <= v <= 8000
+
+
 def _runs(flags: list[bool]) -> list[tuple[int, int]]:
     """连续为真的区间,返回 [(起始下标, 长度)]。"""
     out, start = [], None
@@ -46,6 +55,8 @@ def rhythm_problems(chapters: list[dict]) -> list[str]:
             problems.append(f"第 {n} 章 turn 必须是 {'/'.join(TURNS)} 之一(可不填)")
         if ch.get("grip") and ch["grip"] not in GRIPS:
             problems.append(f"第 {n} 章 grip 必须是 {'/'.join(GRIPS)} 之一(可不填)")
+        if ch.get("words") not in (None, "") and not _words_ok(ch["words"]):
+            problems.append(f"第 {n} 章 words 必须是 800~8000 的整数(可不填)")
     return problems
 
 

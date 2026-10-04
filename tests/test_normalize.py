@@ -70,9 +70,20 @@ def test_outline_normalization():
                            "planned_reversals": None})
     assert o == {"title": "T", "outline": "事", "hook": "", "characters": ["沈照"], "foreshadows": [3, 4],
                  "planned_reversals": [], "payoff": "", "novelty": "", "when": "", "plant": None, "lines": [],
-                 "ending": "", "grip": "", "must": [], "free": ""}
+                 "ending": "", "grip": "", "must": [], "free": "", "words": 0}
     with pytest.raises(ParseError):
         normalize_outline({"title": "", "outline": "x"})
+
+
+@pytest.mark.parametrize("raw,expected", [
+    (2000, 2000), ("2000", 2000), (500, 0), (9000, 0), (True, 0), ("多", 0), (None, 0),
+])
+def test_outline_words_only_accepts_800_to_8000(raw, expected):
+    """T031:章纲可给本章单独的目标字数;不合法就当没填(0),不因此打回整份章纲。"""
+    d = {"title": "T", "outline": "事"}
+    if raw is not None:
+        d["words"] = raw
+    assert normalize_outline(d)["words"] == expected
 
 
 def test_to_bool():

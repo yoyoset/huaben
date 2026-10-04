@@ -166,6 +166,16 @@ def normalize_ledger(d: dict) -> dict:
     }
 
 
+def _words(v) -> int:
+    """章纲里的本章目标字数:800~8000 的整数(字符串数字也认)才保留,其余一律 0(=用全站默认)。
+    bool 不算整数("True" 不是字数)。"""
+    if isinstance(v, bool):
+        return 0
+    if isinstance(v, str) and v.strip().isdigit():
+        v = int(v.strip())
+    return v if isinstance(v, int) and 800 <= v <= 8000 else 0
+
+
 def normalize_outline(d: dict) -> dict:
     title, outline = to_text(d.get("title"), "title"), to_text(d.get("outline"), "outline")
     if not title or not outline:
@@ -184,4 +194,5 @@ def normalize_outline(d: dict) -> dict:
         "grip": to_text(d.get("grip"), "grip"),  # 松紧档;不在这里校验取值,取值不对由 grip_of 按"紧"处理
         "must": to_text_list(d.get("must"), "must"),  # 不能错的事;可空
         "free": to_text(d.get("free"), "free"),  # 可以发挥的地方的提示;可空
+        "words": _words(d.get("words")),  # 本章目标字数;0 = 用全站默认(2026-10-05)
     }

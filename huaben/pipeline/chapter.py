@@ -9,7 +9,7 @@ from .. import repo
 from ..config import Settings
 from ..context import StoryContext, load_context
 from ..db import dumps
-from ..grip import check_ending, hard_contradictions, lenient
+from ..grip import check_ending, hard_contradictions, lenient, words_of
 from ..llm import LLM
 from ..logs import log_context
 from . import prompts
@@ -147,7 +147,7 @@ def _draft_until_accepted(conn, llm: LLM, settings: Settings, book_id: int, ctx:
     for attempt in range(1, settings.max_write_attempts + 1):
         repo.update_chapter(conn, chapter_id, attempts=attempt)
         draft = call_step(conn, llm, book_id, idx, "write",
-                          prompts.write_messages(ctx, outline, settings.chapter_words, feedback),
+                          prompts.write_messages(ctx, outline, words_of(outline, settings.chapter_words), feedback),
                           json_mode=False, max_tokens=settings.chapter_max_tokens)
         if draft.truncated:
             feedback = ["上一稿被截断,没有写完;请控制篇幅,完整写到结尾钩子。"]
@@ -157,7 +157,7 @@ def _draft_until_accepted(conn, llm: LLM, settings: Settings, book_id: int, ctx:
         prev = ctx.recent[-1]["body"] if ctx.recent else ""
         ending = ending_problem(body, outline.get("ending") or "") if check_ending(outline) else []
         # 分级(T030):致命问题哪一档都打回;缺原话、结尾、碎句是中/松档最后一稿可以放行的"重"问题
-        fatal = (draft_problems(body, settings.chapter_words) + copy_problems(body, [c["body"] for c in ctx.recent])
+        fatal = (draft_problems(body, words_of(outline, settings.chapter_words)) + copy_problems(body, [c["body"] for c in ctx.recent])
                  + restage_problems(body, prev, [c["name"] for c in ctx.characters]))
         heavy = (lines_feedback(missing_lines(body, outline.get("lines") or [])) + ending + chop_problems(body))
         if fatal or (heavy and not lenient(outline, attempt, settings.max_write_attempts)):

@@ -33,7 +33,7 @@ CATEGORIES: dict[str, tuple[str, dict[str, tuple[str, str]]]] = {
                              "又能千变万化——每个重要角色的能力都独一无二,是他性格和经历的外化,有自己的命名和进阶形态;"
                              "②换一个地方就像换了一个世界,各有自己的规则、风俗和样子;③势力有鲜明的标志和理念。"
                              "不照搬类型默认模板(照抄五个修炼境界、宗门大比、拍卖会、秘境夺宝),也不照搬那几部作品的具体设定和名词;"
-                             "每章都要有一样读者没见过的东西,写成可感的画面而不是解释,并且改变人物的处境"),
+                             "多数章里要有一样读者没见过的东西,写成可感的画面而不是解释,并且改变人物的处境;日常和过渡的章不必硬塞"),
     }),
     "foreshadow": ("伏笔布局", {
         "light": ("轻", "以短线伏笔为主,埋下很快兑现,不留太多悬而未决"),
@@ -47,8 +47,16 @@ CATEGORIES: dict[str, tuple[str, dict[str, tuple[str, str]]]] = {
         "balanced": ("张弛有度", "该快的快、该慢的慢:过渡一笔带过,重头戏慢下来写足;紧张与舒缓交替,高潮前有铺垫"),
         "slow": ("慢热", "重氛围与人物塑造,冲突逐步升级;慢的是重头戏里的细节与情绪,过渡和流程照样不拖"),
     }),
+    # 2026-10-05 用户:"设定选项、世界、能力,各种设定的一刀切"。招牌能力本是为战斗流写的,感情线为主的志异类故事里
+    # 常驻配角不需要人人有招牌、回回进阶。给整本书一个档位,而不是每章都发同一套要求。
+    "power": ("能力与战斗", {
+        "core": ("核心看点", "能力和对决是这本书的主菜:重要人物各有招牌能力,有名字、有规则、有代价,会进阶"),
+        "light": ("点到为止", "本事是人物的一部分,不是主菜:各人的本事前后一致就行,不必人人有招牌、不必回回进阶"),
+        "none": ("不写", "这本书不靠能力和打斗推进"),
+    }),
 }
-DEFAULT = {"narrative": "linear", "prose": "literary", "imagination": "fresh", "foreshadow": "standard", "pacing": "balanced"}
+DEFAULT = {"narrative": "linear", "prose": "literary", "imagination": "fresh", "foreshadow": "standard",
+           "pacing": "balanced", "power": "core"}
 NOTES_MAX = 1000
 
 
@@ -66,7 +74,7 @@ def render_craft(craft) -> str:
     lines = [f"- {CATEGORIES[k][0]}:{CATEGORIES[k][1][c[k]][0]}——{CATEGORIES[k][1][c[k]][1]}" for k in CATEGORIES]
     if c["notes"]:
         lines.append(f"- 读者的补充要求:{c['notes']}")
-    return "【写法设定(读者选定,全书遵守)】\n" + "\n".join(lines)
+    return "【写法设定(全书的基调;具体到这一章,以工单为准)】\n" + "\n".join(lines)
 
 
 def options_view() -> list[dict]:
@@ -104,7 +112,7 @@ def world_brief(craft) -> tuple[str, float]:
 NOVELTY_RULE = {
     "conventional": "novelty 可以留空。",
     "fresh": "novelty 大约每三章填一次;填的时候优先用世界观里已经定下、但正文还没出现过的原创设定。",
-    "wild": "novelty 必填:每章都要有一样读者没见过的东西,优先用世界观里已经定下、但正文还没出现过的原创设定"
+    "wild": "novelty 多数章要填(日常、过渡的章可以空):填的时候要有一样读者没见过的东西,优先用世界观里已经定下、但正文还没出现过的原创设定"
             "(核心机制、地方、势力),让它在本章真正起作用,而不是被提一句。",
 }
 
