@@ -24,6 +24,11 @@ class Prefs(ctx: Context) {
         get() = p.getFloat("font_size", 19f)
         set(v) = p.edit().putFloat("font_size", v).apply()
 
+    /** 自动滚屏的速度档(0~4,对应 AutoScroll.SPEEDS)。全 App 一套设置,不分书。 */
+    var scrollSpeed: Int
+        get() = p.getInt("scroll_speed", 1)
+        set(v) = p.edit().putInt("scroll_speed", v).apply()
+
     /** 这本书上次读到第几章:书页上的「接着看」从这里接。没有返回 0。 */
     fun lastRead(book: Int): Int = p.getInt("read_$book", 0)
     fun setLastRead(book: Int, idx: Int) = p.edit().putInt("read_$book", idx).apply()
