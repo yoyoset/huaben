@@ -9,6 +9,7 @@ from .. import repo
 from ..config import Settings
 from ..context import StoryContext, load_context
 from ..db import dumps
+from ..grip import check_ending, hard_contradictions
 from ..llm import LLM
 from ..logs import log_context
 from . import prompts
@@ -153,10 +154,11 @@ def _draft_until_accepted(conn, llm: LLM, settings: Settings, book_id: int, ctx:
             continue
         body = clean_draft(draft.text)
         prev = ctx.recent[-1]["body"] if ctx.recent else ""
+        ending = ending_problem(body, outline.get("ending") or "") if check_ending(outline) else []
         problems = (draft_problems(body, settings.chapter_words) + copy_problems(body, [c["body"] for c in ctx.recent])
                     + restage_problems(body, prev, [c["name"] for c in ctx.characters])
                     + lines_feedback(missing_lines(body, outline.get("lines") or []))
-                    + ending_problem(body, outline.get("ending") or "")
+                    + ending
                     + chop_problems(body))
         if problems:  # 机械底线不过:不花入账的钱,直接带理由重写
             _reject(conn, book_id, idx, "draft: " + "; ".join(problems))
@@ -168,10 +170,13 @@ def _draft_until_accepted(conn, llm: LLM, settings: Settings, book_id: int, ctx:
             feedback = []  # 入账两次都解析失败:不是正文的错,不带反馈,再来一稿
             continue
         bad = unplanned_contradictions(ledger)
-        if bad:
-            _reject(conn, book_id, idx, "contradiction: " + "; ".join(bad))
-            feedback = bad
+        hard = hard_contradictions(outline, bad)
+        if hard:
+            _reject(conn, book_id, idx, "contradiction: " + "; ".join(hard))
+            feedback = hard
             continue
+        for b in bad:  # "中""松"档的普通读感疑点:不打回,只留痕
+            repo.log_run(conn, book_id, "check", chapter_idx=idx, note=f"矛盾(未打回):{b}"[:300])
         # 登记伏笔以章纲的 plant 为准;入账捡出来的只留痕,不登记(不知道答案的"神秘细节"不是伏笔)
         ledger["foreshadows_new"], plant_notes = to_register(
             outline.get("plant"), len(ctx.foreshadows), ledger["foreshadows_new"],

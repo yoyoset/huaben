@@ -168,3 +168,13 @@ def test_no_opening_block_or_double_blank_after_the_first_three_chapters(conn):
 def test_title_rule_says_this_book():
     from huaben.pipeline.rules import title_rule
     assert title_rule(["甲"]).startswith("本书已有章节标题")
+
+
+def test_work_order_renders_grip_and_loose_ending():
+    w = work_order(3, outline(grip="松", ending="他站起来了。"))
+    assert "放开写" in w and "意思到了就行" in w
+
+
+def test_ledger_check_includes_must_only_if_present(ctx):
+    assert "【本章不能错的】" in ledger_messages(ctx, outline(must=["厉九不出手"]), "正文")[-1]["content"]
+    assert "【本章不能错的】" not in ledger_messages(ctx, outline(), "正文")[-1]["content"]

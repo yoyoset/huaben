@@ -181,4 +181,7 @@ def normalize_outline(d: dict) -> dict:
         "plant": normalize_plant(d.get("plant")),  # 本章计划要埋的伏笔;缺 content/truth 就是 None
         "lines": to_text_list(d.get("lines"), "lines"),  # 必须原样出现在正文里的句子;可空
         "ending": to_text(d.get("ending"), "ending"),  # 必须落在正文最后 200 字里的结尾原话;可空
+        "grip": to_text(d.get("grip"), "grip"),  # 松紧档;不在这里校验取值,取值不对由 grip_of 按"紧"处理
+        "must": to_text_list(d.get("must"), "must"),  # 不能错的事;可空
+        "free": to_text(d.get("free"), "free"),  # 可以发挥的地方的提示;可空
     }
