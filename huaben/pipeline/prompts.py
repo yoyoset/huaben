@@ -139,29 +139,32 @@ def write_messages(ctx: StoryContext, outline: dict, words: int, feedback: list[
         handoff_text(ctx),
         work_order(ctx.next_idx, outline, ctx.foreshadows),
         pacing_rule(ctx),  # 作者也要知道这章是过渡还是重头戏,否则会把过渡也写成一场场戏
-        render_craft(from_book(ctx.book)),  # 写法放在工单后、硬性要求前:离输出位置近,关思考的模型才不会丢
+        render_craft(from_book(ctx.book)),  # 写法放在工单后、【必须】前:离输出位置近,关思考的模型才不会丢
         avoid_rule(from_rows(ctx.recent)),  # 作者也要知道:章纲没写的地方,别顺手又让同一个道具出场
     ]
     parts = [p for p in parts if p]
     if feedback:
         parts.append("【上一稿被编辑打回,以下问题必须修正】\n" + "\n".join(f"- {f}" for f in feedback))
     opening = opening_rule(ctx.next_idx)
-    hard = (  # 后置指令:紧贴输出位置
-        f"现在写第 {ctx.next_idx} 章正文,约 {words} 字。硬性要求:\n"
+    hard = (  # 后置指令:紧贴输出位置;【必须】与【尽量做到】分开,模型才分得清哪条是底线(T030)
+        f"现在写第 {ctx.next_idx} 章正文,约 {words} 字。\n"
+        "【必须】\n"
         "1. 只输出正文,不要标题、不要解释、不要状态栏、不要任何前后缀;\n"
         + consistency_rule(outline) +
-        "3. 按【写法设定】写,保持风格指纹与样章的语感;全文使用完整的中文标点;\n"
+        "3. 全文使用完整的中文标点;\n"
+        "4. 结尾落在工单指定的钩子上。\n"
+        "【尽量做到(写法上的习惯;和工单冲突时听工单的)】\n"
+        "- 按【写法设定】写,保持风格指纹与样章的语感;\n"
         # 2026-10-03 读生产书:《算尽仙朝》整屏抽成数字,读者跟不上,且第 9 章说等比、第 10 章说等差
-        "4. 推理、算账写给读者看得懂:一处推理只亮一两个关键数字,结论用一句人话点破(谁在搞鬼、怎么搞的),不要整屏罗列数字;"
+        "- 推理、算账写给读者看得懂:一处推理只亮一两个关键数字,结论用一句人话点破(谁在搞鬼、怎么搞的),不要整屏罗列数字;"
         "账本里已有的数字照用,不要改;\n"
-        "5. " + SIGNATURE_RULE + "\n"
-        "6. " + SPEECH_RULE + "\n"
-        "7. " + REPETITION_RULE + "\n"
-        "8. " + REALISM_RULE + "\n"
+        "- " + SIGNATURE_RULE + "\n"
+        "- " + SPEECH_RULE + "\n"
+        "- " + REPETITION_RULE + "\n"
+        "- " + REALISM_RULE + "\n"
     )
     if opening:
         hard += f"【开篇要求】{opening}\n"
-    hard += "9. 结尾落在工单指定的钩子上。"
     parts.append(hard)
     return [{"role": "system", "content": system}, {"role": "user", "content": "\n\n".join(parts)}]
 

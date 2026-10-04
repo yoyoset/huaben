@@ -1,6 +1,6 @@
 """章纲松紧档(T029):纯函数。最后一句要不要硬查、读感类矛盾要不要打回,都按档位分。"""
 from huaben.grip import (GRIPS, MUST_PREFIX, check_ending, ending_line, grip_lines, grip_of,
-                         hard_contradictions, must_block)
+                         hard_contradictions, lenient, must_block)
 
 
 def test_grip_of_defaults_to_tight():
@@ -51,3 +51,12 @@ def test_must_block_only_if_must():
     assert "【本章不能错的】" in block and "- 厉九不出手" in block and "- 不点破玉佩" in block
     assert MUST_PREFIX in block
     assert must_block({}) == ""
+
+
+def test_lenient_only_on_last_draft_of_looser_grips():
+    """末稿放行:档位不是"紧"、是最后一稿、且总稿数大于 1(T030)。"""
+    assert lenient({"grip": "中"}, 3, 3) is True
+    assert lenient({"grip": "中"}, 2, 3) is False          # 不是最后一稿
+    assert lenient({"grip": "紧"}, 3, 3) is False          # 紧档永不放行
+    assert lenient({}, 3, 3) is False                      # 没填 = 紧
+    assert lenient({"grip": "松"}, 1, 1) is False          # 只有一稿:放行等于无条件通过

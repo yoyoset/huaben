@@ -9,11 +9,11 @@ from .. import repo
 from ..config import Settings
 from ..context import StoryContext, load_context
 from ..db import dumps
-from ..grip import check_ending, hard_contradictions
+from ..grip import check_ending, hard_contradictions, lenient
 from ..llm import LLM
 from ..logs import log_context
 from . import prompts
-from .chop import chop_problems
+from .chop import chop_note, chop_problems
 from .draft_check import clean_draft, copy_problems, draft_problems
 from .restage import restage_problems
 from .errors import ChapterFailed, NoActiveVolume
@@ -114,9 +114,10 @@ def _imported_text(conn, llm: LLM, settings: Settings, book_id: int, ctx: StoryC
     repo.update_chapter(conn, chapter_id, body=body, status="written")
     repo.log_run(conn, book_id, "write", chapter_idx=idx, note="write: 来自导入的正文")
     prev = ctx.recent[-1]["body"] if ctx.recent else ""
+    chop = chop_note(body)  # 导入稿只提醒:打回线抬到 10.0 后,用提醒线保住原来 9.0 的预警
     for p in (draft_problems(body, settings.chapter_words) + copy_problems(body, [c["body"] for c in ctx.recent])
               + restage_problems(body, prev, [c["name"] for c in ctx.characters])
-              + chop_problems(body)
+              + chop_problems(body) + ([chop] if chop else [])
               + lines_feedback(missing_lines(body, outline.get("lines") or []))
               + ending_problem(body, outline.get("ending") or "")):
         repo.log_run(conn, book_id, "write", chapter_idx=idx, note=f"导入正文的提醒(未打回):{p}")
@@ -155,15 +156,17 @@ def _draft_until_accepted(conn, llm: LLM, settings: Settings, book_id: int, ctx:
         body = clean_draft(draft.text)
         prev = ctx.recent[-1]["body"] if ctx.recent else ""
         ending = ending_problem(body, outline.get("ending") or "") if check_ending(outline) else []
-        problems = (draft_problems(body, settings.chapter_words) + copy_problems(body, [c["body"] for c in ctx.recent])
-                    + restage_problems(body, prev, [c["name"] for c in ctx.characters])
-                    + lines_feedback(missing_lines(body, outline.get("lines") or []))
-                    + ending
-                    + chop_problems(body))
-        if problems:  # 机械底线不过:不花入账的钱,直接带理由重写
+        # 分级(T030):致命问题哪一档都打回;缺原话、结尾、碎句是中/松档最后一稿可以放行的"重"问题
+        fatal = (draft_problems(body, settings.chapter_words) + copy_problems(body, [c["body"] for c in ctx.recent])
+                 + restage_problems(body, prev, [c["name"] for c in ctx.characters]))
+        heavy = (lines_feedback(missing_lines(body, outline.get("lines") or [])) + ending + chop_problems(body))
+        if fatal or (heavy and not lenient(outline, attempt, settings.max_write_attempts)):
+            problems = fatal + heavy  # 机械底线不过:不花入账的钱,直接带理由重写
             _reject(conn, book_id, idx, "draft: " + "; ".join(problems))
             feedback = problems
             continue
+        for p in heavy:  # 走到这里且 heavy 非空 = 末稿放行
+            repo.log_run(conn, book_id, "check", chapter_idx=idx, note=f"末稿放行(未打回):{p}"[:300])
         repo.update_chapter(conn, chapter_id, body=body, status="written")
         ledger = _record(conn, llm, book_id, idx, prompts.ledger_messages(ctx, outline, body))
         if ledger is None:
@@ -186,6 +189,9 @@ def _draft_until_accepted(conn, llm: LLM, settings: Settings, book_id: int, ctx:
         note = repetition_note(body, [c["name"] for c in ctx.characters])  # 逐字重复:只留痕,不打回(分不清复沓与词穷)
         if note:
             repo.log_run(conn, book_id, "check", chapter_idx=idx, note=note)
+        chop = chop_note(body)  # 9.0~10.0 的轻微碎句:只留痕,不打回(T030 两段线)
+        if chop:
+            repo.log_run(conn, book_id, "check", chapter_idx=idx, note=chop)
         repo.log_run(conn, book_id, "check", chapter_idx=idx, note=f"accepted at attempt {attempt}")
         log.info("chapter=accepted attempt=%d title=%s chars=%d", attempt, outline["title"], len(body))
         return repo.get_chapter(conn, book_id, idx)

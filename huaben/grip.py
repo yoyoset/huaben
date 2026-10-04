@@ -55,6 +55,17 @@ def hard_contradictions(outline: dict, bad: list[str]) -> list[str]:
     return [b for b in bad if b.startswith(MUST_PREFIX)]
 
 
+def lenient(outline: dict, attempt: int, max_attempts: int) -> bool:
+    """这一稿是不是"末稿放行":档位不是"紧",而且是最后一稿,而且总稿数大于 1。
+
+    为什么(2026-10-04 实测:mimo 第 17 章、deepseek 第 22 章都卡在"结尾句差几个字"上反复重写):
+    "读者没有下一章可读"比"结尾句差几个字"糟得多。中、松档的最后一稿,重的问题(缺原话、
+    结尾、碎句)不再打回,留痕放行;致命的(篇幅、照抄、矛盾)哪一稿都拦。只有一稿可写时
+    不适用——放行等于无条件通过,不如照常失败让重试机制接手。
+    """
+    return grip_of(outline) != "紧" and max_attempts > 1 and attempt >= max_attempts
+
+
 def must_block(outline: dict) -> str:
     """给编辑核对用的一段;章纲没有 must 返回空字符串。"""
     must = [m for m in (outline.get("must") or []) if m]

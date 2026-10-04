@@ -151,18 +151,30 @@ def test_bible_characters_do_not_repeat_profile(conn):
     assert "沈照(存活)" in w and "人设:主角 腹黑" not in w  # 人物卡里已有,账本只带现状
 
 
-def test_hard_requirements_are_numbered_consecutively_without_blank_lines(ctx):
-    """关思考的模型对编号列表更听话;编号断了会把后面几条降级。"""
-    hard = write_messages(ctx, outline(), 2500)[-1]["content"].split("硬性要求:")[1]
-    pos = [hard.index(f"{i}.") for i in range(1, 10)]
-    assert pos == sorted(pos)          # 1. 到 9. 依次出现,没有跳号
-    assert "\n\n" not in hard          # 没有连续两个空行
+def test_must_and_should_are_groups_without_blank_lines(ctx):
+    """关思考的模型分不清"底线"和"习惯":【必须】里 1~4 连续编号,【尽量做到】是清单,中间不隔空行。"""
+    block = write_messages(ctx, outline(), 2500)[-1]["content"].split(f"现在写第 {ctx.next_idx} 章正文")[1]
+    pos = [block.index(f"{i}.") for i in range(1, 5)]
+    assert pos == sorted(pos)                       # 1. 到 4. 依次出现,没有跳号
+    assert "【必须】" in block and "【尽量做到" in block
+    assert "\n\n" not in block                       # 没有连续两个空行
+
+
+def test_write_messages_groups_must_and_should(ctx):
+    """T030:"必须"的底线排在前面、"尽量"的写法习惯排在后面,模型才分得出主次。"""
+    from huaben.pipeline.rules import SIGNATURE_RULE, SPEECH_RULE
+    user = write_messages(ctx, outline(), 2500)[-1]["content"]
+    assert "硬性要求" not in user
+    must_at, should_at = user.index("【必须】"), user.index("【尽量做到")
+    assert must_at < should_at
+    assert "只输出正文" in user[must_at:should_at]
+    assert SIGNATURE_RULE in user[should_at:] and SPEECH_RULE in user[should_at:]
 
 
 def test_no_opening_block_or_double_blank_after_the_first_three_chapters(conn):
     later = write_messages(_ctx_at(conn, 0), outline(), 2500)[-1]["content"]  # next_idx = 11
-    hard = later.split("硬性要求:")[1]
-    assert "【开篇要求】" not in hard and "\n\n" not in hard
+    block = later.split("现在写第 11 章正文")[1]
+    assert "【开篇要求】" not in block and "\n\n" not in block
 
 
 def test_title_rule_says_this_book():

@@ -60,6 +60,6 @@ def test_writer_gets_realism_rule_instead_of_bond_rule(conn):
     repo.create_volume(conn, bid, 1, status="active")
     user = write_messages(load_context(conn, bid), OUTLINE, 1000)[1]["content"]
     assert REALISM_RULE in user and "伙伴关系要一部部攒起来" not in user
-    hard = user.split("硬性要求:")[1]
-    pos = [hard.index(f"{i}.") for i in range(1, 10)]
-    assert pos == sorted(pos) and "\n\n" not in hard  # 编号仍连续、无空行(T005)
+    block = user.split("现在写第", 1)[1]
+    pos = [block.index(f"{i}.") for i in range(1, 5)]
+    assert pos == sorted(pos) and "\n\n" not in block  # 【必须】里编号仍连续、无空行(T005/T030)
