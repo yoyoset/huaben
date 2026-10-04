@@ -33,8 +33,9 @@
 | [T026](tasks/T026-prep-counts-new-chapters.md) | "备 N 章":N 指再往后多备 N 章 | 无 | 已交付 | 通过 2026-10-04 |
 | [T027](tasks/T027-app-autoscroll.md) | 安卓 App:阅读页自动滚屏,读完自动接下一章 | 无 | 已交付 | 通过 2026-10-04 |
 | [T028](tasks/T028-responses-protocol.md) | 写作模型:支持只走 Responses 接口的模型(Muse Spark) | 无 | 已交付 | 通过 2026-10-04 |
+| [T029](tasks/T029-outline-grip.md) | 章纲分松紧:哪些不能错,哪些放开写 | 无 | 待做 | |
 
-**当前:无可做的卡。**
+**当前:T029。**
 
 ## 等架构方/用户决定的事(不是执行方的活)
 
