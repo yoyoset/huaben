@@ -89,3 +89,62 @@ def test_overshoot_rejects_first_draft_then_accepts(conn):
     assert ch["status"] == "accepted" and ch["attempts"] == 2
     notes = [r[0] for r in conn.execute("SELECT note FROM pipeline_runs WHERE note LIKE 'draft:%'")]
     assert len(notes) == 1 and "写过头了" in notes[0]
+
+
+def _grip_book(conn):
+    bid = repo.create_book(conn, "诡仙")
+    repo.create_volume(conn, bid, 1, goal="入门", status="active")
+    repo.upsert_character(conn, bid, "沈照", core=True)
+    return bid
+
+
+def _grip_outline(**kw):
+    d = {"title": "出井", "outline": "沈照出井。", "characters": ["沈照"], "foreshadows": [],
+         "planned_reversals": [], "hook": "钩"}
+    d.update(kw)
+    return json.dumps(d, ensure_ascii=False)
+
+
+def _plain_ledger(contradictions=None):
+    return json.dumps({"summary": "沈照出井。", "characters": [], "foreshadows_new": [], "foreshadows_update": [],
+                       "facts": [], "contradictions": contradictions or []}, ensure_ascii=False)
+
+
+def test_medium_grip_skips_ending_check(conn):
+    """中档结尾只要"意思到了",正文没写那句原话也不打回。"""
+    bid = _grip_book(conn)
+    outline = _grip_outline(grip="中", ending="跟我走一趟。")
+    ch = generate_chapter(conn, FakeLLM([outline, "沈照出井了。", _plain_ledger()]), S, bid)
+    assert ch["status"] == "accepted" and ch["attempts"] == 1
+
+
+def test_no_grip_still_enforces_ending(conn):
+    """不填档位 = 老行为:结尾原话没写到就重写一稿。"""
+    bid = _grip_book(conn)
+    outline = _grip_outline(ending="跟我走一趟。")
+    llm = FakeLLM([outline, "沈照出井了。", "沈照出井了。跟我走一趟。", _plain_ledger()])
+    ch = generate_chapter(conn, llm, S, bid)
+    assert ch["attempts"] == 2
+
+
+def test_loose_grip_logs_plain_contradiction(conn):
+    """松档:编辑挑出的普通读感疑点不打回,只留一条"矛盾(未打回)"记录。"""
+    bid = _grip_book(conn)
+    outline = _grip_outline(grip="松")
+    led = _plain_ledger([{"what": "音量没交代", "planned": False}])
+    ch = generate_chapter(conn, FakeLLM([outline, "沈照出井了。", led]), S, bid)
+    assert ch["status"] == "accepted" and ch["attempts"] == 1
+    note = conn.execute("SELECT note FROM pipeline_runs WHERE note LIKE '矛盾(未打回)%'").fetchone()
+    assert note is not None and "音量没交代" in note["note"]
+
+
+def test_loose_grip_rejects_must_contradiction(conn):
+    """松档也拦"不能错:"开头的原则性矛盾。"""
+    bid = _grip_book(conn)
+    outline = _grip_outline(grip="松", must=["厉九不出手"])
+    bad = _plain_ledger([{"what": "不能错:厉九出手了", "planned": False}])
+    llm = FakeLLM([outline, "沈照出井了。", bad, "沈照出井,厉九没出手。", _plain_ledger()])
+    ch = generate_chapter(conn, llm, S, bid)
+    assert ch["attempts"] == 2
+    assert any("不能错:厉九出手了" in r[0] for r in
+               conn.execute("SELECT note FROM pipeline_runs WHERE note LIKE 'contradiction:%'"))

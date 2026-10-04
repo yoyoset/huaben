@@ -11,6 +11,7 @@ from ..context import StoryContext
 from ..craft import from_book, novelty_rule, render_craft
 from ..devices import avoid_rule, from_rows, known_list
 from ..foreshadow_scale import planting_rule
+from ..grip import ending_line, grip_lines, must_block
 from ..planting import HOOK_RULE, PLANT_SCHEMA, plant_rule
 from ..render import due_foreshadow_ids, handoff_text, recent_text, render_bible, render_memory, render_style_samples
 from .rules import (BOND_RULE, PAYOFF_RULE, REPETITION_RULE, SIGNATURE_RULE, SPEECH_RULE,  # noqa: F401
@@ -97,6 +98,7 @@ def work_order(idx: int, outline: dict, open_foreshadows: list[dict] = ()) -> st
     - 本章要推进/回收的伏笔:否则"伏笔该推进的推进"只停留在编辑脑子里;
     - 有意反转:否则作者只看到"死者不得复活"之类的硬约束,会拒绝执行或写得自相矛盾。"""
     lines = [f"【本章工单】第 {idx} 章《{outline['title']}》", outline["outline"]]
+    lines += grip_lines(outline)
     if outline.get("when"):
         lines.append(f"本章时间:{outline['when']}")
     by_id = {f["id"]: f for f in open_foreshadows}
@@ -122,8 +124,8 @@ def work_order(idx: int, outline: dict, open_foreshadows: list[dict] = ()) -> st
         lines.append("下面这些句子是定好的原话,必须一字不改地出现在正文里(可以配上说话人和动作,句子本身不许增删改):")
         lines += [f"- {s}" for s in outline["lines"]]
     lines.append(f"结尾钩子:{outline['hook']}")
-    if outline.get("ending"):
-        lines.append(f"本章最后一句必须是(一字不改),写到这句就停,不要再往下写——后面的事是下一章的:{outline['ending']}")
+    if (stop := ending_line(outline)) is not None:
+        lines.append(stop)
     return "\n".join(lines)
 
 
@@ -165,12 +167,14 @@ def write_messages(ctx: StoryContext, outline: dict, words: int, feedback: list[
 
 
 def ledger_messages(ctx: StoryContext, outline: dict, body: str) -> list[dict]:
+    block = must_block(outline)
+    must = f"\n\n{block}" if block else ""
     user = (
         # 检索范围 = 章纲 + 正文:作者自己带进来的人(章纲没提)也必须拿账本状态核对,否则死人复活查不出
         f"{render_memory(ctx, scope=outline_scope(outline) + ' ' + body, focus_ids=outline.get('foreshadows', []))}\n\n"
         f"【本章章纲】\n{outline['outline']}\n本章有意为之的反转:{outline.get('planned_reversals') or '无'}\n"
         f"章纲点名要推进的伏笔:{'、'.join(f'#{i}' for i in outline.get('foreshadows', [])) or '无'}"
-        "(正文里确有推进/回收的,务必在 foreshadows_update 登记)\n\n"
+        f"(正文里确有推进/回收的,务必在 foreshadows_update 登记){must}\n\n"
         f"【第 {ctx.next_idx} 章正文】\n{body}\n\n"
         f"【最近用过的手段】{known_list(from_rows(ctx.recent))}\n\n"
         "请完成入账与核对:提取摘要;更新出场人物的现状(生死/位置/能力/关系/知情);登记新伏笔与伏笔进展;"

@@ -12,6 +12,8 @@ import json
 import sys
 from pathlib import Path
 
+from .grip import GRIPS, grip_of
+
 MODES = ("战", "笑", "情", "谜", "修")
 RESULTS = ("胜", "负", "平", "无")
 TURNS = ("无", "小", "中", "大")
@@ -42,6 +44,8 @@ def rhythm_problems(chapters: list[dict]) -> list[str]:
             problems.append(f"第 {n} 章 result 必须是 {'/'.join(RESULTS)} 之一")
         if (ch.get("turn") or "无") not in TURNS:
             problems.append(f"第 {n} 章 turn 必须是 {'/'.join(TURNS)} 之一(可不填)")
+        if ch.get("grip") and ch["grip"] not in GRIPS:
+            problems.append(f"第 {n} 章 grip 必须是 {'/'.join(GRIPS)} 之一(可不填)")
     return problems
 
 
@@ -86,6 +90,15 @@ def rhythm_warnings(chapters: list[dict]) -> list[str]:
             w.append("这一批里没有一章张力到 5,缺一个最高点")
         if "笑" not in modes:
             w.append("这一批里没有一章以「笑」为主")
+    if any(str(c.get("grip") or "").strip() for c in chapters):  # 只有这批有人标了档位才查松紧分布
+        grips = [grip_of(c) for c in chapters]  # 没填的按"紧"算
+        for start, length in _runs([g == "紧" for g in grips]):
+            if length >= 4:
+                w.append(f"第 {start + 1}~{start + length} 章连续 {length} 章都是「紧」,写作模型没有喘气的地方")
+        if n >= 10:
+            loose = sum(1 for g in grips if g == "松")
+            if loose < n / 5:
+                w.append(f"这一批 {n} 章里只有 {loose} 章是「松」,不到五分之一")
     return w
 
 

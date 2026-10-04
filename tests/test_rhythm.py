@@ -129,6 +129,29 @@ def test_turn_marker_validation():
     assert rhythm_problems([ch(1)]) == []  # 不填 turn 不报
 
 
+def test_grip_marker_validation():
+    bad = ch(1)
+    bad["grip"] = "硬"
+    assert any("grip" in p for p in rhythm_problems([bad]))
+    assert rhythm_problems([ch(1)]) == []  # 不填 grip 不报
+
+
+def test_grip_warnings_only_when_marked():
+    tight = [ch(i + 1, mode=MODES[i % 5]) for i in range(5)]
+    for c in tight:
+        c["grip"] = "紧"
+    assert any("连续 5 章都是「紧」" in w for w in rhythm_warnings(tight))
+
+    loose = [ch(i + 1, mode=MODES[i % 5]) for i in range(10)]
+    for i, c in enumerate(loose):
+        c["grip"] = "松" if i == 0 else "中"
+    assert any("不到五分之一" in w for w in rhythm_warnings(loose))
+
+    plain = [ch(i + 1, mode=MODES[i % 5]) for i in range(10)]  # 一个都没填:两条都不查
+    ws = rhythm_warnings(plain)
+    assert not any("都是「紧」" in w for w in ws) and not any("不到五分之一" in w for w in ws)
+
+
 def test_cli_prints_warnings_or_pass(tmp_path, capsys):
     bad = tmp_path / "bad.json"
     bad.write_text(json.dumps({"chapters": [ch(i + 1, mode="笑", gain="g") for i in range(4)]}, ensure_ascii=False),
